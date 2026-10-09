@@ -31,6 +31,7 @@ sealed interface Screen {
     data object Downloaded : Screen
     data object Player : Screen
     data object Settings : Screen
+    data object Stats : Screen
 }
 
 /** Всё состояние приложения в одном месте: экран, библиотека, аккаунт, плеер. */

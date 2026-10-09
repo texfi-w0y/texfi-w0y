@@ -1,5 +1,6 @@
 package com.texfi.w0y.desktop
 
+import com.texfi.w0y.desktop.i18n.S
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -30,7 +32,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +43,15 @@ import com.texfi.w0y.data.Reverb
 import com.texfi.w0y.data.SoundProfile
 import java.util.Locale
 
-private enum class PlayerTab(val label: String) { Queue("Очередь"), Similar("Похожее"), Lyrics("Текст"), Sound("Звук") }
+private enum class PlayerTab(val key: String) {
+    Queue("player_queue"),
+    Similar("d_tab_similar"),
+    Lyrics("player_lyrics"),
+    Sound("player_sound"),
+    ;
+
+    val label: String get() = S(key)
+}
 
 /** Полноэкранный плеер: большая обложка слева, справа очередь, текст и звук. */
 @Composable
@@ -53,9 +65,19 @@ fun PlayerScreen(app: AppState) {
     val glowBrush = glow?.let { androidx.compose.ui.graphics.Brush.verticalGradient(listOf(it.copy(alpha = 0.30f), androidx.compose.ui.graphics.Color.Transparent)) }
     Row(Modifier.fillMaxSize().then(if (glowBrush != null) Modifier.background(glowBrush) else Modifier).padding(28.dp)) {
         Column(Modifier.width(340.dp).fillMaxHeight(), horizontalAlignment = Alignment.Start) {
-            PixelCover(song?.thumbnailUrl)
+            val viz = app.st.playerArt == PlayerArt.VISUALIZER && SpectrumCapture.available
+            Box(Modifier.clickable(enabled = SpectrumCapture.available) { app.setSt { it.copy(playerArt = if (viz) PlayerArt.COVER else PlayerArt.VISUALIZER) } }) {
+                if (viz) {
+                    Box(Modifier.width(340.dp).height(340.dp).clip(RoundedCornerShape(Look.cover)).background(C.Surface)) {
+                        if (app.st.visualizerCoverBackdrop) Cover(song?.thumbnailUrl, 340.dp, Modifier.alpha(0.3f))
+                        Visualizer(app.st.visualizerStyle, p.playing, app.st.visualizerSensitivity, app.st.visualizerFps, Modifier.fillMaxSize().padding(12.dp))
+                    }
+                } else {
+                    PixelCover(song?.thumbnailUrl)
+                }
+            }
             Gap(h = 20)
-            Txt(song?.title ?: "Ничего не играет", size = 22, weight = FontWeight.Medium, maxLines = 2)
+            Txt(song?.title ?: S("d_idle"), size = 22, weight = FontWeight.Medium, maxLines = 2)
             Gap(h = 4)
             if (song != null) {
                 Txt(
@@ -74,21 +96,27 @@ fun PlayerScreen(app: AppState) {
                         },
                     )
                 }
-                if (!p.soundNow.isPlain) Txt("твоя версия · ${p.soundNow.label}", color = C.Sand, size = 12, modifier = Modifier.padding(top = 6.dp))
+                if (!p.soundNow.isPlain) Txt(S("d_your_version", p.soundNow.label), color = C.Sand, size = 12, modifier = Modifier.padding(top = 6.dp))
             }
             Gap(h = 18)
             SeekRow(p, app.st.seekStepSec)
             Gap(h = 14)
             RowCenter {
+                IconButton(Glyph.Shuffle, onClick = p::toggleShuffle, color = if (app.st.shuffle) C.Blue else C.Muted, size = 18.dp, box = 38.dp)
                 IconButton(Glyph.Prev, onClick = p::previous, size = 24.dp, box = 44.dp)
                 Gap(w = 8)
                 Box(
-                    Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue)
-                        .border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)).clickable(onClick = p::toggle),
+                    (if (Look.smooth) Modifier.width(54.dp).height(54.dp).clip(androidx.compose.foundation.shape.CircleShape).background(C.Blue)
+                    else Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue).border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)))
+                        .clickable(onClick = p::toggle),
                     contentAlignment = Alignment.Center,
-                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.Text, 28.dp) }
+                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.OnAccent, 28.dp) }
                 Gap(w = 8)
                 IconButton(Glyph.Next, onClick = { p.nextClick() }, size = 24.dp, box = 44.dp)
+                Box {
+                    IconButton(Glyph.Repeat, onClick = p::cycleRepeat, color = if (app.st.repeat != RepeatMode.OFF) C.Blue else C.Muted, size = 18.dp, box = 38.dp)
+                    if (app.st.repeat == RepeatMode.ONE) Txt("1", size = 9, color = C.Blue, weight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                }
                 Box(Modifier.weight(1f))
                 if (song != null) {
                     val liked = song.id in app.likedIds
@@ -104,9 +132,9 @@ fun PlayerScreen(app: AppState) {
                 tabs.forEach { t ->
                     val active = t == tab
                     Box(
-                        Modifier.clip(RoundedCornerShape(4.dp)).background(if (active) C.SurfaceHigh else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { tab = t }.padding(horizontal = 10.dp, vertical = 10.dp),
-                    ) { Txt(t.label.uppercase(), pixel = true, size = 9, color = if (active) C.Blue else C.Muted) }
+                        Modifier.clip(RoundedCornerShape(if (Look.smooth) 50.dp else 4.dp)).background(if (active) (if (Look.smooth) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else androidx.compose.ui.graphics.Color.Transparent)
+                            .clickable { tab = t }.padding(horizontal = 12.dp, vertical = 10.dp),
+                    ) { Txt(if (Look.smooth) t.label else t.label.uppercase(), pixel = true, size = if (Look.smooth) 14 else 9, color = if (active) C.Blue else C.Muted) }
                     Gap(w = 2)
                 }
             }
@@ -125,6 +153,10 @@ fun PlayerScreen(app: AppState) {
 
 @Composable
 private fun PixelCover(url: String?) {
+    if (Look.smooth) {
+        Box(Modifier.shadow(18.dp, RoundedCornerShape(Look.cover + 6.dp), clip = false)) { Cover(url, 340.dp) }
+        return
+    }
     Box(Modifier.drawBehind { drawRect(C.Shadow, androidx.compose.ui.geometry.Offset(6.dp.toPx(), 6.dp.toPx()), size) }.border(2.dp, C.Border, RoundedCornerShape(4.dp))) {
         Cover(url, 340.dp)
     }
@@ -155,13 +187,13 @@ fun fmtTime(seconds: Double): String {
 fun QueueList(app: AppState) {
     val p = app.player
     if (p.queue.isEmpty()) {
-        Empty("Очередь пуста. Включи любой трек.")
+        Empty(S("d_queue_empty"))
         return
     }
     val state = rememberLazyListState()
     LaunchedEffect(p.index) { if (p.index >= 0) state.animateScrollToItem((p.index - 2).coerceAtLeast(0)) }
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
+        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
             itemsIndexed(p.queue, key = { i, s -> "${s.id}#$i" }) { i, song ->
                 val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 RowCenter(
@@ -191,7 +223,7 @@ fun QueueList(app: AppState) {
 private fun LyricsPane(app: AppState) {
     val song = app.player.current
     if (song == null) {
-        Empty("Включи трек, и здесь появится его текст.")
+        Empty(S("d_lyrics_idle"))
         return
     }
     val lyrics by produceState<Lyrics?>(null, song.id) {
@@ -201,11 +233,11 @@ private fun LyricsPane(app: AppState) {
     var translateTo by remember(song.id) { mutableStateOf<String?>(null) }
     val data = lyrics
     if (data == null) {
-        Empty("Ищу текст…")
+        Empty(S("d_lyrics_searching"))
         return
     }
     if (data.isEmpty) {
-        Empty("Текст этой песни не нашёлся в LRCLIB.")
+        Empty(S("player_lyrics_none"))
         return
     }
     val lines = if (data.synced.isNotEmpty()) data.synced.map { it.text } else data.plain.orEmpty().lines()
@@ -222,20 +254,20 @@ private fun LyricsPane(app: AppState) {
     LaunchedEffect(active) { if (active >= 0) state.animateScrollToItem((active - 3).coerceAtLeast(0)) }
     Column(Modifier.fillMaxSize()) {
         RowCenter {
-            val lang = Locale.getDefault().language.ifBlank { "en" }
-            PixelButton(if (translateTo == null) "Перевести ($lang)" else "Без перевода", onClick = { translateTo = if (translateTo == null) lang else null }, primary = false)
-            if (translateTo != null && translated == null) Txt("  перевожу…", color = C.Muted, size = 12)
-            if (data.synced.isEmpty()) Txt("  текст без таймкодов", color = C.Muted, size = 12)
+            val lang = com.texfi.w0y.desktop.i18n.Strings.tag
+            PixelButton(if (translateTo == null) S("player_lyrics_translate") else S("player_lyrics_translate_off"), onClick = { translateTo = if (translateTo == null) lang else null }, primary = false)
+            if (translateTo != null && translated == null) Txt("  …", color = C.Muted, size = 12)
+            if (data.synced.isEmpty()) Txt("  " + S("d_lyrics_untimed"), color = C.Muted, size = 12)
         }
         Gap(h = 10)
         Box(Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
+            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
                 itemsIndexed(lines) { i, line ->
                     val current = i == active
                     Column(
                         Modifier.fillMaxWidth().clickable(enabled = data.synced.isNotEmpty()) { app.player.seekSeconds(data.synced[i].timeMs / 1000.0) }.padding(vertical = 5.dp),
                     ) {
-                        Txt(line, color = if (current) C.Text else C.Muted, size = if (current) 21 else 18, weight = if (current) FontWeight.Medium else FontWeight.Normal, maxLines = 3)
+                        Txt(line, color = if (current) C.Text else C.Muted, size = if (current) app.st.lyricsSize.sp + 3 else app.st.lyricsSize.sp, weight = if (current) FontWeight.Medium else FontWeight.Normal, maxLines = 3)
                         translated?.getOrNull(i)?.takeIf { it.isNotBlank() && it != line }?.let { Txt(it, color = if (current) C.Sand else C.SandDeep, size = 14, maxLines = 3) }
                     }
                 }
@@ -251,23 +283,23 @@ private fun SoundPane(app: AppState) {
     val p = app.player
     val song = p.current
     if (song == null) {
-        Empty("Включи трек: звук настраивается для каждого трека отдельно.")
+        Empty(S("d_sound_idle"))
         return
     }
     val s = p.soundNow
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Txt("Версия принадлежит этому треку: остальные звучат как обычно.", color = C.Muted, size = 13, maxLines = 2)
+        Txt(S("player_version_own"), color = C.Muted, size = 13, maxLines = 2)
         RowCenter {
-            PixelButton("Обычное", onClick = { p.setSound(SoundProfile.Plain) }, primary = s.isPlain, modifier = Modifier)
+            PixelButton(S("preset_normal"), onClick = { p.setSound(SoundProfile.Plain) }, primary = s.isPlain, modifier = Modifier)
             Gap(w = 8)
-            PixelButton("Замедленное", onClick = { p.setSound(SoundProfile.Slowed) }, primary = s == SoundProfile.Slowed)
+            PixelButton(S("preset_slowed"), onClick = { p.setSound(SoundProfile.Slowed) }, primary = s == SoundProfile.Slowed)
             Gap(w = 8)
-            PixelButton("Ускоренное", onClick = { p.setSound(SoundProfile.Sped) }, primary = s == SoundProfile.Sped)
+            PixelButton(S("preset_sped"), onClick = { p.setSound(SoundProfile.Sped) }, primary = s == SoundProfile.Sped)
         }
-        LabeledSlider("Скорость", "%.2f×".format(s.speed), s.speed, 0.5f..2f) { p.setSound(s.copy(speed = it)) }
-        LabeledSlider("Тон", "%.2f".format(s.pitch), s.pitch, 0.7f..1.4f) { p.setSound(s.copy(pitch = it)) }
+        LabeledSlider(S("settings_speed_title"), "%.2f×".format(s.speed), s.speed, 0.5f..2f) { p.setSound(s.copy(speed = it)) }
+        LabeledSlider(S("settings_pitch_title"), "%.2f".format(s.pitch), s.pitch, 0.7f..1.4f) { p.setSound(s.copy(pitch = it)) }
         Column {
-            SectionLabel("Эхо")
+            SectionLabel(S("settings_reverb_title"))
             Gap(h = 8)
             RowCenter {
                 Reverb.entries.forEach { r ->
@@ -276,7 +308,7 @@ private fun SoundPane(app: AppState) {
                 }
             }
         }
-        Txt("Тон меняет rubberband, эхо — фильтр ffmpeg внутри mpv.", color = C.Muted, size = 11)
+        Txt(S("d_sound_hint"), color = C.Muted, size = 11)
     }
 }
 
@@ -298,7 +330,7 @@ fun SleepMenu(app: AppState) {
     Box {
         RowCenter {
             if (p.sleepRemaining != null) Txt(fmtTime(p.sleepRemaining!!.toDouble()), color = C.Sand, size = 12)
-            if (p.sleepAfterTrack) Txt("до конца", color = C.Sand, size = 12)
+            if (p.sleepAfterTrack) Txt(S("player_sleep_track"), color = C.Sand, size = 12)
             IconButton(Glyph.Timer, onClick = { open = !open }, color = if (active) C.Sand else C.Muted, size = 18.dp)
         }
         if (open) {
@@ -309,12 +341,12 @@ fun SleepMenu(app: AppState) {
                 properties = androidx.compose.ui.window.PopupProperties(focusable = true),
             ) {
                 Column(Modifier.width(220.dp).background(C.SurfaceHigh, RoundedCornerShape(6.dp)).border(2.dp, C.Border, RoundedCornerShape(6.dp)).padding(6.dp)) {
-                    Txt("ТАЙМЕР СНА", pixel = true, size = 9, color = C.Blue, modifier = Modifier.padding(8.dp))
+                    Txt(S("player_sleep_title"), pixel = true, size = 9, color = C.Blue, modifier = Modifier.padding(8.dp))
                     listOf(app.st.sleepTimerDefaultMin, 15, 30, 45, 60).distinct().forEach { m ->
-                        Txt(if (m == app.st.sleepTimerDefaultMin) "Через $m мин  ·  по умолчанию" else "Через $m мин", size = 14, modifier = Modifier.fillMaxWidth().clickable { p.startSleep(m); open = false }.padding(8.dp))
+                        Txt(if (m == app.st.sleepTimerDefaultMin) S("d_sleep_default", m) else S("settings_sleep_minutes", m), size = 14, modifier = Modifier.fillMaxWidth().clickable { p.startSleep(m); open = false }.padding(8.dp))
                     }
-                    Txt("До конца трека", size = 14, modifier = Modifier.fillMaxWidth().clickable { p.sleepUntilTrackEnds(); open = false }.padding(8.dp))
-                    if (active) Txt("Выключить", color = C.Sand, size = 14, modifier = Modifier.fillMaxWidth().clickable { p.cancelSleep(); open = false }.padding(8.dp))
+                    Txt(S("player_sleep_track"), size = 14, modifier = Modifier.fillMaxWidth().clickable { p.sleepUntilTrackEnds(); open = false }.padding(8.dp))
+                    if (active) Txt(S("player_sleep_off"), color = C.Sand, size = 14, modifier = Modifier.fillMaxWidth().clickable { p.cancelSleep(); open = false }.padding(8.dp))
                 }
             }
         }
@@ -326,7 +358,7 @@ fun SleepMenu(app: AppState) {
 private fun SimilarPane(app: AppState) {
     val song = app.player.current
     if (song == null) {
-        Empty("Включи трек, и здесь появятся похожие.")
+        Empty(S("d_similar_idle"))
         return
     }
     var reload by remember { mutableStateOf(0) }
@@ -336,17 +368,17 @@ private fun SimilarPane(app: AppState) {
     }
     val list = recs
     Column(Modifier.fillMaxSize()) {
-        Txt("Подобрано по радио YouTube и твоему вкусу: кого слушаешь чаще, что лайкал и искал. Только что игранное — в конце.", color = C.Muted, size = 12, maxLines = 3)
+        Txt(S("d_similar_note"), color = C.Muted, size = 12, maxLines = 3)
         Gap(h = 10)
         RowCenter {
-            PixelButton("Все в очередь", onClick = { list?.forEach { app.player.enqueue(it, next = false) } }, enabled = !list.isNullOrEmpty())
+            PixelButton(S("queue_enqueue"), onClick = { list?.forEach { app.player.enqueue(it, next = false) } }, enabled = !list.isNullOrEmpty())
             Gap(w = 8)
-            PixelButton("Обновить", onClick = { reload++ }, primary = false)
+            PixelButton(S("library_sync"), onClick = { reload++ }, primary = false)
         }
         Gap(h = 10)
         when {
-            list == null -> Empty("Подбираю…")
-            list.isEmpty() -> Empty("YouTube не предложил ничего похожего.")
+            list == null -> Empty(S("player_finding_similar"))
+            list.isEmpty() -> Empty(S("d_similar_none"))
             else -> SongList(app, list)
         }
     }

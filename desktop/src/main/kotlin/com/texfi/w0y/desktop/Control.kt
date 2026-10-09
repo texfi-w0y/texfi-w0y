@@ -58,7 +58,11 @@ object Control {
             true
         }.getOrDefault(false)
 
+    /** Что сделать, чтобы окно показалось: ставит Main. */
+    var raiseHook: () -> Unit = {}
+
     fun start(app: AppState, scope: CoroutineScope, raise: () -> Unit) {
+        raiseHook = raise
         runCatching { Files.deleteIfExists(path) }
         val server = runCatching { ServerSocketChannel.open(StandardProtocolFamily.UNIX).also { it.bind(UnixDomainSocketAddress.of(path)) } }.getOrNull() ?: return
         thread(isDaemon = true, name = "w0y-control") {

@@ -65,6 +65,7 @@ fun App(app: AppState) {
             Screen.Queue, Screen.Player -> PlayerScreen(app)
             Screen.Downloaded -> DownloadedScreen(app)
             Screen.Settings -> SettingsScreen(app)
+            Screen.Stats -> StatsScreen(app)
             Screen.Liked -> LikedScreen(app)
             Screen.History -> HistoryScreen(app)
             is Screen.Album -> AlbumScreen(app, s)
@@ -187,7 +188,7 @@ private fun Sidebar(app: AppState, modifier: Modifier = Modifier) {
         Txt("texfi", pixel = true, size = if (smooth) 12 else 9, color = C.Sand, modifier = Modifier.padding(start = 8.dp, bottom = 24.dp))
         NavItem(S("tab_home"), Glyph.Home, app.screen == Screen.Home) { app.tab(Screen.Home) }
         NavItem(S("tab_search"), Glyph.Search, app.screen == Screen.Search) { app.tab(Screen.Search) }
-        NavItem(S("tab_library"), Glyph.Library, app.screen in listOf(Screen.Library, Screen.Liked, Screen.History, Screen.Downloaded) || app.screen is Screen.Local) { app.tab(Screen.Library) }
+        NavItem(S("tab_library"), Glyph.Library, app.screen in listOf(Screen.Library, Screen.Liked, Screen.History, Screen.Downloaded, Screen.Stats) || app.screen is Screen.Local) { app.tab(Screen.Library) }
         NavItem(S("d_tab_player"), Glyph.Wave, app.screen == Screen.Player || app.screen == Screen.Queue) { app.tab(Screen.Player) }
         NavItem(S("settings_title"), Glyph.Gear, app.screen == Screen.Settings) { app.tab(Screen.Settings) }
         Box(Modifier.weight(1f))

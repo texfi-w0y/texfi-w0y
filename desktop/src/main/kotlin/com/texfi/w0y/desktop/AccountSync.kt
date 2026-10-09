@@ -1,5 +1,6 @@
 package com.texfi.w0y.desktop
 
+import com.texfi.w0y.desktop.i18n.S
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -47,7 +48,7 @@ class AccountSync(private val app: AppState, private val yt: Yt) {
             lastRun = now()
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            error = "Сверка не удалась: ${e.message}"
+            error = S("library_sync_failed", e.message ?: "")
         } finally {
             running = false
             lock.unlock()

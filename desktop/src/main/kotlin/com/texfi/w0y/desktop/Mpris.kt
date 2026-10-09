@@ -66,7 +66,7 @@ class Mpris(private val app: AppState, private val scope: CoroutineScope) : Medi
         if (!ok) return false
         started.set(true)
         scope.launch {
-            snapshotFlow { Snapshot(app.player.current?.id, app.player.playing, app.player.loading, app.player.duration > 0) }
+            snapshotFlow { Snapshot(app.player.current?.id, app.player.playing, app.player.loading, app.player.duration > 0, app.st.shuffle, app.st.repeat) }
                 .distinctUntilChanged()
                 .collect { notifyChanged() }
         }
@@ -77,7 +77,7 @@ class Mpris(private val app: AppState, private val scope: CoroutineScope) : Medi
         runCatching { connection?.close() }
     }
 
-    private data class Snapshot(val id: String?, val playing: Boolean, val loading: Boolean, val hasDuration: Boolean)
+    private data class Snapshot(val id: String?, val playing: Boolean, val loading: Boolean, val hasDuration: Boolean, val shuffle: Boolean, val repeat: RepeatMode)
 
     private fun notifyChanged() {
         val c = connection ?: return
@@ -107,11 +107,11 @@ class Mpris(private val app: AppState, private val scope: CoroutineScope) : Medi
             "Metadata" to Variant(metadata(), "a{sv}"),
             "Volume" to Variant(p.volume / 100.0),
             "Position" to Variant((p.position * 1_000_000).toLong(), "x"),
-            "Rate" to Variant(1.0),
+            "Rate" to Variant(p.soundNow.speed.toDouble()),
             "MinimumRate" to Variant(1.0),
             "MaximumRate" to Variant(1.0),
-            "LoopStatus" to Variant("None"),
-            "Shuffle" to Variant(false),
+            "LoopStatus" to Variant(when (app.st.repeat) { RepeatMode.OFF -> "None"; RepeatMode.ALL -> "Playlist"; RepeatMode.ONE -> "Track" }),
+            "Shuffle" to Variant(app.st.shuffle),
             "CanGoNext" to Variant(p.queue.isNotEmpty()),
             "CanGoPrevious" to Variant(p.queue.isNotEmpty()),
             "CanPlay" to Variant(p.current != null),
@@ -124,7 +124,7 @@ class Mpris(private val app: AppState, private val scope: CoroutineScope) : Medi
     private fun rootProps(): Map<String, Variant<*>> =
         mapOf(
             "CanQuit" to Variant(true),
-            "CanRaise" to Variant(false),
+            "CanRaise" to Variant(true),
             "HasTrackList" to Variant(false),
             "Identity" to Variant("w0y"),
             "DesktopEntry" to Variant("w0y"),
@@ -142,13 +142,21 @@ class Mpris(private val app: AppState, private val scope: CoroutineScope) : Medi
     override fun GetAll(interfaceName: String?): Map<String, Variant<*>> = if (interfaceName == playerIface) playerProps() else rootProps()
 
     override fun <A> Set(interfaceName: String?, propertyName: String?, value: A) {
-        if (interfaceName == playerIface && propertyName == "Volume") {
-            (value as? Double)?.let { scope.launch { app.player.changeVolume((it * 100).toInt()) } }
+        if (interfaceName != playerIface) return
+        scope.launch {
+            when (propertyName) {
+                "Volume" -> (value as? Double)?.let { app.player.changeVolume((it * 100).toInt()) }
+                "Shuffle" -> (value as? Boolean)?.let { app.player.setShuffle(it) }
+                "LoopStatus" ->
+                    app.setSt {
+                        it.copy(repeat = when (value as? String) { "Track" -> RepeatMode.ONE; "Playlist" -> RepeatMode.ALL; else -> RepeatMode.OFF })
+                    }
+            }
         }
     }
 
     // ---- org.mpris.MediaPlayer2
-    override fun Raise() = Unit
+    override fun Raise() { Control.raiseHook() }
 
     override fun Quit() {
         app.shutdown()

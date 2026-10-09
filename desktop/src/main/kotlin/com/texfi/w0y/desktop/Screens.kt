@@ -64,10 +64,11 @@ fun ScreenFrame(title: String, app: AppState, canBack: Boolean, actions: @Compos
                 IconButton(Glyph.Prev, onClick = app::back)
                 Gap(w = 8)
             }
-            Txt(title.uppercase(), pixel = true, size = 18, modifier = Modifier.weight(1f))
+            if (Look.smooth) Txt(title.replaceFirstChar(Char::uppercase), size = 28, weight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
+            else Txt(title.uppercase(), pixel = true, size = 18, modifier = Modifier.weight(1f))
             actions()
         }
-        Box(Modifier.padding(top = 10.dp).width(56.dp).height(3.dp).background(C.Blue))
+        if (!Look.smooth) Box(Modifier.padding(top = 10.dp).width(56.dp).height(3.dp).background(C.Blue))
         Gap(h = 14)
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }
     }
@@ -84,7 +85,7 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, extra: @Composabl
     val liked = song.id in app.likedIds
     val current = app.player.current?.id == song.id
     RowCenter(
-        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(6.dp)).background(bg)
+        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(Look.row)).background(bg)
             .clickable(onClick = onPlay).padding(horizontal = 8.dp, vertical = if (app.st.compactRows) 2.dp else 6.dp),
     ) {
         Cover(song.thumbnailUrl, if (app.st.compactRows) 32.dp else 44.dp)
@@ -109,7 +110,7 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, extra: @Composabl
 @Composable
 fun SongList(app: AppState, songs: List<SongItem>, state: LazyListState = rememberLazyListState(), header: @Composable () -> Unit = {}, extra: @Composable (SongItem) -> Unit = {}) {
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
+        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
             item { header() }
             itemsIndexed(songs, key = { i, s -> "${s.id}#$i" }) { i, song ->
                 SongRow(app, song, onPlay = { app.player.play(songs, i) }) { extra(song) }
@@ -124,7 +125,7 @@ fun SongList(app: AppState, songs: List<SongItem>, state: LazyListState = rememb
 fun CardTile(title: String, subtitle: String?, thumb: String?, circle: Boolean = false, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     Column(
-        Modifier.width(150.dp).hoverable(source).clip(RoundedCornerShape(6.dp)).background(hoverBackground(source))
+        Modifier.width(150.dp).hoverable(source).clip(RoundedCornerShape(Look.row)).background(hoverBackground(source))
             .clickable(onClick = onClick).padding(8.dp),
     ) {
         Cover(thumb, 134.dp, circle = circle)
@@ -177,7 +178,7 @@ fun AppState.openCard(card: PlaylistCard) {
 
 @Composable
 fun SearchScreen(app: AppState) {
-    ScreenFrame("Поиск", app, canBack = false) {
+    ScreenFrame(S("tab_search"), app, canBack = false) {
         val state = rememberLazyListState()
         Column(Modifier.fillMaxSize()) {
             RowCenter(
@@ -186,7 +187,7 @@ fun SearchScreen(app: AppState) {
                 Icon(Glyph.Search, C.Muted, 18.dp)
                 Gap(w = 10)
                 Box(Modifier.weight(1f)) {
-                    if (app.searchQuery.isEmpty()) Txt("Треки, альбомы, артисты", color = C.Muted, size = 15)
+                    if (app.searchQuery.isEmpty()) Txt(S("search_placeholder"), color = C.Muted, size = 15)
                     BasicTextField(
                         value = app.searchQuery,
                         onValueChange = { app.searchQuery = it },
@@ -221,14 +222,14 @@ fun SearchScreen(app: AppState) {
             when {
                 typing && suggestions.isNotEmpty() ->
                     Column(Modifier.fillMaxWidth()) {
-                        SectionLabel("Подсказки YouTube", Modifier.padding(bottom = 6.dp))
+                        SectionLabel(S("d_search_suggestions"), Modifier.padding(bottom = 6.dp))
                         suggestions.forEach { sug ->
                             Txt(sug, size = 15, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).clickable { app.searchQuery = sug; app.search(sug) }.padding(10.dp))
                         }
                     }
                 app.searchQuery.isEmpty() && result == null && app.lib.searchHistory.isNotEmpty() && app.st.saveSearchHistory ->
                     Column(Modifier.fillMaxWidth()) {
-                        SectionLabel("Недавние запросы", Modifier.padding(bottom = 6.dp))
+                        SectionLabel(S("search_recent"), Modifier.padding(bottom = 6.dp))
                         app.lib.searchHistory.forEach { h ->
                             RowCenter(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).clickable { app.searchQuery = h; app.search(h) }.padding(horizontal = 10.dp, vertical = 4.dp)) {
                                 Txt(h, size = 15, modifier = Modifier.weight(1f))
@@ -236,17 +237,17 @@ fun SearchScreen(app: AppState) {
                             }
                         }
                     }
-                app.searching -> Empty("Ищу…")
+                app.searching -> Empty(S("d_searching"))
                 app.searchError != null -> Empty(app.searchError!!)
-                result == null -> Empty("Введи запрос и нажми Enter.")
+                result == null -> Empty(S("d_search_enter"))
                 else ->
                     Box(Modifier.fillMaxSize()) {
-                        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
-                            if (result.songs.isNotEmpty()) item { SectionLabel("Треки", Modifier.padding(vertical = 8.dp)) }
+                        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
+                            if (result.songs.isNotEmpty()) item { SectionLabel(S("search_filter_songs"), Modifier.padding(vertical = 8.dp)) }
                             itemsIndexed(result.songs) { i, song -> SongRow(app, song, onPlay = { app.player.play(result.songs, i) }) }
                             if (result.albums.isNotEmpty()) {
                                 item {
-                                    SectionLabel("Альбомы", Modifier.padding(top = 16.dp, bottom = 8.dp))
+                                    SectionLabel(S("search_filter_albums"), Modifier.padding(top = 16.dp, bottom = 8.dp))
                                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         items(result.albums) { c -> CardTile(c.title, c.subtitle, c.thumbnailUrl) { app.openCard(c) } }
                                     }
@@ -254,7 +255,7 @@ fun SearchScreen(app: AppState) {
                             }
                             if (result.artists.isNotEmpty()) {
                                 item {
-                                    SectionLabel("Артисты", Modifier.padding(top = 16.dp, bottom = 8.dp))
+                                    SectionLabel(S("search_filter_artists"), Modifier.padding(top = 16.dp, bottom = 8.dp))
                                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         items(result.artists) { a ->
                                             CardTile(a.name, a.subtitle, a.thumbnailUrl, circle = true) { app.open(Screen.Artist(a.browseId, a.name, a.thumbnailUrl)) }
@@ -281,9 +282,9 @@ private fun DetailHeader(app: AppState, title: String, subtitle: String?, thumb:
             subtitle?.let { Txt(it, color = C.Muted, size = 13) }
             Gap(h = 12)
             RowCenter {
-                PixelButton("Играть", onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
+                PixelButton(S("album_play"), onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
                 Gap(w = 10)
-                PixelButton("Перемешать", onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
+                PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
             }
         }
     }
@@ -296,7 +297,7 @@ fun AlbumScreen(app: AppState, s: Screen.Album) {
     }
     ScreenFrame(s.title, app, canBack = true) {
         val songs = page?.songs.orEmpty()
-        if (page == null) Empty("Загружаю…") else SongList(app, songs, header = { DetailHeader(app, s.title, page?.subtitle, page?.thumbnailUrl ?: s.thumb, songs) })
+        if (page == null) Empty(S("common_loading")) else SongList(app, songs, header = { DetailHeader(app, s.title, page?.subtitle, page?.thumbnailUrl ?: s.thumb, songs) })
     }
 }
 
@@ -310,13 +311,13 @@ fun ArtistScreen(app: AppState, s: Screen.Artist) {
     ScreenFrame(s.name, app, canBack = true) {
         val pg = page
         if (pg == null) {
-            Empty("Загружаю…")
+            Empty(S("common_loading"))
             return@ScreenFrame
         }
         val songs = allSongs ?: pg.songs
         val state = rememberLazyListState()
         Box(Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
+            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
                 item {
                     RowCenter(Modifier.padding(bottom = 20.dp)) {
                         Cover(pg.thumbnailUrl ?: s.thumb, 160.dp, circle = true)
@@ -326,12 +327,12 @@ fun ArtistScreen(app: AppState, s: Screen.Artist) {
                             pg.subtitle?.let { Txt(it, color = C.Muted, size = 13) }
                             Gap(h = 14)
                             RowCenter {
-                                PixelButton("Играть", onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
+                                PixelButton(S("album_play"), onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
                                 Gap(w = 10)
-                                PixelButton("Перемешать", onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
+                                PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
                                 if (pg.allSongsBrowseId != null && allSongs == null) {
                                     Gap(w = 10)
-                                    PixelButton(if (loadingAll) "Грузим…" else "Все треки", onClick = {
+                                    PixelButton(if (loadingAll) S("d_loading") else S("artist_all_songs"), onClick = {
                                         if (!loadingAll) {
                                             loadingAll = true
                                             app.scope.launch {
@@ -344,14 +345,14 @@ fun ArtistScreen(app: AppState, s: Screen.Artist) {
                             }
                         }
                     }
-                    if (songs.isNotEmpty()) SectionLabel(if (allSongs != null) "Все треки" else "Популярное", Modifier.padding(bottom = 6.dp))
+                    if (songs.isNotEmpty()) SectionLabel(if (allSongs != null) S("artist_all_songs") else S("d_popular"), Modifier.padding(bottom = 6.dp))
                 }
                 itemsIndexed(songs, key = { i, sg -> "${sg.id}#$i" }) { i, song ->
                     SongRow(app, song, onPlay = { app.player.play(songs, i) })
                 }
                 if (pg.releases.isNotEmpty()) {
                     item {
-                        SectionLabel("Релизы", Modifier.padding(top = 20.dp, bottom = 8.dp))
+                        SectionLabel(S("artist_releases"), Modifier.padding(top = 20.dp, bottom = 8.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(pg.releases) { c -> CardTile(c.title, c.subtitle, c.thumbnailUrl) { app.openCard(c) } }
                         }
@@ -359,7 +360,7 @@ fun ArtistScreen(app: AppState, s: Screen.Artist) {
                 }
                 if (pg.similar.isNotEmpty()) {
                     item {
-                        SectionLabel("Похожие артисты", Modifier.padding(top = 20.dp, bottom = 8.dp))
+                        SectionLabel(S("artist_similar"), Modifier.padding(top = 20.dp, bottom = 8.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(pg.similar) { a -> CardTile(a.name, a.subtitle, a.thumbnailUrl, circle = true) { app.open(Screen.Artist(a.browseId, a.name, a.thumbnailUrl)) } }
                         }
@@ -379,41 +380,41 @@ fun RemoteScreen(app: AppState, s: Screen.Remote) {
     }
     ScreenFrame(s.title, app, canBack = true) {
         val list = songs
-        if (list == null) Empty("Загружаю…") else if (list.isEmpty()) Empty("Плейлист пуст или не открылся.") else SongList(app, list, header = { DetailHeader(app, s.title, "${list.size} треков", s.thumb, list) })
+        if (list == null) Empty(S("common_loading")) else if (list.isEmpty()) Empty(S("d_playlist_empty_or_failed")) else SongList(app, list, header = { DetailHeader(app, s.title, "${list.size} треков", s.thumb, list) })
     }
 }
 
 @Composable
 fun LibraryScreen(app: AppState) {
-    ScreenFrame("Моё", app, canBack = false) {
+    ScreenFrame(S("tab_library"), app, canBack = false) {
         val state = rememberLazyListState()
         var newName by remember { mutableStateOf<String?>(null) }
         var cookie by remember { mutableStateOf("") }
         Box(Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 item {
                     PixelCard(Modifier.fillMaxWidth()) {
                         Column {
-                            SectionLabel("Аккаунт")
+                            SectionLabel(S("library_account"))
                             Gap(h = 10)
                             if (app.signedIn) {
                                 RowCenter {
                                     Cover(app.lib.accountAvatar, 40.dp, circle = true)
                                     Gap(w = 12)
-                                    Txt(app.lib.accountName ?: "Вы вошли", size = 16, modifier = Modifier.weight(1f))
-                                    PixelButton(if (app.sync.running) "Сверяю…" else "Обновить", onClick = { app.syncAccount(force = true) }, enabled = !app.sync.running)
+                                    Txt(app.lib.accountName ?: S("library_signed_in"), size = 16, modifier = Modifier.weight(1f))
+                                    PixelButton(if (app.sync.running) S("library_syncing") else S("library_sync"), onClick = { app.syncAccount(force = true) }, enabled = !app.sync.running)
                                     Gap(w = 10)
-                                    PixelButton("Выйти", onClick = app::signOut, primary = false)
+                                    PixelButton(S("library_sign_out"), onClick = app::signOut, primary = false)
                                 }
                             } else {
                                 Txt(
-                                    "Откроется окно браузера с настоящей страницей входа Google. Пароль ты вводишь сам — приложение его не видит, а забирает только cookie YouTube.",
+                                    S("d_login_google_note"),
                                     color = C.Muted, size = 12, maxLines = 3,
                                 )
                                 Gap(h = 10)
-                                PixelButton(if (app.loggingIn) "Жду вход…" else "Войти через Google", onClick = app::signInWithGoogle, enabled = !app.loggingIn)
+                                PixelButton(if (app.loggingIn) S("d_waiting_login") else S("d_sign_in_google"), onClick = app::signInWithGoogle, enabled = !app.loggingIn)
                                 Gap(h = 14)
-                                Txt("Или вставь cookie вручную: music.youtube.com → DevTools → Network → заголовок Cookie любого запроса.", color = C.Muted, size = 12, maxLines = 3)
+                                Txt(S("d_login_cookie_hint"), color = C.Muted, size = 12, maxLines = 3)
                                 Gap(h = 8)
                                 RowCenter {
                                     Box(Modifier.weight(1f).clip(RoundedCornerShape(4.dp)).background(C.SurfaceHigh).padding(10.dp)) {
@@ -421,7 +422,7 @@ fun LibraryScreen(app: AppState) {
                                         BasicTextField(cookie, { cookie = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 13.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
                                     }
                                     Gap(w = 10)
-                                    PixelButton("Войти", onClick = { app.signIn(cookie); cookie = "" })
+                                    PixelButton(S("login_submit"), onClick = { app.signIn(cookie); cookie = "" })
                                 }
                             }
                             app.sync.error?.let { Txt(it, color = C.Sand, size = 12, modifier = Modifier.padding(top = 8.dp), maxLines = 3) }
@@ -431,19 +432,20 @@ fun LibraryScreen(app: AppState) {
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Shortcut("Лайки", "${app.lib.liked.size}", Modifier.weight(1f)) { app.open(Screen.Liked) }
-                        Shortcut("История", "${app.lib.history.size}", Modifier.weight(1f)) { app.open(Screen.History) }
+                        Shortcut(S("library_likes"), "${app.lib.liked.size}", Modifier.weight(1f)) { app.open(Screen.Liked) }
+                        Shortcut(S("library_history"), "${app.lib.history.size}", Modifier.weight(1f)) { app.open(Screen.History) }
                     }
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Shortcut("Скачано", "${app.lib.downloads.size}", Modifier.weight(1f)) { app.open(Screen.Downloaded) }
-                        Shortcut("Очередь", "${app.player.queue.size}", Modifier.weight(1f)) { app.open(Screen.Player) }
+                        Shortcut(S("library_downloaded"), "${app.lib.downloads.size}", Modifier.weight(1f)) { app.open(Screen.Downloaded) }
+                        Shortcut(S("library_stats"), "${app.lib.playLog.size}", Modifier.weight(1f)) { app.open(Screen.Stats) }
+                        Shortcut(S("player_queue"), "${app.player.queue.size}", Modifier.weight(1f)) { app.open(Screen.Player) }
                     }
                 }
                 item {
                     RowCenter {
-                        SectionLabel("Плейлисты", Modifier.weight(1f))
+                        SectionLabel(S("library_playlists"), Modifier.weight(1f))
                         IconButton(Glyph.Plus, onClick = { newName = "" }, color = C.Blue)
                     }
                 }
@@ -452,31 +454,31 @@ fun LibraryScreen(app: AppState) {
                         PixelCard(Modifier.fillMaxWidth()) {
                             RowCenter {
                                 Box(Modifier.weight(1f)) {
-                                    if (value.isEmpty()) Txt("Название плейлиста", color = C.Muted, size = 14)
+                                    if (value.isEmpty()) Txt(S("library_playlist_name"), color = C.Muted, size = 14)
                                     BasicTextField(value, { newName = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
                                 }
                                 Gap(w = 10)
-                                PixelButton("Создать", onClick = { app.createPlaylist(value); newName = null })
+                                PixelButton(S("library_create"), onClick = { app.createPlaylist(value); newName = null })
                                 Gap(w = 8)
-                                PixelButton("Отмена", onClick = { newName = null }, primary = false)
+                                PixelButton(S("library_cancel"), onClick = { newName = null }, primary = false)
                             }
                         }
                     }
                 }
-                if (app.lib.playlists.isEmpty() && newName == null) item { Empty("Плейлистов пока нет.") }
+                if (app.lib.playlists.isEmpty() && newName == null) item { Empty(S("library_no_playlists")) }
                 items(app.lib.playlists, key = { it.id }) { pl ->
                     val where =
                         when {
-                            pl.remoteId != null && !pl.editable -> "сохранённый · только чтение"
-                            pl.remoteId != null -> "${pl.songs.size} треков · в YouTube"
-                            else -> "${pl.songs.size} треков · только здесь"
+                            pl.remoteId != null && !pl.editable -> S("d_pl_readonly")
+                            pl.remoteId != null -> S("d_pl_tracks_yt", pl.songs.size)
+                            else -> S("d_pl_tracks_local", pl.songs.size)
                         }
                     ListLine(pl.name, where, pl.cover ?: pl.songs.firstOrNull()?.thumb) { app.open(Screen.Local(pl.id)) }
                 }
                 if (app.accountAlbums.isNotEmpty()) {
-                    item { SectionLabel("Сохранённые альбомы", Modifier.padding(top = 8.dp)) }
+                    item { SectionLabel(S("library_albums"), Modifier.padding(top = 8.dp)) }
                     items(app.accountAlbums, key = { it.browseId }) { c ->
-                        ListLine(c.title, c.subtitle ?: "альбом", c.thumbnailUrl) { app.openCard(c) }
+                        ListLine(c.title, c.subtitle ?: S("card_album"), c.thumbnailUrl) { app.openCard(c) }
                     }
                 }
                 item { Gap(h = 24) }
@@ -501,7 +503,7 @@ private fun Shortcut(label: String, value: String, modifier: Modifier, onClick: 
 private fun ListLine(title: String, subtitle: String, thumb: String?, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     RowCenter(
-        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(6.dp)).background(hoverBackground(source))
+        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(Look.row)).background(hoverBackground(source))
             .clickable(onClick = onClick).padding(8.dp),
     ) {
         Cover(thumb, 48.dp)
@@ -515,17 +517,17 @@ private fun ListLine(title: String, subtitle: String, thumb: String?, onClick: (
 
 @Composable
 fun LikedScreen(app: AppState) {
-    ScreenFrame("Лайки", app, canBack = true) {
+    ScreenFrame(S("library_likes"), app, canBack = true) {
         val songs = app.lib.liked.map { it.toItem() }
-        if (songs.isEmpty()) Empty("Лайкнутых треков пока нет.") else SongList(app, songs)
+        if (songs.isEmpty()) Empty(S("library_empty_text")) else SongList(app, songs)
     }
 }
 
 @Composable
 fun HistoryScreen(app: AppState) {
-    ScreenFrame("История", app, canBack = true) {
+    ScreenFrame(S("library_history"), app, canBack = true) {
         val songs = app.lib.history.map { it.toItem() }
-        if (songs.isEmpty()) Empty("Вы ещё ничего не включали.") else SongList(app, songs)
+        if (songs.isEmpty()) Empty(S("library_empty_text")) else SongList(app, songs)
     }
 }
 
@@ -535,13 +537,13 @@ fun LocalScreen(app: AppState, s: Screen.Local) {
     var renaming by remember { mutableStateOf<String?>(null) }
     // Состав сверяется с аккаунтом при открытии: правили его там — увидим сразу.
     LaunchedEffect(s.id) { app.sync.refreshPlaylist(s.id) }
-    ScreenFrame(pl?.name ?: "Плейлист", app, canBack = true, actions = {
+    ScreenFrame(pl?.name ?: S("playlist_title"), app, canBack = true, actions = {
         if (pl != null) {
             if (pl.editable) {
-                PixelButton("Переименовать", onClick = { renaming = pl.name }, primary = false)
+                PixelButton(S("playlist_rename"), onClick = { renaming = pl.name }, primary = false)
                 Gap(w = 8)
             }
-            PixelButton(if (pl.editable) "Удалить" else "Убрать из библиотеки", onClick = { app.deletePlaylist(s.id) }, primary = false)
+            PixelButton(if (pl.editable) S("d_delete") else S("d_remove_from_library"), onClick = { app.deletePlaylist(s.id) }, primary = false)
         }
     }) {
         val songs = pl?.songs?.map { it.toItem() }.orEmpty()
@@ -553,23 +555,23 @@ fun LocalScreen(app: AppState, s: Screen.Local) {
                             BasicTextField(value, { renaming = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
                         }
                         Gap(w = 10)
-                        PixelButton("Сохранить", onClick = { app.renamePlaylist(s.id, value); renaming = null })
+                        PixelButton(S("playlist_rename_save"), onClick = { app.renamePlaylist(s.id, value); renaming = null })
                         Gap(w = 8)
-                        PixelButton("Отмена", onClick = { renaming = null }, primary = false)
+                        PixelButton(S("library_cancel"), onClick = { renaming = null }, primary = false)
                     }
                 }
                 Gap(h = 10)
             }
             if (pl != null && !pl.editable) {
-                Txt("Чужой плейлист из твоей библиотеки: его можно слушать и скачивать, но править может только автор.", color = C.Muted, size = 12, maxLines = 3)
+                Txt(S("playlist_readonly"), color = C.Muted, size = 12, maxLines = 3)
                 Gap(h = 8)
             }
             if (pl?.remoteId != null) {
-                Txt(if (pl.editable) "Отражён в аккаунте YouTube: правки уходят туда и приходят оттуда." else "Приходит из аккаунта.", color = C.Muted, size = 12)
+                Txt(if (pl.editable) "Отражён в аккаунте YouTube: правки уходят туда и приходят оттуда." else S("d_pl_from_account"), color = C.Muted, size = 12)
                 Gap(h = 8)
             }
             if (songs.isEmpty()) {
-                Empty("Плейлист пуст. Добавь треки кнопкой «+» у трека.")
+                Empty(S("playlist_empty"))
             } else {
                 SongList(app, songs, extra = { song ->
                     if (pl?.editable != false) IconButton(Glyph.Trash, onClick = { app.removeFromPlaylist(s.id, song.id) }, color = C.Muted, size = 16.dp)
@@ -597,13 +599,13 @@ fun DownloadButton(app: AppState, song: SongItem) {
 @Composable
 fun DownloadedScreen(app: AppState) {
     val songs = app.lib.downloads.values.map { it.song.toItem() }
-    ScreenFrame("Скачано", app, canBack = true) {
+    ScreenFrame(S("library_downloaded"), app, canBack = true) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Файлы лежат в ${app.downloads.folder.absolutePath}: любой плеер их откроет, на компьютер копируются как есть.", color = C.Muted, size = 12, maxLines = 3)
+            Txt(S("d_downloads_folder", app.downloads.folder.absolutePath), color = C.Muted, size = 12, maxLines = 3)
             Gap(h = 10)
             app.downloads.notice?.let { Txt(it, color = C.Sand, size = 12, maxLines = 2); Gap(h = 6) }
             if (songs.isEmpty()) {
-                Empty("Пока ничего не скачано. Стрелка у трека скачивает его.")
+                Empty(S("downloads_empty_text"))
             } else {
                 SongList(app, songs, extra = { song ->
                     IconButton(Glyph.Trash, onClick = { app.downloads.remove(song.id) }, color = C.Muted, size = 16.dp)

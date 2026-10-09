@@ -1,5 +1,6 @@
 package com.texfi.w0y.desktop
 
+import com.texfi.w0y.desktop.i18n.S
 import java.io.File
 import java.net.ServerSocket
 import java.net.URI
@@ -44,7 +45,7 @@ object GoogleLogin {
 
     /** Возвращает строку Cookie для music.youtube.com или null, если окно закрыли раньше. */
     suspend fun signIn(onStatus: (String) -> Unit): Result<String?> = withContext(Dispatchers.IO) {
-        val browser = findBrowser() ?: return@withContext Result.failure(IllegalStateException("Не найден браузер на Chromium (chromium, chrome, brave…). Войди по cookie."))
+        val browser = findBrowser() ?: return@withContext Result.failure(IllegalStateException(S("d_login_no_browser")))
         val port = ServerSocket(0).use { it.localPort }
         val profile = Files.createTempDirectory("w0y-login").toFile()
         val process =
@@ -61,7 +62,7 @@ object GoogleLogin {
                 ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
             }.getOrElse { return@withContext Result.failure(it) }
         try {
-            onStatus("Жду вход в окне браузера…")
+            onStatus(S("d_login_waiting_browser"))
             val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build()
             var wsUrl: String? = null
             var tries = 0
@@ -73,7 +74,7 @@ object GoogleLogin {
                     }.getOrNull()
                 if (wsUrl == null) delay(500)
             }
-            wsUrl ?: return@withContext Result.failure(IllegalStateException("Браузер не открыл отладочный порт"))
+            wsUrl ?: return@withContext Result.failure(IllegalStateException(S("d_login_no_port")))
             var settled = 0
             while (process.isAlive) {
                 val cookies = runCatching { cookies(wsUrl) }.getOrNull().orEmpty()
