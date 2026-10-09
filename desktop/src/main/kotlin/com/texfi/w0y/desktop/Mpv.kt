@@ -43,7 +43,7 @@ class Mpv(
             runCatching {
                 ProcessBuilder(
                     "mpv", "--idle=yes", "--no-video", "--no-terminal", "--force-window=no",
-                    "--audio-display=no", "--ytdl=no", "--cache=yes", "--input-ipc-server=$socket",
+                    "--audio-display=no", "--keep-open=no", "--ytdl=no", "--cache=yes", "--input-ipc-server=$socket",
                     "--audio-client-name=w0y", "--title=w0y",
                 ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
             }.getOrNull() ?: return false
@@ -65,6 +65,7 @@ class Mpv(
         observe(1, "time-pos")
         observe(2, "duration")
         observe(3, "pause")
+        observe(4, "eof-reached")
         return true
     }
 
@@ -80,6 +81,18 @@ class Mpv(
         started = false
     }
 
+    /** Конец трека сообщается один раз на файл, откуда бы он ни пришёл. */
+    @Volatile
+    private var endFired = false
+
+    private fun fireEnd(reason: String) {
+        if (reason == "eof" || reason == "error") {
+            if (endFired) return
+            endFired = true
+        }
+        onEnd(reason)
+    }
+
     private fun handle(obj: JsonObject) {
         // Ответ на команду: ошибку mpv видно в консоли, а не теряется молча.
         (obj["error"] as? JsonPrimitive)?.contentOrNull?.takeIf { it != "success" }?.let { System.err.println("mpv: $it") }
@@ -90,11 +103,16 @@ class Mpv(
                     "time-pos" -> value?.doubleOrNull?.let(onTime)
                     "duration" -> value?.doubleOrNull?.let(onDuration)
                     "pause" -> value?.booleanOrNull?.let(onPause)
+                    // На части потоков mpv встаёт в конце на паузу без события end-file: конец трека ловим по eof-reached.
+                    "eof-reached" -> if (value?.booleanOrNull == true) fireEnd("eof")
                 }
             }
 
-            "end-file" -> onEnd((obj["reason"] as? JsonPrimitive)?.contentOrNull ?: "")
-            "file-loaded" -> onFileLoaded()
+            "end-file" -> (obj["reason"] as? JsonPrimitive)?.contentOrNull.orEmpty().let { fireEnd(it) }
+            "file-loaded" -> {
+                endFired = false
+                onFileLoaded()
+            }
         }
     }
 
@@ -125,6 +143,7 @@ class Mpv(
         val rest = headers.filterKeys { !it.equals("user-agent", true) }.map { "${it.key}: ${it.value}" }
         send("set_property", "user-agent", ua ?: "Mozilla/5.0")
         send("set_property", "http-header-fields", rest.joinToString(","))
+        endFired = false
         send("loadfile", url, "replace")
         send("set_property", "pause", false)
     }

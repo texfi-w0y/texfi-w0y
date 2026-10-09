@@ -1,6 +1,8 @@
 package com.texfi.w0y.desktop
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,7 +60,9 @@ fun App(app: AppState) {
     LaunchedEffect(Unit) { focus.requestFocus() }
     val backdrop = if (Look.glass) rememberBackdrop() else null
     val screens: @Composable () -> Unit = {
-        when (val s = app.screen) {
+        // Смена экрана — мягкое наплывание: у Smooth дольше, у Pixel короче.
+        Crossfade(app.screen, animationSpec = tween(if (Look.smooth) 240 else 140)) { s ->
+        when (s) {
             Screen.Home -> HomeScreen(app)
             Screen.Search -> SearchScreen(app)
             Screen.Library -> LibraryScreen(app)
@@ -72,6 +76,7 @@ fun App(app: AppState) {
             is Screen.Artist -> ArtistScreen(app, s)
             is Screen.Remote -> RemoteScreen(app, s)
             is Screen.Local -> LocalScreen(app, s)
+        }
         }
     }
     Box(Modifier.fillMaxSize().background(C.Background).focusRequester(focus).focusable().appKeys(app)) {
