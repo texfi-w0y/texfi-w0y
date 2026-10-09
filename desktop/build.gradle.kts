@@ -83,7 +83,7 @@ compose.desktop {
             // java.net.http нужен загрузкам и текстам; jlink сам его не находит.
             modules("java.net.http", "java.naming", "jdk.crypto.ec", "jdk.unsupported", "jdk.security.auth")
             packageName = "w0y"
-            packageVersion = "0.0.2"
+            packageVersion = "0.0.3"
             description = "TexFi w0y — клиент YouTube Music"
             linux { iconFile.set(project.file("src/main/resources/icon.png")) }
         }
