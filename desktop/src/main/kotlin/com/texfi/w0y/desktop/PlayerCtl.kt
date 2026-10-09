@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.texfi.w0y.data.SongItem
+import com.texfi.w0y.desktop.i18n.S
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -54,9 +55,9 @@ class PlayerCtl(
     private var startJob: Job? = null
     private var mpvOk = true
 
-    private val mpv =
+    private val mpv: Mpv =
         Mpv(
-            onTime = { position = it },
+            onTime = { t -> countPlayed(t); position = t },
             onDuration = { duration = it },
             onPause = { playing = !it && loaded },
             onEnd = { reason ->
@@ -70,6 +71,9 @@ class PlayerCtl(
                                 if (index + 1 < queue.size) index += 1
                                 loaded = false
                                 app.saveQueue(queue, index)
+                            } else if (app.st.repeat == RepeatMode.ONE) {
+                                mpv.seek(0.0)
+                                mpv.setPause(false)
                             } else {
                                 next(auto = true)
                             }
@@ -77,7 +81,7 @@ class PlayerCtl(
                     "error" -> {
                         loading = false
                         playing = false
-                        error = "Не удалось проиграть трек"
+                        error = S("d_err_play")
                         scope.launch { delay(1500); next(auto = true) }
                     }
                 }
@@ -102,7 +106,7 @@ class PlayerCtl(
     private var loadStartedAt = 0L
 
     fun startupSummary(): String =
-        if (startups.isEmpty()) "Появится после первого включения." else "Среднее за последние ${startups.size} запусков: ${startups.average().toInt()} мс."
+        if (startups.isEmpty()) S("d_startup_none") else S("d_startup_avg", startups.size, startups.average().toInt())
 
     /** Окна заглушения строк с матом (мс) для текущего трека. */
     private var swearWindows = listOf<LongRange>()
@@ -139,7 +143,7 @@ class PlayerCtl(
 
     fun start(restored: List<SongItem>, restoredIndex: Int, volume: Int) {
         mpvOk = mpv.start()
-        if (!mpvOk) error = "Не найден mpv: поставь его (sudo pacman -S mpv)"
+        if (!mpvOk) error = S("d_err_mpv")
         queue = restored
         index = restoredIndex.coerceIn(-1, restored.lastIndex)
         this.volume = volume
@@ -147,7 +151,10 @@ class PlayerCtl(
         if (app.st.audioDevice != "auto") mpv.setAudioDevice(app.st.audioDevice)
     }
 
-    fun shutdown() = mpv.shutdown()
+    fun shutdown() {
+        finishPlay()
+        mpv.shutdown()
+    }
 
     fun play(songs: List<SongItem>, at: Int) {
         val first = songs.getOrNull(at.coerceIn(0, songs.lastIndex)) ?: return
@@ -177,7 +184,29 @@ class PlayerCtl(
 
     fun playOne(song: SongItem) = play(listOf(song), 0)
 
+    // ---- журнал прослушиваний: засчитывается, если проиграно хотя бы полтрека (для длинных — 4 минуты)
+    private var playedSec = 0.0
+    private var lastTick = -1.0
+    private var playedSong: SongItem? = null
+
+    private fun countPlayed(t: Double) {
+        val d = t - lastTick
+        if (lastTick >= 0 && d > 0 && d < 2.5) playedSec += d
+        lastTick = t
+    }
+
+    /** Закрыть учёт текущего трека: записать прослушивание, если набралась половина. */
+    private fun finishPlay() {
+        val song = playedSong
+        val need = if (duration > 0) minOf(duration / 2, 240.0) else 60.0
+        if (song != null && playedSec >= need) app.logPlay(song, playedSec.toInt())
+        playedSong = current
+        playedSec = 0.0
+        lastTick = -1.0
+    }
+
     private fun loadCurrent() {
+        finishPlay()
         if (current == null) return
         startJob?.cancel()
         error = null
@@ -205,7 +234,7 @@ class PlayerCtl(
                 val local = app.downloadedPath(song.id)
                 if (local != null) {
                     // Скачанный трек играет с диска: ни сети, ни ссылки, которая истекает.
-                    mpv.applyAudio(profile, null, app.st.skipSilence)
+                    mpv.applyAudio(profile, null, app.st.skipSilence, eqNow())
                     mpv.load(local, emptyMap())
                     app.remember(song)
                     watchSwear(song)
@@ -213,16 +242,17 @@ class PlayerCtl(
                 }
                 runCatching { yt.stream(song.id, app.st.quality) }
                     .onSuccess {
-                        val gain = if (app.st.normalizeVolume) it.loudnessDb?.let { db -> (-db).coerceIn(-10.0, 3.0) } else null
-                        mpv.applyAudio(profile, gain, app.st.skipSilence)
+                        val gain = (if (app.st.normalizeVolume) it.loudnessDb?.let { db -> (-db).coerceIn(-10.0, 3.0) } else null).also { g -> gainNow = g }
+                        mpv.applyAudio(profile, gain, app.st.skipSilence, eqNow())
                         mpv.load(it.audioUrl, it.headers)
                         app.remember(song)
+                        notifyTrack(song)
                         watchSwear(song)
                         // Следующий трек греем заранее: старт без паузы.
                         if (app.st.preloadNext) queue.getOrNull(index + 1)?.let { n -> launch { runCatching { yt.stream(n.id, app.st.quality) } } }
                     }.onFailure {
                         loading = false
-                        error = "YouTube не отдал звук этого трека"
+                        error = S("d_err_stream")
                         delay(1500)
                         next(auto = true)
                     }
@@ -239,7 +269,18 @@ class PlayerCtl(
         val song = current ?: return
         soundNow = profile
         app.saveSound(song.id, profile)
-        mpv.applyAudio(profile, null, app.st.skipSilence)
+        reapplyAudio()
+    }
+
+    private fun eqNow(): List<Int>? = app.st.eqBands.takeIf { app.st.eqEnabled && it.any { g -> g != 0 } }
+
+    /** Громкость-выравнивание трека, запомненная при загрузке: нужна, чтобы эквалайзер менялся на лету. */
+    private var gainNow: Double? = null
+
+    /** Перенастроить фильтры звука на играющем треке (эквалайзер, пропуск тишины). */
+    fun reapplyAudio() {
+        if (current == null) return
+        mpv.applyAudio(soundNow, gainNow, app.st.skipSilence, eqNow())
     }
 
     /** Таймер сна: через [minutes] минут пауза. */
@@ -287,7 +328,13 @@ class PlayerCtl(
             app.saveQueue(queue, index)
             return
         }
-        // Очередь кончилась: радио по последнему треку — только в режиме рекомендаций.
+        // Очередь кончилась: повтор списка — сначала; иначе радио по последнему треку (только в режиме рекомендаций).
+        if (app.st.repeat == RepeatMode.ALL) {
+            index = 0
+            loadCurrent()
+            app.saveQueue(queue, index)
+            return
+        }
         if (app.st.queueMode != QueueMode.RADIO) {
             playing = false
             return
@@ -391,5 +438,59 @@ class PlayerCtl(
         index = to
         loadCurrent()
         app.saveQueue(queue, index)
+    }
+
+    // ---- перемешивание, повтор, скорость, перемотка шагом
+
+    /** Перемешать то, что ещё не играло; играющий трек остаётся на месте. */
+    fun setShuffle(on: Boolean) {
+        app.setSt { it.copy(shuffle = on) }
+        if (on && queue.size > 2) {
+            val head = queue.take(index + 1)
+            queue = head + queue.drop(index + 1).shuffled()
+            app.saveQueue(queue, index)
+        }
+    }
+
+    fun toggleShuffle() = setShuffle(!app.st.shuffle)
+
+    fun cycleRepeat() = app.setSt {
+        it.copy(repeat = when (it.repeat) { RepeatMode.OFF -> RepeatMode.ALL; RepeatMode.ALL -> RepeatMode.ONE; RepeatMode.ONE -> RepeatMode.OFF })
+    }
+
+    fun seekBy(seconds: Double) {
+        if (!loaded) return
+        seekSeconds((position + seconds).coerceIn(0.0, if (duration > 0) duration else Double.MAX_VALUE))
+    }
+
+    private var volumeBeforeMute = -1
+
+    val muted: Boolean get() = volumeBeforeMute >= 0
+
+    fun toggleMute() {
+        if (volumeBeforeMute >= 0) {
+            val back = volumeBeforeMute.coerceAtLeast(5)
+            volumeBeforeMute = -1
+            changeVolume(back)
+        } else {
+            volumeBeforeMute = volume
+            changeVolume(0)
+        }
+    }
+
+    /** Скорость текущего трека шагом 0.05 в пределах 0.5–2.0, запоминается как звук трека. */
+    fun nudgeSpeed(delta: Float) {
+        val s = soundNow
+        val next = (Math.round((s.speed + delta) * 20) / 20f).coerceIn(0.5f, 2f)
+        setSound(s.copy(speed = next))
+    }
+
+    /** Системное уведомление о смене трека. */
+    private fun notifyTrack(song: SongItem) {
+        if (!app.st.notifyTrackChange) return
+        runCatching {
+            ProcessBuilder("notify-send", "-a", "w0y", "-i", "w0y", "-t", "4000", song.title, song.artist)
+                .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+        }
     }
 }

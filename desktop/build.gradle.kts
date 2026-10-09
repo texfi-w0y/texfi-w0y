@@ -26,8 +26,32 @@ val sharedSources = tasks.register<Sync>("sharedSources") {
     }
     into(layout.buildDirectory.dir("generated/shared/com/texfi/w0y/data"))
 }
+// Иконки обоих стилей — те же, что на телефоне: пиксельные сетки и контуры Material Rounded.
+val sharedIcons = tasks.register<Sync>("sharedIcons") {
+    from("../app/src/main/java/com/texfi/w0y/ui/components") { include("Sprites.kt") }
+    from("../app/src/main/java/com/texfi/w0y/ui/icons") { include("SmoothIcons.kt") }
+    into(layout.buildDirectory.dir("generated/shared/com/texfi/w0y/ui"))
+}
+// Разбор спектра для визуализатора — тот же код, что на телефоне.
+val sharedPlayback = tasks.register<Sync>("sharedPlayback") {
+    from("../app/src/main/java/com/texfi/w0y/playback") { include("SpectrumAnalyzer.kt") }
+    into(layout.buildDirectory.dir("generated/shared/com/texfi/w0y/playback"))
+}
 sourceSets.main { kotlin.srcDir(layout.buildDirectory.dir("generated/shared")) }
-tasks.named("compileKotlin") { dependsOn(sharedSources) }
+tasks.named("compileKotlin") { dependsOn(sharedSources, sharedIcons, sharedPlayback) }
+
+// Строки интерфейса — те же файлы, что у Android: один перевод на оба приложения.
+// Читаются при запуске как обычный XML (см. i18n/Strings.kt), ничего не копируется руками.
+val androidStrings = tasks.register<Sync>("androidStrings") {
+    val res = "../app/src/main/res"
+    from("$res/values") { include("strings.xml"); into("en") }
+    from("$res/values-ru") { include("strings.xml"); into("ru") }
+    from("$res/values-uk") { include("strings.xml"); into("uk") }
+    from("$res/values-pl") { include("strings.xml"); into("pl") }
+    into(layout.buildDirectory.dir("generated/strings/strings"))
+}
+sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/strings")) }
+tasks.named("processResources") { dependsOn(androidStrings) }
 
 dependencies {
     implementation(compose.desktop.currentOs)
@@ -46,7 +70,10 @@ dependencies {
     implementation("org.slf4j:slf4j-nop:2.0.17")
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
+    testImplementation(kotlin("test"))
 }
+
+tasks.test { useJUnitPlatform() }
 
 compose.desktop {
     application {

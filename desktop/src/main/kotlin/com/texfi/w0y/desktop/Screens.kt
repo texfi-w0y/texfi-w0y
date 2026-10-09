@@ -6,8 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.texfi.w0y.desktop.i18n.S
 import com.texfi.w0y.data.PlaylistCard
 import com.texfi.w0y.data.SongItem
 import kotlinx.coroutines.launch
@@ -133,30 +136,29 @@ fun CardTile(title: String, subtitle: String?, thumb: String?, circle: Boolean =
 
 @Composable
 fun HomeScreen(app: AppState) {
-    ScreenFrame("Главная", app, canBack = false, actions = {
-        PixelButton(if (app.homeLoading) "Грузим…" else "Обновить", onClick = app::loadHome, primary = false, enabled = !app.homeLoading)
+    ScreenFrame(S("tab_home"), app, canBack = false, actions = {
+        PixelButton(if (app.homeLoading) S("d_loading") else S("library_sync"), onClick = app::loadHome, primary = false, enabled = !app.homeLoading)
     }) {
         val state = rememberLazyListState()
-        if (!app.st.showRecommendations) {
-            Empty("Ленты рекомендаций выключены в настройках, раздел «Вид».")
-            return@ScreenFrame
-        }
-        if (app.shelves.isEmpty()) {
-            Empty(app.homeError ?: if (app.homeLoading) "Загружаю ленты…" else "Лент пока нет.")
-            return@ScreenFrame
-        }
         Box(Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state) {
-                items(app.shelves) { shelf ->
-                    if (shelf.songs.isEmpty() && shelf.cards.isEmpty()) return@items
-                    SectionLabel(shelf.title, Modifier.padding(top = 8.dp, bottom = 8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        itemsIndexed(shelf.songs) { i, song ->
-                            CardTile(song.title, song.artist, song.thumbnailUrl) { app.player.play(shelf.songs, i) }
+            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
+                item { DialSection(app) }
+                if (!app.st.showRecommendations) {
+                    item { Empty(S("home_empty")) }
+                } else if (app.shelves.isEmpty()) {
+                    item { Empty(app.homeError ?: if (app.homeLoading) S("common_loading") else S("home_recommendations_failed")) }
+                } else {
+                    items(app.shelves) { shelf ->
+                        if (shelf.songs.isEmpty() && shelf.cards.isEmpty()) return@items
+                        SectionLabel(shelf.title, Modifier.padding(top = 8.dp, bottom = 8.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            itemsIndexed(shelf.songs) { i, song ->
+                                CardTile(song.title, song.artist, song.thumbnailUrl) { app.player.play(shelf.songs, i) }
+                            }
+                            items(shelf.cards) { card -> CardTile(card.title, card.subtitle, card.thumbnailUrl) { app.openCard(card) } }
                         }
-                        items(shelf.cards) { card -> CardTile(card.title, card.subtitle, card.thumbnailUrl) { app.openCard(card) } }
+                        Gap(h = 14)
                     }
-                    Gap(h = 14)
                 }
                 item { Gap(h = 24) }
             }
@@ -606,6 +608,49 @@ fun DownloadedScreen(app: AppState) {
                 SongList(app, songs, extra = { song ->
                     IconButton(Glyph.Trash, onClick = { app.downloads.remove(song.id) }, color = C.Muted, size = 16.dp)
                 })
+            }
+        }
+    }
+}
+
+/** «Быстрый набор»: закреплённое и самое играемое; на плитке — кнопки «закрепить» и «убрать». */
+@Composable
+fun DialSection(app: AppState) {
+    val entries = app.dialEntries()
+    SectionLabel(S("home_dial"), Modifier.padding(top = 8.dp, bottom = 4.dp))
+    Txt(S("home_dial_hint"), color = C.Muted, size = 11, modifier = Modifier.padding(bottom = 8.dp))
+    if (entries.isEmpty()) {
+        Txt(S("home_dial_empty"), color = C.Muted, size = 13, maxLines = 3, modifier = Modifier.padding(bottom = 14.dp))
+        return
+    }
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        items(entries, key = { it.key }) { e -> DialTile(app, e, entries) }
+    }
+    Gap(h = 14)
+}
+
+@Composable
+private fun DialTile(app: AppState, e: DialEntry, all: List<DialEntry>) {
+    val source = remember { MutableInteractionSource() }
+    val hovered by source.collectIsHoveredAsState()
+    Box(
+        Modifier.width(150.dp).hoverable(source).clip(RoundedCornerShape(Look.row)).background(if (hovered) C.Surface else Color.Transparent)
+            .clickable {
+                val song = e.song
+                if (song != null) app.player.play(all.mapNotNull { it.song }, all.mapNotNull { it.song }.indexOfFirst { it.id == song.id }.coerceAtLeast(0))
+                else e.artistId?.let { app.open(Screen.Artist(it, e.title, e.thumb)) }
+            }.padding(8.dp),
+    ) {
+        Column {
+            Cover(e.thumb, 134.dp, circle = e.artistId != null)
+            Gap(h = 8)
+            Txt(e.title, size = 13)
+            e.subtitle?.let { Txt(it, color = C.Muted, size = 11) }
+        }
+        if (hovered || e.pinned) {
+            RowCenter(Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                IconButton(Glyph.Pin, onClick = { app.togglePin(e.key) }, color = if (e.pinned) C.Sand else C.Text, size = 14.dp, box = 28.dp)
+                if (hovered) IconButton(Glyph.Close, onClick = { app.hideFromDial(e.key) }, color = C.Text, size = 12.dp, box = 28.dp)
             }
         }
     }

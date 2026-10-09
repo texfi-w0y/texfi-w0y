@@ -134,12 +134,16 @@ class Mpv(
      * высота тона — rubberband, эхо — aecho из ffmpeg; выравнивание громкости —
      * volume по данным YouTube, пропуск тишины — silenceremove.
      */
-    fun applyAudio(profile: com.texfi.w0y.data.SoundProfile, gainDb: Double?, skipSilence: Boolean) {
+    fun applyAudio(profile: com.texfi.w0y.data.SoundProfile, gainDb: Double?, skipSilence: Boolean, eqBands: List<Int>? = null) {
         send("set_property", "speed", profile.speed.toDouble())
         val filters = mutableListOf<String>()
         if (skipSilence) filters += "lavfi=[silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB]"
         if (gainDb != null) filters += "lavfi=[volume=${"%.2f".format(java.util.Locale.ROOT, gainDb)}dB]"
         if (profile.pitch != 1f) filters += "rubberband=pitch-scale=${profile.pitch}"
+        if (eqBands != null) {
+            val freqs = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+            filters += "lavfi=[" + freqs.zip(eqBands).filter { it.second != 0 }.joinToString(",") { (f, g) -> "equalizer=f=$f:t=o:w=1:g=$g" } + "]"
+        }
         profile.reverb.filter?.let { filters += "lavfi=[$it]" }
         send("set_property", "af", filters.joinToString(","))
     }

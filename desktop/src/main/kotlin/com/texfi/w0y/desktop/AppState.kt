@@ -8,10 +8,14 @@ import com.texfi.w0y.data.MixedResults
 import com.texfi.w0y.data.PlaylistCard
 import com.texfi.w0y.data.Shelf
 import com.texfi.w0y.data.SongItem
+import com.texfi.w0y.desktop.i18n.S
+import com.texfi.w0y.desktop.i18n.Strings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+data class DialEntry(val key: String, val title: String, val subtitle: String?, val thumb: String?, val song: SongItem?, val artistId: String?, val pinned: Boolean = false)
 
 sealed interface Screen {
     data object Home : Screen
@@ -38,6 +42,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     val lyrics = LyricsRepo()
     val recommender = Recommender(this, yt)
     val sync = AccountSync(this, yt)
+    val stand = StandMode(this)
 
     val stack = mutableStateListOf<Screen>(Screen.Home)
     val screen: Screen get() = stack.last()
@@ -63,7 +68,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         update { it.copy(settings = block(it.settings)) }
         applyTheme()
         if (st.language != before) {
-            yt.setLanguage(st.language.tag)
+            yt.setLanguage(Strings.tag)
             loadHome()
         }
     }
@@ -72,6 +77,9 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         ThemeState.mode = st.theme
         ThemeState.accent = st.accent
         ThemeState.custom = st.customAccent
+        ThemeState.style = st.uiStyle
+        ThemeState.glass = st.smoothGlass
+        Strings.select(st.language.tag)
     }
 
     val signedIn: Boolean get() = !lib.cookie.isNullOrBlank()
@@ -79,7 +87,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
 
     fun start() {
         applyTheme()
-        yt.setLanguage(st.language.tag)
+        yt.setLanguage(Strings.tag)
         // Куда попасть при запуске: выбранная вкладка или та, где закрыли в прошлый раз.
         when (if (st.startTab == StartTab.LAST) st.lastTab else st.startTab) {
             StartTab.SEARCH -> { stack.clear(); stack.add(Screen.Search) }
@@ -94,6 +102,18 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     }
 
     private var mpris: Mpris? = null
+
+    /** «Полный сброс»: библиотека, настройки, вход и скачанное стираются, приложение закрывается. */
+    fun eraseEverything() {
+        downloads.clearAll()
+        mpris?.stop()
+        player.shutdown()
+        runCatching {
+            java.io.File(Store.dirPath()).listFiles()?.filter { it.name.startsWith("library.json") && !it.name.contains("broken") }?.forEach { it.delete() }
+        }
+        Actions.quit = {}
+        kotlin.system.exitProcess(0)
+    }
 
     fun shutdown() {
         mpris?.stop()
@@ -135,7 +155,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
             homeError = null
             runCatching { yt.home() }
                 .onSuccess { list -> shelves = list.map { it.copy(songs = visible(it.songs)) } }
-                .onFailure { homeError = "Не удалось загрузить: ${it.message}" }
+                .onFailure { homeError = S("d_err_load", it.message ?: "") }
             homeLoading = false
         }
     }
@@ -154,7 +174,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
                 searchError = null
                 runCatching { yt.search(q) }
                     .onSuccess { searchResult = it.copy(songs = visible(it.songs)) }
-                    .onFailure { searchError = "Поиск не удался: ${it.message}" }
+                    .onFailure { searchError = S("d_err_search", it.message ?: "") }
                 searching = false
             }
     }
@@ -169,6 +189,46 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
                 artistPlays = if (artist.isBlank()) it.artistPlays else it.artistPlays + (artist to ((it.artistPlays[artist] ?: 0) + 1)),
             )
         }
+    }
+
+    /** Прослушивание для статистики и «быстрого набора». */
+    fun logPlay(song: SongItem, seconds: Int) = update {
+        it.copy(playLog = (it.playLog + StoredPlay(song.stored(), System.currentTimeMillis(), seconds)).takeLast(5000))
+    }
+
+    // ---- быстрый набор
+    fun dialKey(song: SongItem) = "song:${song.id}"
+
+    fun isPinned(key: String) = key in lib.dialPins
+
+    fun togglePin(key: String) = update {
+        it.copy(dialPins = if (key in it.dialPins) it.dialPins - key else listOf(key) + it.dialPins, dialHidden = it.dialHidden - key)
+    }
+
+    fun hideFromDial(key: String) = update { it.copy(dialPins = it.dialPins - key, dialHidden = (it.dialHidden + key).distinct()) }
+
+    /** Плитки быстрого набора: сначала закреплённые, затем самые игранные от порога из настроек. */
+    fun dialEntries(): List<DialEntry> {
+        val songs = HashMap<String, StoredSong>()
+        val counts = HashMap<String, Int>()
+        lib.playLog.forEach { p ->
+            songs[p.song.id] = p.song
+            counts.merge("song:${p.song.id}", 1, Int::plus)
+        }
+        lib.history.forEach { songs.putIfAbsent(it.id, it) }
+        val out = ArrayList<DialEntry>()
+        fun entry(key: String): DialEntry? {
+            val id = key.substringAfter(':')
+            return when (key.substringBefore(':')) {
+                "song" -> songs[id]?.let { DialEntry(key, it.title, it.artist, it.thumb, it.toItem(), null) }
+                "artist" -> lib.history.firstOrNull { it.artistId == id }?.let { DialEntry(key, it.artist, null, it.thumb, null, id) }
+                else -> null
+            }
+        }
+        lib.dialPins.forEach { k -> entry(k)?.let { out += it.copy(pinned = true) } }
+        counts.entries.filter { it.value >= st.dialMinPlays && it.key !in lib.dialPins && it.key !in lib.dialHidden }
+            .sortedByDescending { it.value }.take(12).forEach { (k, _) -> entry(k)?.let { out += it } }
+        return out
     }
 
     fun toggleLike(song: SongItem) {
@@ -288,11 +348,11 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     fun signIn(cookie: String) {
         val clean = cookie.trim().removePrefix("Cookie:").trim()
         if (!clean.contains("SAPISID")) {
-            accountStatus = "В cookie нет SAPISID: скопируй строку Cookie целиком."
+            accountStatus = S("d_err_cookie")
             return
         }
         scope.launch {
-            accountStatus = "Проверяю…"
+            accountStatus = S("d_checking")
             yt.applySession(clean)
             runCatching { yt.accountInfo() }
                 .onSuccess { (name, avatar) ->
@@ -301,7 +361,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
                     syncAccount(force = true)
                 }.onFailure {
                     yt.applySession(null)
-                    accountStatus = "YouTube не принял cookie: ${it.message}"
+                    accountStatus = S("d_err_cookie_rejected", it.message ?: "")
                 }
         }
     }
@@ -314,8 +374,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
             val result = GoogleLogin.signIn { accountStatus = it }
             loggingIn = false
             result.onSuccess { cookie ->
-                if (cookie == null) accountStatus = "Окно входа закрыли раньше, чем вход завершился." else signIn(cookie)
-            }.onFailure { accountStatus = it.message ?: "Вход не удался" }
+                if (cookie == null) accountStatus = S("d_err_login_closed") else signIn(cookie)
+            }.onFailure { accountStatus = it.message ?: S("d_err_login") }
         }
     }
 

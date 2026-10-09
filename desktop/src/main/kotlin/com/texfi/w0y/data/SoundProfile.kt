@@ -1,13 +1,18 @@
 package com.texfi.w0y.data
 
 import androidx.compose.runtime.Immutable
+import com.texfi.w0y.desktop.i18n.S
 
 /** Эхо: те же четыре ступени, что на телефоне. */
-enum class Reverb(val label: String, val filter: String?) {
-    OFF("нет", null),
-    ROOM("комната", "aecho=0.8:0.85:40|70:0.30|0.20"),
-    HALL("зал", "aecho=0.8:0.88:60|120|180:0.40|0.30|0.20"),
-    CAVE("пещера", "aecho=0.8:0.88:100|200|300|450:0.50|0.40|0.30|0.20"),
+enum class Reverb(val key: String, val filter: String?) {
+    OFF("reverb_none", null),
+    ROOM("reverb_room", "aecho=0.8:0.85:40|70:0.30|0.20"),
+    HALL("reverb_hall", "aecho=0.8:0.88:60|120|180:0.40|0.30|0.20"),
+    CAVE("reverb_cave", "aecho=0.8:0.88:100|200|300|450:0.50|0.40|0.30|0.20"),
+    ;
+
+    /** Название на языке интерфейса. */
+    val label: String get() = S(key)
 }
 
 /**

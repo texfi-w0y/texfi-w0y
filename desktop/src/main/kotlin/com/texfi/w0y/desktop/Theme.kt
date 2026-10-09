@@ -40,43 +40,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import coil3.compose.AsyncImage
-
-/** Состояние темы: меняется в настройках, всё нарисованное перерисовывается само. */
-object ThemeState {
-    var mode by androidx.compose.runtime.mutableStateOf(ThemeMode.DARK)
-    var accent by androidx.compose.runtime.mutableStateOf(Accent.BLUE)
-    var custom by androidx.compose.runtime.mutableStateOf(0xFFA06CFF.toInt())
-}
-
-/**
- * Токены TexFi: графитовый фон, синий и песочный — те же значения, что в Android-теме.
- * Свойства читаются при отрисовке, поэтому смена темы подхватывается сразу.
- */
-object C {
-    private val light get() = ThemeState.mode == ThemeMode.LIGHT
-    private val oled get() = ThemeState.mode == ThemeMode.OLED
-    private val accent get() = ThemeState.accent
-
-    val Blue: Color get() = if (accent == Accent.CUSTOM) Color(ThemeState.custom) else Color(accent.accent)
-    val BlueDeep: Color get() = if (accent == Accent.CUSTOM) androidx.compose.ui.graphics.lerp(Color(ThemeState.custom), Color.Black, 0.45f) else Color(accent.deep)
-    val BlueLight = Color(0xFF7FB5FF)
-    val Sand: Color get() = if (light && accent == Accent.BLUE) Color(0xFFB98232) else Color(accent.secondary)
-    val SandDeep = Color(0xFF8A5F26)
-    val Background: Color get() = if (light) Color(0xFFF7F1E4) else if (oled) Color(0xFF000000) else Color(0xFF15151B)
-    val Surface: Color get() = if (light) Color(0xFFFFFDF7) else if (oled) Color(0xFF000000) else Color(0xFF1F1F27)
-    val SurfaceHigh: Color get() = if (light) Color(0xFFEDE4D2) else if (oled) Color(0xFF101014) else Color(0xFF2A2A34)
-    val Border: Color get() = if (light) Color(0xFFD5C7AC) else if (oled) Color(0xFF2C2C36) else Color(0xFF383845)
-    val Shadow: Color get() = if (light) Color(0xFFC9B99B) else if (oled) Color(0xFF17171D) else Color(0xFF0A0A0E)
-    val Text: Color get() = if (light) Color(0xFF191921) else Color(0xFFF6F1E5)
-    val Muted: Color get() = if (light) Color(0xFF6B6455) else Color(0xFF8A8A96)
-    val Danger = Color(0xFFFF5A5A)
-
-    /** Текст на синей заливке кнопки — светлый в любой теме. */
-    val OnAccent = Color(0xFFF6F1E5)
-}
-
-val PixelFont = FontFamily(Font(resource = "press_start_2p.ttf"))
+import com.texfi.w0y.ui.components.Sprites
+import com.texfi.w0y.ui.icons.SmoothIcons
 
 /** Обычный текст — читаемый; пиксельный шрифт только для заголовков и подписей разделов. */
 @Composable
@@ -98,8 +70,8 @@ fun Txt(
             TextStyle(
                 color = color,
                 fontSize = size.sp,
-                fontFamily = if (pixel) PixelFont else FontFamily.Default,
-                fontWeight = weight,
+                fontFamily = if (pixel && !Look.smooth) PixelFont else FontFamily.Default,
+                fontWeight = if (pixel && Look.smooth) FontWeight.SemiBold else weight,
                 lineHeight = (size * 1.35f).sp,
             ),
     )
@@ -107,27 +79,43 @@ fun Txt(
 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) =
-    Txt(text.uppercase(), modifier, color = C.Blue, size = 11, pixel = true)
+    if (Look.smooth) Txt(text, modifier, color = C.Muted, size = 13, pixel = true) else Txt(text.uppercase(), modifier, color = C.Blue, size = 11, pixel = true)
 
-/** Карточка с жёсткой границей и сдвинутой тенью без размытия. */
+/** Карточка: у Pixel жёсткая граница и сдвинутая тень без размытия, у Smooth — скруглённая подложка (стекло или матовая). */
 @Composable
-fun PixelCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(
-        modifier
-            .drawBehind {
-                drawRect(C.Shadow, topLeft = Offset(4.dp.toPx(), 4.dp.toPx()), size = size)
-            }.background(C.Surface, RoundedCornerShape(6.dp))
-            .border(2.dp, C.Border, RoundedCornerShape(6.dp))
-            .padding(14.dp),
-    ) { content() }
+fun PixelCard(modifier: Modifier = Modifier, padding: Dp = 14.dp, content: @Composable () -> Unit) {
+    if (Look.smooth) {
+        val shape = RoundedCornerShape(Look.card)
+        Box(modifier.smoothSurface(shape).padding(padding)) { content() }
+    } else {
+        Box(
+            modifier
+                .drawBehind {
+                    drawRect(C.Shadow, topLeft = Offset(4.dp.toPx(), 4.dp.toPx()), size = size)
+                }.background(C.Surface, RoundedCornerShape(6.dp))
+                .border(2.dp, C.Border, RoundedCornerShape(6.dp))
+                .padding(padding),
+        ) { content() }
+    }
 }
 
-/** Кнопка: при нажатии тень «уезжает» внутрь, как на телефоне. */
+/** Кнопка: у Pixel при нажатии тень «уезжает» внутрь, как на телефоне; у Smooth — мягкая таблетка. */
 @Composable
 fun PixelButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true) {
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
     val fill = if (primary) C.Blue else C.SurfaceHigh
+    if (Look.smooth) {
+        val shape = RoundedCornerShape(Look.control)
+        Box(
+            modifier.hoverable(source).clip(shape)
+                .background(if (hovered && enabled) fill.copy(alpha = 0.88f) else fill)
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) { Txt(text, color = if (enabled) (if (primary) C.OnAccent else C.Text) else C.Muted, size = 14, weight = FontWeight.SemiBold) }
+        return
+    }
     val shadow = if (primary) C.BlueDeep else C.Shadow
     Box(
         modifier
@@ -141,11 +129,80 @@ fun PixelButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     ) { Txt(text.uppercase(), color = if (enabled) (if (primary) C.OnAccent else C.Text) else C.Muted, size = 10, pixel = true) }
 }
 
-enum class Glyph { Play, Pause, Next, Prev, Heart, HeartOff, Search, Plus, Close, Queue, Home, Library, Volume, Trash, Download, Check, Timer, Mic, Wave, Gear }
+/**
+ * Иконки. Часть рисуется кодом (медиа-кнопки, громкость), остальные берутся
+ * из тех же наборов, что на телефоне: пиксельная сетка у Pixel, контур
+ * Material Rounded у Smooth. [sprite]/[smooth] пусты — значит, рисуется кодом в обоих стилях.
+ */
+enum class Glyph(val sprite: List<String>? = null, val smooth: ImageVector? = null) {
+    Play, Pause, Next, Prev, Heart, HeartOff, Search, Plus, Close, Queue, Home, Library, Volume, Trash, Download, Check, Timer, Mic, Wave, Gear,
+    Shuffle(Sprites.shuffle, SmoothIcons.shuffle),
+    Repeat(Sprites.repeat, SmoothIcons.repeat),
+    Stand(Sprites.stand, SmoothIcons.stand),
+    Sliders(Sprites.sliders, SmoothIcons.sliders),
+    Palette(Sprites.palette, SmoothIcons.palette),
+    Globe(Sprites.globe, SmoothIcons.globe),
+    Headphones(Sprites.headphones, SmoothIcons.headphones),
+    Sync(Sprites.sync, SmoothIcons.sync),
+    Shield(Sprites.shield, SmoothIcons.shield),
+    Stats(Sprites.stats, SmoothIcons.stats),
+    Pin(Sprites.pin, SmoothIcons.pin),
+    ChevronRight(Sprites.chevronRight, SmoothIcons.chevronRight),
+    ChevronLeft(Sprites.chevronLeft, SmoothIcons.chevronLeft),
+    ChevronUp(Sprites.chevronUp, SmoothIcons.chevronUp),
+    Collapse(Sprites.collapse, SmoothIcons.collapse),
+    Fullscreen(Sprites.fullscreen, SmoothIcons.fullscreen),
+    Share(Sprites.share, SmoothIcons.share),
+    Note(Sprites.note, SmoothIcons.note),
+    Grip(Sprites.grip, SmoothIcons.grip),
+    Box(Sprites.box, SmoothIcons.box),
+    Artist(Sprites.artist, SmoothIcons.artist),
+    Release(Sprites.release, SmoothIcons.release),
+    Rocket(Sprites.rocket, SmoothIcons.rocket),
+    License(Sprites.license, SmoothIcons.license),
+    Github(Sprites.github, SmoothIcons.github),
+    Rotate(Sprites.rotate, SmoothIcons.rotate),
+    ;
+
+    /** Пара из телефонных наборов для кодовой иконки в плавном стиле; null — рисуется кодом. */
+    internal val smoothPair: ImageVector? get() = smooth ?: when (this) {
+        Play -> SmoothIcons.play
+        Pause -> SmoothIcons.pause
+        Next -> SmoothIcons.next
+        Prev -> SmoothIcons.previous
+        Heart -> SmoothIcons.heart
+        Search -> SmoothIcons.search
+        Plus -> SmoothIcons.plus
+        Close -> SmoothIcons.close
+        Home -> SmoothIcons.home
+        Library -> SmoothIcons.library
+        Trash -> SmoothIcons.trash
+        Download -> SmoothIcons.download
+        Check -> SmoothIcons.check
+        Timer -> SmoothIcons.timer
+        Wave -> SmoothIcons.wave
+        Gear -> SmoothIcons.gear
+        else -> null
+    }
+}
 
 /** Иконки рисуются кодом: ни растровых ассетов, ни шрифта с символами. */
 @Composable
 fun Icon(glyph: Glyph, color: Color = C.Text, size: Dp = 20.dp, modifier: Modifier = Modifier) {
+    if (Look.smooth) {
+        val vector = glyph.smoothPair
+        if (vector != null) {
+            Image(rememberVectorPainter(vector), null, modifier.size(size), colorFilter = ColorFilter.tint(color))
+            return
+        }
+        if (glyph == Glyph.HeartOff) {
+            Box(modifier.size(size).drawBehind { drawHeartOutline(color) })
+            return
+        }
+    } else if (glyph.sprite != null) {
+        Spacer(modifier.size(size).drawWithCache { spriteDrawer(glyph.sprite, color) })
+        return
+    }
     Box(
         modifier.size(size).drawBehind {
             val w = this.size.width
@@ -249,6 +306,7 @@ fun Icon(glyph: Glyph, color: Color = C.Text, size: Dp = 20.dp, modifier: Modifi
                     drawRect(color, Offset(w * .2f, h * .3f), Size(w * .6f, h * .56f))
                     drawRect(color, Offset(w * .12f, h * .18f), Size(w * .76f, h * .1f))
                 }
+                else -> if (glyph.sprite != null) drawSprite(glyph.sprite, color) else Unit
             }
         },
     )
@@ -263,7 +321,7 @@ fun IconButton(glyph: Glyph, onClick: () -> Unit, modifier: Modifier = Modifier,
         modifier
             .size(box)
             .hoverable(source)
-            .clip(RoundedCornerShape(4.dp))
+            .clip(if (Look.smooth) CircleShape else RoundedCornerShape(4.dp))
             .background(if (hovered) C.SurfaceHigh else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -287,7 +345,7 @@ fun sizedThumb(url: String?, px: Int): String? {
 
 @Composable
 fun Cover(url: String?, size: Dp, modifier: Modifier = Modifier, circle: Boolean = false) {
-    val shape = if (circle) CircleShape else RoundedCornerShape(4.dp)
+    val shape = if (circle) CircleShape else RoundedCornerShape(Look.cover)
     Box(modifier.size(size).clip(shape).background(C.SurfaceHigh), contentAlignment = Alignment.Center) {
         Icon(Glyph.Queue, C.Border, size / 3)
         val model = sizedThumb(url, (size.value * 2).toInt().coerceAtLeast(120))
@@ -366,4 +424,48 @@ fun rememberCoverColor(url: String?): Color? {
         }
     }
     return color
+}
+
+/** Контур сердца для «не в избранном» в плавном стиле. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHeartOutline(color: Color) {
+    val w = size.width
+    val h = size.height
+    val p = Path().apply {
+        moveTo(w * .5f, h * .86f)
+        cubicTo(w * .1f, h * .6f, w * .06f, h * .3f, w * .26f, h * .2f)
+        cubicTo(w * .4f, h * .13f, w * .5f, h * .26f, w * .5f, h * .3f)
+        cubicTo(w * .5f, h * .26f, w * .6f, h * .13f, w * .74f, h * .2f)
+        cubicTo(w * .94f, h * .3f, w * .9f, h * .6f, w * .5f, h * .86f)
+        close()
+    }
+    drawPath(p, color, style = androidx.compose.ui.graphics.drawscope.Stroke(w * .09f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSprite(rows: List<String>, color: Color) {
+    val cols = rows.maxOf { it.length }
+    val cell = minOf(size.width / cols, size.height / rows.size)
+    val ox = (size.width - cell * cols) / 2f
+    val oy = (size.height - cell * rows.size) / 2f
+    rows.forEachIndexed { y, row ->
+        row.forEachIndexed { x, ch -> if (ch == '#') drawRect(color, Offset(ox + x * cell, oy + y * cell), Size(cell + .5f, cell + .5f)) }
+    }
+}
+
+private fun androidx.compose.ui.draw.CacheDrawScope.spriteDrawer(rows: List<String>, color: Color): androidx.compose.ui.draw.DrawResult {
+    val cols = rows.maxOf { it.length }
+    val cell = minOf(size.width / cols, size.height / rows.size)
+    val ox = (size.width - cell * cols) / 2f
+    val oy = (size.height - cell * rows.size) / 2f
+    val path = Path()
+    rows.forEachIndexed { y, row ->
+        var x = 0
+        while (x < row.length) {
+            if (row[x] != '#') { x++; continue }
+            var run = x
+            while (run < row.length && row[run] == '#') run++
+            path.addRect(androidx.compose.ui.geometry.Rect(ox + x * cell, oy + y * cell, ox + run * cell + .5f, oy + (y + 1) * cell + .5f))
+            x = run
+        }
+    }
+    return onDrawBehind { drawPath(path, color) }
 }

@@ -63,24 +63,57 @@ data class Library(
     val searchHistory: List<String> = emptyList(),
     /** Сколько раз включали исполнителя (по нижнему регистру) — вкус слушателя для рекомендаций. */
     val artistPlays: Map<String, Int> = emptyMap(),
+    /** Журнал прослушиваний для статистики: считается, если проиграно хотя бы полтрека. */
+    val playLog: List<StoredPlay> = emptyList(),
+    /** Закреплённые на «быстром наборе»: «song:ID», «album:ID», «artist:ID». */
+    val dialPins: List<String> = emptyList(),
+    /** Спрятанные с «быстрого набора» — не возвращаются, пока их не закрепят. */
+    val dialHidden: List<String> = emptyList(),
 )
+
+/** Одно прослушивание: что, когда (мс) и сколько секунд реально играло. */
+@Serializable
+data class StoredPlay(val song: StoredSong, val at: Long, val seconds: Int)
 
 /** Всё, что приложение помнит, — одним JSON-файлом в ~/.local/share/w0y. */
 class Store {
+    companion object {
+        fun dirPath(): String = "${System.getenv("XDG_DATA_HOME") ?: "${System.getProperty("user.home")}/.local/share"}/w0y"
+
+        fun openDir() {
+            runCatching { ProcessBuilder("xdg-open", dirPath()).start() }
+        }
+    }
+
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
     private val dir: Path =
         Path.of(System.getenv("XDG_DATA_HOME") ?: "${System.getProperty("user.home")}/.local/share", "w0y")
     private val file = dir.resolve("library.json")
 
+    /** Если файл есть, но не читается, он не пропадает: уходит в «.broken-…», а приложение стартует с чистой библиотекой. */
+    var loadProblem: String? = null
+        private set
+
     fun load(): Library =
-        runCatching { json.decodeFromString<Library>(Files.readString(file)) }.getOrDefault(Library())
+        (if (!Files.exists(file)) Library() else runCatching { json.decodeFromString<Library>(Files.readString(file)) }.getOrElse { e ->
+            loadProblem = e.message
+            runCatching { Files.copy(file, dir.resolve("library.json.broken-${System.currentTimeMillis()}")) }
+            Library()
+        })
             // Плейлисты из прошлой версии были без id — заводим, иначе у всех он будет общим.
             .let { lib -> lib.copy(playlists = lib.playlists.map { if (it.id.isBlank()) it.copy(id = java.util.UUID.randomUUID().toString()) else it }) }
+
+    /** Раз за запуск откладывает копию рабочего файла: на случай, если что-то пойдёт не так позже. */
+    private var backedUp = false
 
     @Synchronized
     fun save(library: Library) {
         runCatching {
             Files.createDirectories(dir)
+            if (!backedUp && Files.exists(file) && loadProblem == null) {
+                backedUp = true
+                Files.copy(file, dir.resolve("library.json.bak"), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
             // Через временный файл: оборванная запись не должна убить библиотеку.
             val tmp = dir.resolve("library.json.tmp")
             Files.writeString(tmp, json.encodeToString(Library.serializer(), library))
