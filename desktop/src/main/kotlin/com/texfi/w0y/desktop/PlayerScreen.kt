@@ -133,7 +133,7 @@ fun PlayerScreen(app: AppState) {
                     val active = t == tab
                     Box(
                         Modifier.clip(RoundedCornerShape(if (Look.smooth) 50.dp else 4.dp)).background(if (active) (if (Look.smooth) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { tab = t }.padding(horizontal = 12.dp, vertical = 10.dp),
+                            .clickable { tab = t }.padding(horizontal = 8.dp, vertical = 10.dp),
                     ) { Txt(if (Look.smooth) t.label else t.label.uppercase(), pixel = true, size = if (Look.smooth) 14 else 9, color = if (active) C.Blue else C.Muted) }
                     Gap(w = 2)
                 }

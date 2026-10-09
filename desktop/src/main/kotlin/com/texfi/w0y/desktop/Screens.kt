@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
@@ -180,9 +181,11 @@ fun AppState.openCard(card: PlaylistCard) {
 fun SearchScreen(app: AppState) {
     ScreenFrame(S("tab_search"), app, canBack = false) {
         val state = rememberLazyListState()
+        val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+        LaunchedEffect(Actions.searchFocusTick) { if (Actions.searchFocusTick > 0) runCatching { searchFocus.requestFocus() } }
         Column(Modifier.fillMaxSize()) {
             RowCenter(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(C.Surface).padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(if (Look.smooth) 50.dp else 6.dp)).background(if (Look.smooth) C.SurfaceHigh.copy(alpha = 0.7f) else C.Surface).padding(horizontal = 14.dp, vertical = 10.dp),
             ) {
                 Icon(Glyph.Search, C.Muted, 18.dp)
                 Gap(w = 10)
@@ -196,7 +199,7 @@ fun SearchScreen(app: AppState) {
                         cursorBrush = SolidColor(C.Blue),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { app.search(app.searchQuery) }),
-                        modifier = Modifier.fillMaxWidth().onKeyEvent {
+                        modifier = Modifier.fillMaxWidth().textFieldFocus().focusRequester(searchFocus).onKeyEvent {
                             if (it.type == KeyEventType.KeyDown && it.key == Key.Enter) {
                                 app.search(app.searchQuery)
                                 true
@@ -419,7 +422,7 @@ fun LibraryScreen(app: AppState) {
                                 RowCenter {
                                     Box(Modifier.weight(1f).clip(RoundedCornerShape(4.dp)).background(C.SurfaceHigh).padding(10.dp)) {
                                         if (cookie.isEmpty()) Txt("Cookie", color = C.Muted, size = 13)
-                                        BasicTextField(cookie, { cookie = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 13.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
+                                        BasicTextField(cookie, { cookie = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 13.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth().textFieldFocus())
                                     }
                                     Gap(w = 10)
                                     PixelButton(S("login_submit"), onClick = { app.signIn(cookie); cookie = "" })
@@ -455,7 +458,7 @@ fun LibraryScreen(app: AppState) {
                             RowCenter {
                                 Box(Modifier.weight(1f)) {
                                     if (value.isEmpty()) Txt(S("library_playlist_name"), color = C.Muted, size = 14)
-                                    BasicTextField(value, { newName = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
+                                    BasicTextField(value, { newName = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth().textFieldFocus())
                                 }
                                 Gap(w = 10)
                                 PixelButton(S("library_create"), onClick = { app.createPlaylist(value); newName = null })
@@ -552,7 +555,7 @@ fun LocalScreen(app: AppState, s: Screen.Local) {
                 PixelCard(Modifier.fillMaxWidth()) {
                     RowCenter {
                         Box(Modifier.weight(1f)) {
-                            BasicTextField(value, { renaming = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth())
+                            BasicTextField(value, { renaming = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth().textFieldFocus())
                         }
                         Gap(w = 10)
                         PixelButton(S("playlist_rename_save"), onClick = { app.renamePlaylist(s.id, value); renaming = null })

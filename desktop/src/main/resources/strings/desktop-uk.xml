@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Строки, которых нет у телефона: только десктоп. -->
 <resources>
+    <string name="about_blurb">Потік іде з YouTube, акаунт — ваш. Жодної реклами, аналітики чи фонового надсилання «подій»: історія й статистика лежать у файлі на цьому комп\'ютері — перевіряється за вихідним кодом.</string>
+    <string name="about_money_text">Особисті фінанси, що не залишають пристрій.</string>
     <string name="d_act_back">Назад / закрити</string>
     <string name="d_act_download">Завантажити</string>
     <string name="d_act_fullscreen">На весь екран</string>
@@ -121,4 +123,13 @@
     <string name="d_to_playlist">ДО ПЛЕЙЛИСТА</string>
     <string name="d_waiting_login">ЧЕКАЮ НА ВХІД…</string>
     <string name="d_your_version">твоя версія · %1$s</string>
+    <string name="dl_clear_desc">Звільняє місце. Копії, які ти зробив деінде, лишаються.</string>
+    <string name="settings_language_desc">Мова застосунку. «Системна» — як на комп\'ютері.</string>
+    <string name="settings_reset_desc">Стирає все в застосунку: налаштування, бібліотеку, історію, вхід в акаунт і завантаження. Файли, які ти скопіював деінде, лишаються.</string>
+    <string name="settings_section_downloads_sum">Якість, черга, тека, місце</string>
+    <string name="settings_section_look_sum">Стиль, тема, кольори, мова</string>
+    <string name="settings_startup_desc">Час від натискання до першого звуку, виміряний на цьому комп\'ютері. %1$s</string>
+    <string name="stand_flip_desc">Для екрана, що стоїть догори дриґом. Кнопка в режимі підставки теж перевертає.</string>
+    <string name="stand_view_desc">Що великим на екрані підставки. Затисни кнопку миші, щоб перемкнути.</string>
+    <string name="welcome_intro">Музика з YouTube без реклами й обмежень. З вашим акаунтом — ваші плейлисти та завантаження на комп\'ютері.</string>
 </resources>

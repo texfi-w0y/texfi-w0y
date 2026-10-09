@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Строки, которых нет у телефона: только десктоп. -->
 <resources>
+    <string name="about_blurb">Поток идёт с YouTube, аккаунт — ваш. Ни рекламы, ни аналитики, ни фоновой отправки «событий»: история и статистика лежат в файле на этом компьютере — проверяется по исходникам.</string>
+    <string name="about_money_text">Личные финансы, которые не покидают устройство.</string>
     <string name="d_act_back">Назад / закрыть</string>
     <string name="d_act_download">Скачать</string>
     <string name="d_act_fullscreen">Во весь экран</string>
@@ -121,4 +123,13 @@
     <string name="d_to_playlist">В ПЛЕЙЛИСТ</string>
     <string name="d_waiting_login">ЖДУ ВХОД…</string>
     <string name="d_your_version">твоя версия · %1$s</string>
+    <string name="dl_clear_desc">Освобождает место. Копии, которые ты сделал в другом месте, остаются.</string>
+    <string name="settings_language_desc">Язык приложения. «Системный» — как на компьютере.</string>
+    <string name="settings_reset_desc">Стирает всё в приложении: настройки, библиотеку, историю, вход в аккаунт и загрузки. Файлы, которые ты скопировал в другое место, остаются.</string>
+    <string name="settings_section_downloads_sum">Качество, очередь, папка, место</string>
+    <string name="settings_section_look_sum">Стиль, тема, цвета, язык</string>
+    <string name="settings_startup_desc">Время от нажатия до первого звука, замеренное на этом компьютере. %1$s</string>
+    <string name="stand_flip_desc">Для экрана, стоящего вверх ногами. Кнопка в режиме подставки тоже переворачивает.</string>
+    <string name="stand_view_desc">Что крупно на экране подставки. Зажми кнопку мыши, чтобы переключить.</string>
+    <string name="welcome_intro">Музыка из YouTube без рекламы и ограничений. С вашим аккаунтом — ваши плейлисты и загрузки на компьютере.</string>
 </resources>

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Строки, которых нет у телефона: только десктоп. -->
 <resources>
+    <string name="about_blurb">The stream comes from YouTube, the account is yours. No ads, no analytics, no background event reporting: history and stats stay in a file on this computer — check it against the sources.</string>
+    <string name="about_money_text">Personal finances that never leave your device.</string>
     <string name="d_act_back">Back / close</string>
     <string name="d_act_download">Download</string>
     <string name="d_act_fullscreen">Full screen</string>
@@ -121,4 +123,13 @@
     <string name="d_to_playlist">TO PLAYLIST</string>
     <string name="d_waiting_login">WAITING FOR SIGN-IN…</string>
     <string name="d_your_version">your version · %1$s</string>
+    <string name="dl_clear_desc">Frees the space. Copies you made elsewhere stay.</string>
+    <string name="settings_language_desc">The app\'s language. “System” follows the computer.</string>
+    <string name="settings_reset_desc">Erases everything in the app: settings, library, history, account sign-in and downloads. Files you copied elsewhere stay.</string>
+    <string name="settings_section_downloads_sum">Quality, queue, folder, storage</string>
+    <string name="settings_section_look_sum">Style, theme, colours, language</string>
+    <string name="settings_startup_desc">Time from click to first sound, measured on this computer. %1$s</string>
+    <string name="stand_flip_desc">For a screen mounted upside down. The button in stand mode flips it too.</string>
+    <string name="stand_view_desc">What is big on the stand screen. Click and hold to switch.</string>
+    <string name="welcome_intro">Music from YouTube with no ads and no limits. With your account, your playlists and downloads on your computer.</string>
 </resources>

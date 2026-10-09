@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Строки, которых нет у телефона: только десктоп. -->
 <resources>
+    <string name="about_blurb">Strumień pochodzi z YouTube, konto jest twoje. Żadnych reklam, analityki ani wysyłania zdarzeń w tle: historia i statystyki leżą w pliku na tym komputerze — sprawdź w kodzie źródłowym.</string>
+    <string name="about_money_text">Finanse osobiste, które nie opuszczają urządzenia.</string>
     <string name="d_act_back">Wstecz / zamknij</string>
     <string name="d_act_download">Pobierz</string>
     <string name="d_act_fullscreen">Pełny ekran</string>
@@ -121,4 +123,13 @@
     <string name="d_to_playlist">DO PLAYLISTY</string>
     <string name="d_waiting_login">CZEKAM NA LOGOWANIE…</string>
     <string name="d_your_version">twoja wersja · %1$s</string>
+    <string name="dl_clear_desc">Zwalnia miejsce. Kopie zrobione gdzie indziej zostają.</string>
+    <string name="settings_language_desc">Język aplikacji. „Systemowy” — jak na komputerze.</string>
+    <string name="settings_reset_desc">Usuwa wszystko w aplikacji: ustawienia, bibliotekę, historię, logowanie i pobrania. Pliki skopiowane gdzie indziej zostają.</string>
+    <string name="settings_section_downloads_sum">Jakość, kolejka, folder, miejsce</string>
+    <string name="settings_section_look_sum">Styl, motyw, kolory, język</string>
+    <string name="settings_startup_desc">Czas od kliknięcia do pierwszego dźwięku, zmierzony na tym komputerze. %1$s</string>
+    <string name="stand_flip_desc">Dla ekranu ustawionego do góry nogami. Przycisk w trybie podstawki też go obraca.</string>
+    <string name="stand_view_desc">Co jest duże na ekranie podstawki. Przytrzymaj przycisk myszy, aby przełączyć.</string>
+    <string name="welcome_intro">Muzyka z YouTube bez reklam i ograniczeń. Z twoim kontem — twoje playlisty i pobrania na komputerze.</string>
 </resources>

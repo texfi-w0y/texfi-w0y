@@ -137,12 +137,12 @@ object SpectrumCapture {
             val text = p.inputStream.bufferedReader().readText()
             p.waitFor()
             val items = Json.parseToJsonElement(text).jsonArray
-            items.firstOrNull {
-                val props = it.jsonObject["properties"] as? JsonObject ?: return@firstOrNull false
-                props["application.name"]?.jsonPrimitive?.contentOrNull == "w0y" ||
-                    props["application.process.binary"]?.jsonPrimitive?.contentOrNull == "mpv" &&
-                    props["media.software"]?.jsonPrimitive?.contentOrNull?.contains("mpv", true) == true
-            }?.jsonObject?.get("index")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            // Наш поток зовётся w0y; если запущено два экземпляра, берём тот, что играет, а не на паузе.
+            items.filter {
+                val props = it.jsonObject["properties"] as? JsonObject ?: return@filter false
+                props["application.name"]?.jsonPrimitive?.contentOrNull == "w0y"
+            }.sortedBy { it.jsonObject["corked"]?.jsonPrimitive?.contentOrNull == "true" }
+                .firstOrNull()?.jsonObject?.get("index")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
         }.getOrNull()
 }
 

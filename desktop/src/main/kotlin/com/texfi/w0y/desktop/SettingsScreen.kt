@@ -402,7 +402,7 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) ->
         add(Setting(SSection.LOOK, S("settings_theme_title"), S("settings_theme_desc"),
             choice(ThemeMode.entries, st.theme, { it.label }) { v -> set { it.copy(theme = v) } }, "оформление тема"))
         add(Setting(SSection.LOOK, S("settings_accent_title"), S("settings_accent_desc"), SetControl.Custom { AccentPicker(app) }, "цвет акцент"))
-        add(Setting(SSection.LOOK, S("settings_language_title"), S("settings_language_desc").replace("phone", "computer").replace("телефон", "компьютер"),
+        add(Setting(SSection.LOOK, S("settings_language_title"), S("settings_language_desc"),
             choice(Language.entries, st.language, { it.label }) { v -> set { it.copy(language = v) } }))
         add(Setting(SSection.LOOK, S("settings_start_tab_title"), S("settings_start_tab_desc"),
             choice(StartTab.entries, st.startTab, { it.label }) { v -> set { it.copy(startTab = v) } }))
