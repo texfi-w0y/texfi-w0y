@@ -245,11 +245,7 @@ fun HairDisc(
     val next by rememberUpdatedState(onNext)
     val previous by rememberUpdatedState(onPrevious)
     val seek by rememberUpdatedState(onSeek)
-    val cornerShare = when (look.coverShape) {
-        CoverShape.DISC -> 0.5f
-        CoverShape.ROUNDED -> com.texfi.w0y.ui.theme.HairTokens.COVER_ROUND_SHARE
-        CoverShape.SQUARE -> 0f
-    }
+    val screenDensity = density.density
 
     Box(
         modifier
@@ -291,7 +287,12 @@ fun HairDisc(
                 val stroke = look.line.toPx()
                 val inset = stroke * 2f
                 val rect = Rect(inset, inset, this.size.width - inset, this.size.height - inset)
-                val radius = min(rect.width, rect.height) * cornerShare
+                val side = min(rect.width, rect.height)
+                val radius = when (look.coverShape) {
+                    CoverShape.DISC -> side / 2f
+                    CoverShape.ROUNDED -> com.texfi.w0y.ui.theme.coverRadiusPx(side, screenDensity)
+                    CoverShape.SQUARE -> 0f
+                }
                 val frame = framePath(rect, radius)
                 val measure = PathMeasure().also { it.setPath(frame, false) }
                 val length = measure.length
@@ -472,7 +473,7 @@ private fun HairMiniDisc(url: String?, progress: () -> Float, onClick: () -> Uni
                 val rect = Rect(stroke, stroke, size.width - stroke, size.height - stroke)
                 val radius = when (look.coverShape) {
                     CoverShape.DISC -> min(rect.width, rect.height) / 2f
-                    CoverShape.ROUNDED -> rect.width * com.texfi.w0y.ui.theme.HairTokens.COVER_ROUND_SHARE
+                    CoverShape.ROUNDED -> com.texfi.w0y.ui.theme.coverRadiusPx(rect.width, density)
                     CoverShape.SQUARE -> 0f
                 }
                 val frame = framePath(rect, radius)
@@ -512,6 +513,8 @@ fun HairMiniPlayer(
     onExpand: () -> Unit,
     onDismiss: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Внутри парящей панели: без своего фона и линии-волны, прогресс рисует контур панели. */
+    docked: Boolean = false,
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
@@ -576,9 +579,9 @@ fun HairMiniPlayer(
                         )
                     },
                 )
-                .background(colors.surface),
+                .then(if (docked) Modifier else Modifier.background(colors.surface)),
         ) {
-            HairWaveLine(song.id.hashCode(), progress, state.isPlaying, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp))
+            if (!docked) HairWaveLine(song.id.hashCode(), progress, state.isPlaying, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp))
             SwipeRow(
                 onSwipeRight = onPrevious,
                 rightLabel = "<<",
@@ -613,6 +616,9 @@ fun HairMiniPlayer(
                     HairPlayButton(playing = state.isPlaying, onClick = onToggle, size = 52.dp)
                     HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text)
                 }
+            }
+            if (docked) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(1.dp).background(colors.border.copy(alpha = 0.7f)))
             }
         }
     }

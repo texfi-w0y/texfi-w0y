@@ -221,7 +221,7 @@ enum class LineWeight(@StringRes val label: Int, val dp: Float) {
 
 /** Скругления карточек и кнопок: от острых до кругов. */
 enum class CornerStyle(@StringRes val label: Int, val dp: Int) {
-    SHARP(R.string.hl_corner_sharp, 0),
+    SHARP(R.string.hl_corner_sharp, 3),
     SOFT(R.string.hl_corner_soft, 8),
     ROUND(R.string.hl_corner_round, 16),
     CIRCLE(R.string.hl_corner_circle, 999),
@@ -391,7 +391,7 @@ data class W0ySettings(
     val standLowBatteryExit: Boolean = true,
     // ── Hairline ─────────────────────────────────────────────────────────
     val lineWeight: LineWeight = LineWeight.THIN,
-    val corners: CornerStyle = CornerStyle.SOFT,
+    val corners: CornerStyle = CornerStyle.SHARP,
     val coverShape: CoverShape = CoverShape.ROUNDED,
     val playerLayout: PlayerLayout = PlayerLayout.RING,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
@@ -495,7 +495,7 @@ class SettingsRepository @Inject constructor(
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: 60,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: true,
                     lineWeight = prefs.enum(Keys.HL_WEIGHT, LineWeight.THIN),
-                    corners = prefs.enum(Keys.HL_CORNERS, CornerStyle.SOFT),
+                    corners = prefs.enum(Keys.HL_CORNERS, CornerStyle.SHARP),
                     coverShape = prefs.enum(Keys.HL_COVER, CoverShape.ROUNDED),
                     playerLayout = prefs.enum(Keys.HL_LAYOUT, PlayerLayout.RING),
                     caps = prefs.enum(Keys.HL_CAPS, CapsMode.TITLES_LABELS),

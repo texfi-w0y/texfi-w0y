@@ -63,6 +63,18 @@ import kotlin.math.roundToInt
  * поэтому экраны не знают, какой стиль включён.
  */
 
+/**
+ * Поверхность с глубиной без тени: градиент от чуть более светлой кромки
+ * к основному тону. Плоская заливка выглядела пустой; здесь тот же 1 dp
+ * контур, но карточка «лежит» над фоном.
+ */
+@Composable
+internal fun Modifier.hairSurface(shape: androidx.compose.ui.graphics.Shape, fill: Color = LocalW0yColors.current.surface): Modifier =
+    this.background(
+        androidx.compose.ui.graphics.Brush.verticalGradient(listOf(lerp(fill, Color.White, 0.055f), fill)),
+        shape,
+    )
+
 /** Карточка: поверхность и контур, который «рисуется» при появлении. Тени нет. */
 @Composable
 internal fun HairCard(modifier: Modifier, label: String?, content: @Composable ColumnScope.() -> Unit) {
@@ -73,7 +85,7 @@ internal fun HairCard(modifier: Modifier, label: String?, content: @Composable C
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(colors.surface)
+            .hairSurface(shape)
             .hairOutline(shape, colors.outline)
             .padding(if (look.compact) 12.dp else 16.dp),
     ) {
@@ -296,7 +308,7 @@ internal fun HairDialTile(
                 scaleY = k
             }
             .clip(shape)
-            .background(colors.surface)
+            .hairSurface(shape)
             .border(look.line, lerp(colors.outline, tone, press), shape)
             .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick)
             .padding(10.dp),

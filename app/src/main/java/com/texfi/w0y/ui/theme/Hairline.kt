@@ -58,9 +58,10 @@ object HairTokens {
     /** Диск плеера: доля ширины экрана. */
     const val DISC_SHARE = 0.78f
 
-    /** Скруглённый квадрат обложки трека: чуть-чуть, процент от стороны. */
-    const val COVER_ROUND_PERCENT = 10
-    const val COVER_ROUND_SHARE = COVER_ROUND_PERCENT / 100f
+    /** Скруглённый квадрат обложки: чуть-чуть — доля стороны, но в пределах 3…10 dp. */
+    const val COVER_ROUND_SHARE = 0.07f
+    val COVER_ROUND_MIN: Dp = 3.dp
+    val COVER_ROUND_MAX: Dp = 10.dp
 
     /** Минимальная цель касания. */
     val TOUCH: Dp = 48.dp
@@ -87,7 +88,7 @@ enum class MotionLevel {
 @Immutable
 data class HairlineLook(
     val weight: LineWeight = LineWeight.THIN,
-    val corners: CornerStyle = CornerStyle.SOFT,
+    val corners: CornerStyle = CornerStyle.SHARP,
     val coverShape: CoverShape = CoverShape.ROUNDED,
     val layout: PlayerLayout = PlayerLayout.RING,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
@@ -189,11 +190,29 @@ fun hairLabelCase(text: String, caps: CapsMode): String = if (caps == CapsMode.O
 /** Регистр заголовка экрана и ключевого слова. */
 fun hairTitleCase(text: String, caps: CapsMode): String = if (caps == CapsMode.TITLES_LABELS) text.uppercase() else sentence(text)
 
+/** Радиус скруглённого квадрата обложки в пикселях для стороны [sidePx]. */
+fun coverRadiusPx(sidePx: Float, density: Float): Float =
+    (sidePx * HairTokens.COVER_ROUND_SHARE).coerceIn(HairTokens.COVER_ROUND_MIN.value * density, HairTokens.COVER_ROUND_MAX.value * density)
+
+/** Скруглённый квадрат: мелкая обложка почти острая, крупная — чуть мягче, но не «пузырь». */
+object CoverRoundedShape : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density,
+    ): androidx.compose.ui.graphics.Outline {
+        val r = coverRadiusPx(minOf(size.width, size.height), density.density)
+        return androidx.compose.ui.graphics.Outline.Rounded(
+            androidx.compose.ui.geometry.RoundRect(androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size), androidx.compose.ui.geometry.CornerRadius(r)),
+        )
+    }
+}
+
 /** Форма обложки по настройке: диск, скруглённый квадрат или квадрат. */
 fun hairCoverShape(look: HairlineLook): androidx.compose.ui.graphics.Shape =
     when (look.coverShape) {
         CoverShape.DISC -> androidx.compose.foundation.shape.CircleShape
-        CoverShape.ROUNDED -> androidx.compose.foundation.shape.RoundedCornerShape(percent = HairTokens.COVER_ROUND_PERCENT)
+        CoverShape.ROUNDED -> CoverRoundedShape
         CoverShape.SQUARE -> androidx.compose.ui.graphics.RectangleShape
     }
 

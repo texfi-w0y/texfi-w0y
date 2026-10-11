@@ -20,6 +20,7 @@ import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.aspectRatio
+import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -385,6 +386,7 @@ private fun ShortcutCard(
         Column(
             modifier
                 .clip(shape)
+                .hairSurface(shape)
                 .border(look.line, colors.border, shape)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),

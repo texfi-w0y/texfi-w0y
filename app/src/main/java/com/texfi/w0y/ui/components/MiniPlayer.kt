@@ -55,10 +55,12 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
     /** Потянуть вниз — остановить и убрать (только Hairline); null — жест выключен. */
     onDismiss: (() -> Unit)? = null,
+    /** Hairline: мини-плеер лежит внутри парящей панели. */
+    docked: Boolean = false,
 ) {
     val colors = LocalW0yColors.current
     if (com.texfi.w0y.ui.theme.isHair) {
-        HairMiniPlayer(state, positionProvider, onToggle, onNext, onPrevious, onExpand, onDismiss, modifier)
+        HairMiniPlayer(state, positionProvider, onToggle, onNext, onPrevious, onExpand, onDismiss, modifier, docked)
         return
     }
     AnimatedVisibility(

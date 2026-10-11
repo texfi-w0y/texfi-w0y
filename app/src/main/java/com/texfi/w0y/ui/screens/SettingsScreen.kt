@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.theme.asTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -417,7 +418,7 @@ private fun GlassGroup(content: @Composable androidx.compose.foundation.layout.C
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(colors.surface)
+                .hairSurface(shape)
                 .border(look.line, colors.border, shape)
                 .padding(vertical = 2.dp),
             content = content,

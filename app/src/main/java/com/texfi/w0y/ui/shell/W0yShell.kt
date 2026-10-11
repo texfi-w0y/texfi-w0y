@@ -249,7 +249,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         // Фон экосистемы: он виден в промежутках между карточками и
         // строками — как на сайте, где чёрный тоже не пустой.
         if (hair) {
-            // Hairline: чистый фон без звёзд и без размытия — быстрее и тише.
+            // Hairline: «чертёжный лист» — сетка, холодный отсвет и свет обложки. Градиенты, без размытия.
+            com.texfi.w0y.ui.components.HairBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
         } else if (com.texfi.w0y.ui.theme.isSmooth) {
             com.texfi.w0y.ui.components.SmoothBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
         } else {
@@ -323,22 +324,24 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     onPrevious = { viewModel.player.skipPrevious() },
                     onExpand = { playerExpanded = true },
                     onDismiss = if (hair && swipeDismiss) dismissPlayer else null,
+                    docked = hair,
                 )
             }
             val navItems = Tab.entries.map { NavItem(stringResource(it.labelRes), it.sprite) }
             if (hair) {
-                // Hairline: полосы во всю ширину, без плавающих блоков.
-                mini()
-                Box(Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding()) {
-                    FloatingNavBar(
-                        items = navItems,
-                        selected = tab.ordinal,
-                        onSelect = {
-                            tab = Tab.entries[it]
-                            settingsOpen = false
-                        },
-                    )
-                }
+                // Hairline: парящая панель — мини-плеер и навигация в одном корпусе.
+                com.texfi.w0y.ui.components.HairDock(
+                    state = playerState,
+                    positionProvider = viewModel.player::positionMs,
+                    items = navItems,
+                    selected = tab.ordinal,
+                    onSelect = {
+                        tab = Tab.entries[it]
+                        settingsOpen = false
+                    },
+                    modifier = Modifier.navigationBarsPadding(),
+                    mini = mini,
+                )
             } else {
                 // Мини-плеер и навигация — плавающие блоки в одной колонке с
                 // контентом: список заканчивается над ними и ничем не закрыт.
