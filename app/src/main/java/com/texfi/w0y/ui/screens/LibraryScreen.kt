@@ -89,6 +89,7 @@ fun LibraryScreen(
         LibraryRoute.Liked -> SongList(stringResource(R.string.library_likes), viewModel.liked.collectAsStateWithLifecycle().value, viewModel, collection = true)
         LibraryRoute.History -> SongList(stringResource(R.string.library_history), viewModel.recent.collectAsStateWithLifecycle().value, viewModel, onClear = viewModel::clearHistory)
         LibraryRoute.Downloads -> DownloadsList(viewModel)
+        LibraryRoute.Files -> LocalFilesList(viewModel)
         LibraryRoute.Stats -> StatsScreen(onBack = viewModel::back)
     }
 }
@@ -101,6 +102,7 @@ private fun LibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
     val liked by viewModel.liked.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
+    val files by viewModel.files.collectAsStateWithLifecycle()
     val signedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     val accountName by viewModel.accountName.collectAsStateWithLifecycle()
     val accountAvatar by viewModel.accountAvatar.collectAsStateWithLifecycle()
@@ -201,6 +203,11 @@ private fun LibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
                     ShortcutCard(stringResource(R.string.library_downloaded), "${downloaded.size}", Sprites.download, Modifier.weight(1f)) {
                         viewModel.open(LibraryRoute.Downloads)
                     }
+                    ShortcutCard(stringResource(R.string.lm_card), "${files.size}", Sprites.note, Modifier.weight(1f)) {
+                        viewModel.open(LibraryRoute.Files)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Итоги — своя статистика по локальной истории, доступная
                     // в любой день, а не раз в год «рекапом».
                     ShortcutCard(stringResource(R.string.library_stats), stringResource(R.string.library_stats_hint), Sprites.stats, Modifier.weight(1f)) {

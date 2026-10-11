@@ -689,4 +689,27 @@
     <string name="viz_lines">Linie</string>
     <string name="viz_orbit">Orbita</string>
     <string name="viz_terrain">Rzeźba</string>
+    <string name="unit_sec">s</string>
+    <string name="lyrics_delay_title">Opóźnienie tekstu</string>
+    <string name="lyrics_delay_desc">Przesuwa podświetlanie wersów później (lub wcześniej), gdy tekst nie pasuje do głosu.</string>
+    <string name="lyrics_delay_none">Brak</string>
+    <string name="lyrics_sources_title">Szukaj tekstu wszędzie</string>
+    <string name="lyrics_sources_desc">Gdy LRCLIB nic nie ma — próbujemy NetEase, Genius i lyrics.ovh po wykonawcy i tytule.</string>
+    <string name="lm_card">Moje pliki</string>
+    <string name="lm_hint">mp3, wav…</string>
+    <string name="lm_add">Dodaj pliki</string>
+    <string name="lm_adding">Dodaję %1$d z %2$d</string>
+    <string name="lm_added">Dodano: %1$d</string>
+    <string name="lm_failed">Nie udało się dodać: %1$d</string>
+    <string name="lm_empty_title">Brak plików</string>
+    <string name="lm_empty_text">Dodaj mp3, wav i inne audio z telefonu. Grają jak zwykłe utwory, trafiają do list i szybkiego wybierania.</string>
+    <string name="lm_edit">Edytuj utwór</string>
+    <string name="lm_field_title">Tytuł</string>
+    <string name="lm_field_artist">Wykonawca</string>
+    <string name="lm_field_album">Album</string>
+    <string name="lm_cover_pick">Wybierz okładkę</string>
+    <string name="lm_cover_clear">Usuń okładkę</string>
+    <string name="lm_save">Zapisz</string>
+    <string name="lm_remove">Usuń z aplikacji</string>
+    <string name="lm_remove_sure">Dotknij ponownie, aby usunąć plik</string>
 </resources>

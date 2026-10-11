@@ -196,7 +196,7 @@ class PlayerViewModel @Inject constructor(
     private var detailsForId: String? = null
 
     fun ensureDetails(song: SongItem?) {
-        if (song == null) return
+        if (song == null || com.texfi.w0y.data.LocalMusic.isLocal(song.id)) return
         if (song.id != detailsForId) {
             detailsForId = song.id
             _details.value = null
@@ -215,8 +215,9 @@ class PlayerViewModel @Inject constructor(
         lyricsForId = song.id
         _lyrics.value = null
         viewModelScope.launch {
-            if (!settingsRepository.settings.first().showLyrics) return@launch
-            _lyrics.value = lyricsRepository.lyrics(song)
+            val prefs = settingsRepository.settings.first()
+            if (!prefs.showLyrics) return@launch
+            _lyrics.value = lyricsRepository.lyrics(song, prefs.lyricsAllSources)
         }
     }
 

@@ -376,6 +376,10 @@ data class W0ySettings(
     val stylePicked: Boolean = false,
     // ── Лирика и визуализатор ────────────────────────────────────────────
     val lyricsSize: LyricsSize = LyricsSize.MEDIUM,
+    /** Насколько позже звучащей строки подсвечивать текст, мс (минус — раньше). */
+    val lyricsDelayMs: Int = 0,
+    /** Искать текст не только в LRCLIB, но и в других базах. */
+    val lyricsAllSources: Boolean = true,
     val visualizerStyle: VisualizerStyle = VisualizerStyle.SEGMENTS,
     val visualizerSensitivity: Float = 1f,
     val visualizerFps: Int = 60,
@@ -489,6 +493,8 @@ class SettingsRepository @Inject constructor(
                     smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: true,
                     stylePicked = prefs[Keys.STYLE_PICKED] ?: false,
                     lyricsSize = prefs.enum(Keys.LYRICS_SIZE, LyricsSize.MEDIUM),
+                    lyricsDelayMs = prefs[Keys.LYRICS_DELAY] ?: 0,
+                    lyricsAllSources = prefs[Keys.LYRICS_ALL] ?: true,
                     visualizerStyle = prefs.enum(Keys.VIZ_STYLE, VisualizerStyle.SEGMENTS),
                     visualizerSensitivity = prefs[Keys.VIZ_SENSITIVITY] ?: 1f,
                     visualizerFps = prefs[Keys.VIZ_FPS] ?: 60,
@@ -709,6 +715,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setLyricsSize(value: LyricsSize) = put(Keys.LYRICS_SIZE, value.name)
 
+    suspend fun setLyricsDelayMs(value: Int) = put(Keys.LYRICS_DELAY, value)
+
+    suspend fun setLyricsAllSources(value: Boolean) = put(Keys.LYRICS_ALL, value)
+
     suspend fun setVisualizerStyle(value: VisualizerStyle) = put(Keys.VIZ_STYLE, value.name)
 
     suspend fun setVisualizerSensitivity(value: Float) = put(Keys.VIZ_SENSITIVITY, value.coerceIn(0.3f, 3f))
@@ -784,6 +794,8 @@ class SettingsRepository @Inject constructor(
             .put("downloadParallel", current.downloadParallel)
             .put("dialMinPlays", current.dialMinPlays)
             .put("lyricsSize", current.lyricsSize.name)
+            .put("lyricsDelayMs", current.lyricsDelayMs)
+            .put("lyricsAllSources", current.lyricsAllSources)
             .put("visualizerStyle", current.visualizerStyle.name)
             .put("lineWeight", current.lineWeight.name)
             .put("corners", current.corners.name)
@@ -832,6 +844,8 @@ class SettingsRepository @Inject constructor(
             if (obj.has("downloadParallel")) prefs[Keys.DL_PARALLEL] = obj.getInt("downloadParallel")
             if (obj.has("dialMinPlays")) prefs[Keys.DIAL_MIN_PLAYS] = obj.getInt("dialMinPlays")
             obj.optString("lyricsSize").takeIf { it.isNotBlank() }?.let { prefs[Keys.LYRICS_SIZE] = it }
+            if (obj.has("lyricsDelayMs")) prefs[Keys.LYRICS_DELAY] = obj.getInt("lyricsDelayMs")
+            if (obj.has("lyricsAllSources")) prefs[Keys.LYRICS_ALL] = obj.getBoolean("lyricsAllSources")
             obj.optString("visualizerStyle").takeIf { it.isNotBlank() }?.let { prefs[Keys.VIZ_STYLE] = it }
             obj.optString("lineWeight").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_WEIGHT] = it }
             obj.optString("corners").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_CORNERS] = it }
@@ -931,6 +945,8 @@ class SettingsRepository @Inject constructor(
         val SMOOTH_GLASS = booleanPreferencesKey("smooth_glass")
         val STYLE_PICKED = booleanPreferencesKey("style_picked")
         val LYRICS_SIZE = stringPreferencesKey("lyrics_size")
+        val LYRICS_DELAY = intPreferencesKey("lyrics_delay_ms")
+        val LYRICS_ALL = booleanPreferencesKey("lyrics_all_sources")
         val VIZ_STYLE = stringPreferencesKey("visualizer_style")
         val VIZ_SENSITIVITY = floatPreferencesKey("visualizer_sensitivity")
         val VIZ_FPS = intPreferencesKey("visualizer_fps")

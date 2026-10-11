@@ -223,6 +223,7 @@ class DownloadsRepository @Inject constructor(
     }
 
     private fun enqueue(song: SongItem) {
+        if (com.texfi.w0y.data.LocalMusic.isLocal(song.id)) return
         scope.launch {
             library.saveSong(song)
             library.markDownloadError(song.id, null)

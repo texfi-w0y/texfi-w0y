@@ -70,12 +70,14 @@ fun LyricsView(
 ) {
     val colors = LocalW0yColors.current
     val list = rememberLazyListState()
-    var position by remember { mutableLongStateOf(positionProvider()) }
+    val lag = LocalLyricsDelayMs.current
+    val shifted = { (positionProvider() - lag).coerceAtLeast(0L) }
+    var position by remember { mutableLongStateOf(shifted()) }
     LaunchedEffect(playing, lines) {
-        position = positionProvider()
+        position = shifted()
         while (playing) {
             delay(TICK_MS)
-            position = positionProvider()
+            position = shifted()
         }
     }
     val active = LrcParser.activeIndex(lines, position)
@@ -207,12 +209,14 @@ fun LyricsTicker(
     style: TextStyle,
     color: Color,
 ) {
-    var position by remember { mutableLongStateOf(positionProvider()) }
+    val lag = LocalLyricsDelayMs.current
+    val shifted = { (positionProvider() - lag).coerceAtLeast(0L) }
+    var position by remember { mutableLongStateOf(shifted()) }
     LaunchedEffect(playing, lines) {
-        position = positionProvider()
+        position = shifted()
         while (playing) {
             delay(TICK_MS)
-            position = positionProvider()
+            position = shifted()
         }
     }
     val index = LrcParser.activeIndex(lines, position)
@@ -220,6 +224,9 @@ fun LyricsTicker(
     shown = lines.getOrNull(index)?.text ?: ""
     Text(shown, style = style, color = color, maxLines = 1, modifier = modifier.basicMarquee())
 }
+
+/** Задержка текста из настроек, мс: строка подсвечивается позже голоса на это время. */
+val LocalLyricsDelayMs = androidx.compose.runtime.compositionLocalOf { 0 }
 
 private const val TICK_MS = 120L
 private const val USER_PAUSE_MS = 3_500L

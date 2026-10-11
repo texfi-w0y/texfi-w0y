@@ -294,6 +294,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setLyricsSize(value: com.texfi.w0y.data.LyricsSize) = update { repository.setLyricsSize(value) }
 
+    fun setLyricsDelayMs(value: Int) = update { repository.setLyricsDelayMs(value) }
+
+    fun setLyricsAllSources(value: Boolean) = update { repository.setLyricsAllSources(value) }
+
     fun setVisualizerStyle(value: com.texfi.w0y.data.VisualizerStyle) = update { repository.setVisualizerStyle(value) }
 
     fun setVisualizerSensitivity(value: Float) = update { repository.setVisualizerSensitivity(value) }

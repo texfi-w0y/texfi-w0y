@@ -184,18 +184,22 @@ object PlaybackModule {
         @Named("download") downloadCache: SimpleCache,
         @Named("stream") streamCache: SimpleCache,
         @Named("resolving") resolving: DataSource.Factory,
-    ): DataSource.Factory =
-        CacheDataSource
-            .Factory()
-            .setCache(downloadCache)
-            .setUpstreamDataSourceFactory(
-                CacheDataSource
-                    .Factory()
-                    .setCache(streamCache)
-                    .setUpstreamDataSourceFactory(resolving)
-                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
-            ).setCacheWriteDataSinkFactory(null)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+    ): DataSource.Factory {
+        val cached =
+            CacheDataSource
+                .Factory()
+                .setCache(downloadCache)
+                .setUpstreamDataSourceFactory(
+                    CacheDataSource
+                        .Factory()
+                        .setCache(streamCache)
+                        .setUpstreamDataSourceFactory(resolving)
+                        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
+                ).setCacheWriteDataSinkFactory(null)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        // Свои файлы читаются напрямую с диска, мимо кэшей.
+        return DataSource.Factory { FileFirstDataSource(androidx.media3.datasource.FileDataSource(), cached.createDataSource()) }
+    }
 
     @Provides
     @Singleton

@@ -50,6 +50,8 @@ sealed interface LibraryRoute {
 
     data object Downloads : LibraryRoute
 
+    data object Files : LibraryRoute
+
     data object Stats : LibraryRoute
 }
 
@@ -67,7 +69,43 @@ class LibraryViewModel @Inject constructor(
     val player: PlayerConnection,
     private val dialHidden: DialHiddenRepository,
     private val settings: SettingsRepository,
+    private val localMusic: com.texfi.w0y.data.LocalMusicRepository,
 ) : ViewModel() {
+    val files: StateFlow<List<SongItem>> =
+        localMusic.songs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Идёт добавление: (сделано, всего); null — не идёт. */
+    private val _importing = MutableStateFlow<Pair<Int, Int>?>(null)
+    val importing: StateFlow<Pair<Int, Int>?> = _importing.asStateFlow()
+
+    /** Итог последнего добавления: (добавлено, не вышло). */
+    private val _importResult = MutableStateFlow<Pair<Int, Int>?>(null)
+    val importResult: StateFlow<Pair<Int, Int>?> = _importResult.asStateFlow()
+
+    fun importFiles(uris: List<android.net.Uri>) {
+        if (uris.isEmpty() || _importing.value != null) return
+        _importResult.value = null
+        _importing.value = 0 to uris.size
+        viewModelScope.launch {
+            val added = localMusic.import(uris) { done, total -> _importing.value = done to total }
+            _importing.value = null
+            _importResult.value = added.size to (uris.size - added.size)
+        }
+    }
+
+    fun editFile(song: SongItem, title: String, artist: String, album: String, cover: android.net.Uri?, clearCover: Boolean) {
+        viewModelScope.launch {
+            runCatching { localMusic.edit(song, title, artist, album, cover, clearCover) }
+                .onFailure { Timber.w(it, "Правка файла не сохранилась") }
+            // Если трек сейчас в очереди, плеер подхватит правку при следующем запуске.
+        }
+    }
+
+    fun removeFile(song: SongItem) {
+        viewModelScope.launch { runCatching { localMusic.remove(song.id) } }
+    }
+
+
     val playlists: StateFlow<List<PlaylistEntity>> =
         library.playlists.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val liked: StateFlow<List<SongItem>> =

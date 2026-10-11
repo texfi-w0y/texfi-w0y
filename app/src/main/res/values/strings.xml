@@ -689,4 +689,27 @@
     <string name="viz_lines">Lines</string>
     <string name="viz_orbit">Orbit</string>
     <string name="viz_terrain">Terrain</string>
+    <string name="unit_sec">s</string>
+    <string name="lyrics_delay_title">Lyrics delay</string>
+    <string name="lyrics_delay_desc">Shifts highlighted lines later (or earlier) if they don\'t match the voice.</string>
+    <string name="lyrics_delay_none">None</string>
+    <string name="lyrics_sources_title">Search lyrics everywhere</string>
+    <string name="lyrics_sources_desc">If LRCLIB has nothing, try NetEase, Genius and lyrics.ovh by artist and title.</string>
+    <string name="lm_card">My files</string>
+    <string name="lm_hint">mp3, wav…</string>
+    <string name="lm_add">Add files</string>
+    <string name="lm_adding">Adding %1$d of %2$d</string>
+    <string name="lm_added">Added: %1$d</string>
+    <string name="lm_failed">Couldn\'t add %1$d</string>
+    <string name="lm_empty_title">No files yet</string>
+    <string name="lm_empty_text">Add mp3, wav and other audio from your phone. They play like any track, go into playlists and the quick dial.</string>
+    <string name="lm_edit">Edit track</string>
+    <string name="lm_field_title">Title</string>
+    <string name="lm_field_artist">Artist</string>
+    <string name="lm_field_album">Album</string>
+    <string name="lm_cover_pick">Choose cover</string>
+    <string name="lm_cover_clear">Remove cover</string>
+    <string name="lm_save">Save</string>
+    <string name="lm_remove">Remove from app</string>
+    <string name="lm_remove_sure">Tap again to delete the file</string>
 </resources>

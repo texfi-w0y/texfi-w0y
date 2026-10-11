@@ -14,6 +14,18 @@ import timber.log.Timber
 
 /** Адрес трека для плеера: id в хосте, название и исполнитель — для запасного источника. */
 fun w0yUri(song: SongItem): Uri =
+    if (com.texfi.w0y.data.LocalMusic.isLocal(song.id)) {
+        Uri.parse("file://" + localPath(song.id))
+    } else {
+        remoteUri(song)
+    }
+
+/** Папка своих файлов; выставляется при старте приложения (см. W0yApp). */
+@Volatile var localMusicDir: java.io.File? = null
+
+private fun localPath(id: String): String = java.io.File(localMusicDir, id.removePrefix(com.texfi.w0y.data.LocalMusic.PREFIX)).path
+
+private fun remoteUri(song: SongItem): Uri =
     Uri
         .Builder()
         .scheme("w0y")
@@ -40,6 +52,7 @@ class StreamResolver(
     private val downloadQuality: (() -> com.texfi.w0y.data.Quality)? = null,
 ) : ResolvingDataSource.Resolver {
     override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
+        if (dataSpec.uri.scheme != "w0y") return dataSpec
         val videoId = dataSpec.key ?: dataSpec.uri.host ?: return dataSpec
         // Блокирующий вызов здесь уместен: метод вызывается на загрузочном
         // потоке ExoPlayer, который именно этого результата и ждёт.

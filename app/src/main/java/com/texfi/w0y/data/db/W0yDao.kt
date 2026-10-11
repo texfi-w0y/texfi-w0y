@@ -24,6 +24,29 @@ interface W0yDao {
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun song(id: String): SongEntity?
 
+    /** Свои файлы (id начинается с `local:`), новые сверху. */
+    @Query("SELECT * FROM songs WHERE id LIKE 'local:%' ORDER BY rowid DESC")
+    fun localSongs(): Flow<List<SongEntity>>
+
+    /** Правка своего файла: пустые значения здесь затирают, в отличие от [updateSongMeta]. */
+    @Query("UPDATE songs SET title = :title, artist = :artist, album = :album, thumbnailUrl = :thumbnailUrl, artistLinks = NULL, artistId = NULL WHERE id = :id")
+    suspend fun updateLocal(id: String, title: String, artist: String, album: String?, thumbnailUrl: String?)
+
+    @Query("UPDATE pins SET title = :title, subtitle = :artist, thumbnailUrl = :thumbnailUrl WHERE kind = 'song' AND targetId = :id")
+    suspend fun updatePinnedSong(id: String, title: String, artist: String, thumbnailUrl: String?)
+
+    @Query("DELETE FROM songs WHERE id = :id")
+    suspend fun deleteSongRow(id: String)
+
+    @Query("DELETE FROM playlist_songs WHERE songId = :id")
+    suspend fun deleteSongFromPlaylists(id: String)
+
+    @Query("DELETE FROM history WHERE songId = :id")
+    suspend fun deleteSongHistory(id: String)
+
+    @Query("DELETE FROM pins WHERE targetId = :id")
+    suspend fun deleteSongPins(id: String)
+
     /**
      * Обновляет только то, что приходит из выдачи.
      *

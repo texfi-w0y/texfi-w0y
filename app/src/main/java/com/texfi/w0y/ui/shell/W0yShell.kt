@@ -105,6 +105,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val startTab by viewModel.startTab.collectAsStateWithLifecycle()
     val launchTab by viewModel.launchTab.collectAsStateWithLifecycle()
     val compactRows by viewModel.compactRows.collectAsStateWithLifecycle()
+    val lyricsDelayMs by viewModel.lyricsDelayMs.collectAsStateWithLifecycle()
     var startTabApplied by remember { mutableStateOf(false) }
     // Стартовый экран применяется один раз за запуск: иначе возврат на
     // «дом» перекидывал бы обратно при каждом чтении настроек.
@@ -199,6 +200,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         LocalBrowseNavigator provides navigator,
         LocalCompactRows provides (compactRows || com.texfi.w0y.ui.theme.hairLook.compact),
         LocalHaptics provides haptics,
+        com.texfi.w0y.ui.components.LocalLyricsDelayMs provides lyricsDelayMs,
         com.texfi.w0y.ui.components.LocalHapticLevel provides hapticLevel,
         LocalPlayingSongId provides playerState.song?.id,
         com.texfi.w0y.ui.components.LocalIsPlaying provides playerState.isPlaying,

@@ -1013,6 +1013,30 @@ private fun settingsRows(
         add(
             SettingRow(
                 section = SettingsSection.PLAYER,
+                title = stringResource(R.string.lyrics_delay_title),
+                description = stringResource(R.string.lyrics_delay_desc),
+                keywords = "lyrics sync offset delay",
+                control =
+                    SettingControl.Choice(
+                        listOf(-500, 0, 250, 500, 750, 1000, 1500, 2000),
+                        settings.lyricsDelayMs,
+                        { ms -> if (ms == 0) stringResource(R.string.lyrics_delay_none) else "%+.2f".format(ms / 1000f).trimEnd('0').trimEnd('.', ',') + " " + stringResource(R.string.unit_sec) },
+                        viewModel::setLyricsDelayMs,
+                    ),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.PLAYER,
+                title = stringResource(R.string.lyrics_sources_title),
+                description = stringResource(R.string.lyrics_sources_desc),
+                keywords = "lyrics genius netease search",
+                control = SettingControl.Toggle(settings.lyricsAllSources, viewModel::setLyricsAllSources),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.PLAYER,
                 title = stringResource(R.string.stand_lyrics_title),
                 description = stringResource(R.string.stand_lyrics_desc),
                 keywords = "stand always on",

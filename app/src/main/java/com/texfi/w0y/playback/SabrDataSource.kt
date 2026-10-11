@@ -253,3 +253,29 @@ class SchemeSwitchDataSource(
 
     override fun close() = current.close()
 }
+
+/** Схема `file` — прямо с диска, всё остальное — в [rest] (кэши и сеть). */
+class FileFirstDataSource(
+    private val file: DataSource,
+    private val rest: DataSource,
+) : DataSource {
+    private var current: DataSource = rest
+
+    override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+        file.addTransferListener(transferListener)
+        rest.addTransferListener(transferListener)
+    }
+
+    override fun open(dataSpec: DataSpec): Long {
+        current = if (dataSpec.uri.scheme == "file") file else rest
+        return current.open(dataSpec)
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int = current.read(buffer, offset, length)
+
+    override fun getUri(): Uri? = current.uri
+
+    override fun getResponseHeaders(): Map<String, List<String>> = current.responseHeaders
+
+    override fun close() = current.close()
+}

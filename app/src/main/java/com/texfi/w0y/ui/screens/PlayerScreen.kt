@@ -225,11 +225,15 @@ fun PlayerScreen(
         viewModel.setPlayerArt(if (art == PlayerArt.COVER) PlayerArt.VISUALIZER else PlayerArt.COVER)
     }
     LaunchedEffect(song.id) {
+        if (com.texfi.w0y.data.LocalMusic.isLocal(song.id)) return@LaunchedEffect
         // Поток получается вместе с запуском трека: ждём, пока в нём появится тип записи.
         repeat(VIDEO_PROBES) {
             viewModel.isVideoTrack(song.id)?.let { isVideoTrack = it; return@LaunchedEffect }
             delay(500)
         }
+        // Тип так и не пришёл (ролики с обычного YouTube его не дают): кнопку не прячем,
+        // а если видео не окажется — переключатель честно скажет об этом.
+        isVideoTrack = true
     }
     LaunchedEffect(videoOn, song.id) {
         if (videoOn && video == null) {

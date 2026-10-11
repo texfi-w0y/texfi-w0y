@@ -467,7 +467,7 @@ class PlayerConnection @Inject constructor(
             // Схему разворачивает StreamResolver уже во время загрузки:
             // очередь собирается мгновенно, без сетевых запросов.
             .setUri(w0yUri(song))
-            .setCustomCacheKey(song.id)
+            .apply { if (!com.texfi.w0y.data.LocalMusic.isLocal(song.id)) setCustomCacheKey(song.id) }
             .setMediaMetadata(
                 MediaMetadata
                     .Builder()

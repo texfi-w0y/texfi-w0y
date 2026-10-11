@@ -91,14 +91,126 @@ class LyricsRepository @Inject constructor(
         return if (result.size == lines.size) result else null
     }
 
-    suspend fun lyrics(song: SongItem): Lyrics? = withContext(Dispatchers.IO) {
-        cache[song.id]?.let { return@withContext it }
-        val cleanTitle = song.title.replace(Regex("\\s*[(\\[].*?[)\\]]"), "").trim()
-        val result =
-            runCatching { exact(song.artist, cleanTitle) ?: search(song.artist, cleanTitle) }
-                .onFailure { Timber.w(it, "Лирика для ${song.title} не получена") }
-                .getOrNull()
-        result?.also { cache[song.id] = it }
+    /**
+     * Текст по исполнителю и названию. [allSources] — после LRCLIB пробуем и другие
+     * базы: NetEase (с таймингами), lyrics.ovh и Genius (простой текст). Первая
+     * нашедшая побеждает; синхронизированный текст всегда лучше простого.
+     */
+    suspend fun lyrics(song: SongItem, allSources: Boolean = true): Lyrics? = withContext(Dispatchers.IO) {
+        val key = if (allSources) song.id else "${song.id}|lrclib"
+        cache[key]?.let { return@withContext it }
+        val cleanTitle = cleanTitle(song.title)
+        val artist = song.artist.substringBefore(',').substringBefore(" & ").trim()
+        val found =
+            attempt("lrclib") { exact(song.artist, cleanTitle) ?: search(song.artist, cleanTitle) }
+                ?: if (allSources) {
+                    attempt("netease") { netease(artist, cleanTitle) }
+                        ?: attempt("lyrics.ovh") { ovh(artist, cleanTitle) }
+                        ?: attempt("genius") { genius(artist, cleanTitle) }
+                } else {
+                    null
+                }
+        found?.also { cache[key] = it }
+    }
+
+    private inline fun attempt(source: String, block: () -> Lyrics?): Lyrics? =
+        runCatching(block)
+            .onFailure { Timber.w(it, "Лирика: источник %s не ответил", source) }
+            .getOrNull()
+
+    /** Название без приписок в скобках и после « - » (Remastered, Official Video, feat.). */
+    private fun cleanTitle(title: String): String =
+        title
+            .replace(Regex("\\s*[(\\[].*?[)\\]]"), "")
+            .replace(Regex("\\s+-\\s+.*$"), "")
+            .replace(Regex("(?i)\\s+(feat|ft)\\.?\\s+.*$"), "")
+            .trim()
+            .ifBlank { title }
+
+    private fun norm(text: String): String = text.lowercase().filter { it.isLetterOrDigit() }
+
+    /** Подходит ли найденное под искомое: название содержит друг друга, исполнитель пересекается. */
+    private fun matches(wantTitle: String, wantArtist: String, gotTitle: String, gotArtist: String): Boolean {
+        val wt = norm(wantTitle)
+        val gt = norm(gotTitle)
+        if (wt.isEmpty() || gt.isEmpty() || !(wt.contains(gt) || gt.contains(wt))) return false
+        val wa = norm(wantArtist)
+        val ga = norm(gotArtist)
+        return wa.isEmpty() || ga.isEmpty() || wa.contains(ga) || ga.contains(wa)
+    }
+
+    /** NetEase Cloud Music: открытый поиск и текст с таймингами. */
+    private fun netease(artist: String, title: String): Lyrics? {
+        val search =
+            "https://music.163.com/api/search/get/web"
+                .toHttpUrl()
+                .newBuilder()
+                .addQueryParameter("s", "$artist $title".trim())
+                .addQueryParameter("type", "1")
+                .addQueryParameter("offset", "0")
+                .addQueryParameter("limit", "6")
+                .build()
+        val headers = mapOf("Referer" to "https://music.163.com/", "User-Agent" to BROWSER_UA)
+        val songs = JSONObject(get(search.toString(), headers) ?: return null).optJSONObject("result")?.optJSONArray("songs") ?: return null
+        for (i in 0 until songs.length()) {
+            val item = songs.getJSONObject(i)
+            val names = item.optJSONArray("artists")?.let { arr -> (0 until arr.length()).joinToString(" ") { arr.getJSONObject(it).optString("name") } }.orEmpty()
+            if (!matches(title, artist, item.optString("name"), names)) continue
+            val url = "https://music.163.com/api/song/lyric?id=${item.getLong("id")}&lv=1&kv=1&tv=-1"
+            val lrc = JSONObject(get(url, headers) ?: continue).optJSONObject("lrc")?.optString("lyric")?.takeIf { it.isNotBlank() } ?: continue
+            val synced = LrcParser.parse(lrc)
+            if (synced.isNotEmpty()) return Lyrics(plain = null, synced = synced)
+        }
+        return null
+    }
+
+    /** lyrics.ovh: простой текст по исполнителю и названию. */
+    private fun ovh(artist: String, title: String): Lyrics? {
+        if (artist.isBlank()) return null
+        val url = "https://api.lyrics.ovh/v1".toHttpUrl().newBuilder().addPathSegment(artist).addPathSegment(title).build()
+        val text = JSONObject(get(url.toString()) ?: return null).optString("lyrics").trim()
+        return text.takeIf { it.isNotBlank() }?.let { Lyrics(plain = it.replace("\r", ""), synced = emptyList()) }
+    }
+
+    /** Genius: поиск по их же сайту, текст — из блоков data-lyrics-container. */
+    private fun genius(artist: String, title: String): Lyrics? {
+        val search =
+            "https://genius.com/api/search/multi"
+                .toHttpUrl()
+                .newBuilder()
+                .addQueryParameter("q", "$artist $title".trim())
+                .build()
+        val headers = mapOf("User-Agent" to BROWSER_UA)
+        val sections = JSONObject(get(search.toString(), headers) ?: return null).optJSONObject("response")?.optJSONArray("sections") ?: return null
+        for (s in 0 until sections.length()) {
+            val hits = sections.getJSONObject(s).optJSONArray("hits") ?: continue
+            for (h in 0 until hits.length()) {
+                val hit = hits.getJSONObject(h)
+                if (hit.optString("type") != "song") continue
+                val result = hit.optJSONObject("result") ?: continue
+                if (!matches(title, artist, result.optString("title"), result.optJSONObject("primary_artist")?.optString("name").orEmpty())) continue
+                val page = get(result.optString("url"), headers) ?: continue
+                val text = geniusText(page)
+                if (text.isNotBlank()) return Lyrics(plain = text, synced = emptyList())
+            }
+        }
+        return null
+    }
+
+    private fun geniusText(html: String): String {
+        val blocks = Regex("<div[^>]*data-lyrics-container=\"true\"[^>]*>(.*?)</div>\\s*(?=<div|<aside|<script|$)", RegexOption.DOT_MATCHES_ALL).findAll(html).toList()
+        val raw = blocks.joinToString("\n") { it.groupValues[1] }
+        return raw
+            .replace(Regex("(?i)<br\\s*/?>"), "\n")
+            .replace(Regex("<[^>]+>"), "")
+            .replace("&amp;", "&")
+            .replace("&#x27;", "'")
+            .replace("&#39;", "'")
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace(Regex("\\n{3,}"), "\n\n")
+            .trim()
     }
 
     private fun exact(artist: String, title: String): Lyrics? {
@@ -126,8 +238,8 @@ class LyricsRepository @Inject constructor(
         return parse(array.getJSONObject(0))
     }
 
-    private fun get(url: String): String? {
-        val request = Request.Builder().url(url).header("User-Agent", "TexFi-w0y").build()
+    private fun get(url: String, headers: Map<String, String> = emptyMap()): String? {
+        val request = Request.Builder().url(url).header("User-Agent", "TexFi-w0y").apply { headers.forEach { (k, v) -> header(k, v) } }.build()
         okHttp.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return null
             return response.body?.string()
@@ -144,6 +256,8 @@ class LyricsRepository @Inject constructor(
 
     private fun parseLrc(raw: String): List<LyricLine> = LrcParser.parse(raw)
 }
+
+private const val BROWSER_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36"
 
 /**
  * Разбор LRC без Android — проверяется тестом.

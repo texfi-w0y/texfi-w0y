@@ -95,7 +95,7 @@ class LibraryRepository @Inject constructor(
 
     suspend fun addToPlaylist(playlistId: Long, song: SongItem) {
         dao.addSongToPlaylist(playlistId, SongEntity.from(song), now())
-        remoteId(playlistId)?.let { sync.add(it, song.id) }
+        if (!LocalMusic.isLocal(song.id)) remoteId(playlistId)?.let { sync.add(it, song.id) }
     }
 
     suspend fun removeFromPlaylist(playlistId: Long, songId: String) {
@@ -130,7 +130,7 @@ class LibraryRepository @Inject constructor(
         dao.setLiked(song.id, liked, if (liked) now() else null)
         // Лайк уходит в аккаунт в фоне: сердце уже переключилось, ждать сети ни к чему.
         // Не дошёл — сверка подхватит: снимок лайков не содержит этого трека.
-        scope.launch { if (sync.enabled()) sync.like(song.id, liked) }
+        scope.launch { if (sync.enabled() && !LocalMusic.isLocal(song.id)) sync.like(song.id, liked) }
         return liked
     }
 

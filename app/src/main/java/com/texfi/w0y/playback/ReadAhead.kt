@@ -52,6 +52,8 @@ class ReadAhead @Inject constructor(
      * списком ничего не делает; с другим — отменяет прежнюю подготовку.
      */
     fun prepare(upcoming: List<SongItem>, onWifi: Boolean) {
+        // Свои файлы лежат на диске: готовить из сети нечего.
+        val upcoming = upcoming.filterNot { com.texfi.w0y.data.LocalMusic.isLocal(it.id) }
         val ids = upcoming.take(URL_LOOKAHEAD).map { it.id }
         if (ids == lastPlan) return
         lastPlan = ids

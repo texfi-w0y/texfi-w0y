@@ -68,6 +68,11 @@ class ShellViewModel @Inject constructor(
 
     fun setLastTab(tab: StartTab) = viewModelScope.launch { settings.setLastTab(tab) }
 
+    val lyricsDelayMs: StateFlow<Int> =
+        settings.settings
+            .map { it.lyricsDelayMs }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
     val compactRows: StateFlow<Boolean> =
         settings.settings
             .map { it.compactRows }
