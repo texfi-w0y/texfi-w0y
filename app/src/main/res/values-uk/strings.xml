@@ -484,7 +484,7 @@
     <string name="settings_startup_parts_desc">Медіана / найгірше, мс. Адреса: %1$s · перший байт: %2$s · готовий: %3$s · звук: %4$s. З диска: %5$d з %6$d.</string>
     <string name="settings_startup_parts_value">%1$d запусків</string>
     <string name="style_pick_title">Обери вигляд</string>
-    <string name="style_pick_text">Два стилі, можливості однакові. Перемкнути можна будь-коли: налаштування → «Вигляд».</string>
+    <string name="style_pick_text">Три вигляди, можливості однакові: Hairline, Pixel і Smooth. Перемкнути можна будь-коли: налаштування → «Вигляд».</string>
     <string name="style_glass">Easy Glass</string>
     <string name="style_matte">Матовий</string>
     <string name="style_pick_accent">Акцент</string>

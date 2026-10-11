@@ -484,7 +484,7 @@
     <string name="settings_startup_parts_desc">Mediana / najgorzej, ms. Adres: %1$s · pierwszy bajt: %2$s · gotowy: %3$s · dźwięk: %4$s. Z dysku: %5$d z %6$d.</string>
     <string name="settings_startup_parts_value">%1$d startów</string>
     <string name="style_pick_title">Wybierz wygląd</string>
-    <string name="style_pick_text">Dwa style, te same funkcje. Zmienisz w każdej chwili: Ustawienia → Wygląd.</string>
+    <string name="style_pick_text">Trzy style, te same funkcje: Hairline, Pixel i Smooth. Zmienisz w każdej chwili: Ustawienia → Wygląd.</string>
     <string name="style_glass">Easy Glass</string>
     <string name="style_matte">Matowy</string>
     <string name="style_pick_accent">Akcent</string>

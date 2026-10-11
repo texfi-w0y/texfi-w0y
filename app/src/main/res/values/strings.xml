@@ -484,7 +484,7 @@
     <string name="settings_startup_parts_desc">Median / worst, ms. Link: %1$s · first byte: %2$s · ready: %3$s · sound: %4$s. From disk: %5$d of %6$d.</string>
     <string name="settings_startup_parts_value">%1$d starts</string>
     <string name="style_pick_title">Pick a look</string>
-    <string name="style_pick_text">Two styles with the same features. You can switch any time in Settings → Look.</string>
+    <string name="style_pick_text">Three looks with the same features: Hairline, Pixel and Smooth. You can switch any time in Settings → Look.</string>
     <string name="style_glass">Easy Glass</string>
     <string name="style_matte">Matte</string>
     <string name="style_pick_accent">Accent</string>

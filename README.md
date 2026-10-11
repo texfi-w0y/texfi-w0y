@@ -132,6 +132,8 @@ w0y is licensed under [AGPL-3.0](LICENSE).
 | [Backdrop](https://github.com/Kyant0/AndroidLiquidGlass), liquid glass of the bottom bars | Apache-2.0 |
 | [jump3r](https://github.com/Sciss/jump3r) (LAME in Java), MP3 export | LGPL-2.1 |
 | Press Start 2P font | OFL ([licenses/](licenses/OFL-PressStart2P.txt)) |
+| Unbounded font | OFL ([licenses/](licenses/OFL-Unbounded.txt)) |
+| JetBrains Mono font | OFL ([licenses/](licenses/OFL-JetBrainsMono.txt)) |
 | Linux version: Compose Multiplatform, dbus-java (LGPL/MIT), mpv (GPL/LGPL, run as a separate program) | see each project |
 
 [Metrolist](https://github.com/MetrolistGroup/Metrolist) (GPL-3.0) was a

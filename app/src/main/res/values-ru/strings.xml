@@ -484,7 +484,7 @@
     <string name="settings_startup_parts_desc">Медиана / худшее, мс. Адрес: %1$s · первый байт: %2$s · готов: %3$s · звук: %4$s. С диска: %5$d из %6$d.</string>
     <string name="settings_startup_parts_value">%1$d запусков</string>
     <string name="style_pick_title">Выбери вид</string>
-    <string name="style_pick_text">Два стиля, возможности одинаковые. Переключить можно в любой момент: настройки → «Вид».</string>
+    <string name="style_pick_text">Три вида, возможности одинаковые: Hairline, Pixel и Smooth. Переключить можно в любой момент: настройки → «Вид».</string>
     <string name="style_glass">Easy Glass</string>
     <string name="style_matte">Матовый</string>
     <string name="style_pick_accent">Акцент</string>

@@ -363,7 +363,8 @@ fun HairDisc(
     ) {
         Box(Modifier.fillMaxSize().padding(gap)) {
             AnimatedContent(
-                targetState = songId,
+                // Состояние несёт и обложку: уходящая обложка остаётся своей, а не меняется на новую.
+                targetState = songId to coverUrl,
                 transitionSpec = {
                     if (look.motion.draws) {
                         val d = with(density) { 24.dp.roundToPx() }
@@ -377,9 +378,9 @@ fun HairDisc(
                 },
                 label = "discTrack",
                 modifier = Modifier.fillMaxSize(),
-            ) { _ ->
+            ) { (_, shownUrl) ->
                 Box(Modifier.fillMaxSize().clip(shape)) {
-                    if (content != null) content() else CoverImage(url = coverUrl, px = Thumbnails.HERO, modifier = Modifier.fillMaxSize())
+                    if (content != null) content() else CoverImage(url = shownUrl, px = Thumbnails.HERO, modifier = Modifier.fillMaxSize())
                 }
             }
             // Перекрестие поверх обложки: тонкое, при перемотке ярче.
