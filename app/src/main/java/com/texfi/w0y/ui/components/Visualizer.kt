@@ -34,6 +34,7 @@ import com.texfi.w0y.data.UiStyle
 import com.texfi.w0y.data.VisualizerStyle
 import com.texfi.w0y.playback.SpectrumAnalyzer
 import com.texfi.w0y.playback.SpectrumBus
+import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.styleTokens
 import kotlin.math.PI
@@ -50,14 +51,20 @@ fun VisualizerStyle.forUi(style: UiStyle): VisualizerStyle =
     when (style) {
         UiStyle.PIXEL ->
             when (this) {
-                VisualizerStyle.BARS -> VisualizerStyle.SEGMENTS
-                VisualizerStyle.WAVE -> VisualizerStyle.SCOPE
+                VisualizerStyle.BARS, VisualizerStyle.LINES, VisualizerStyle.TERRAIN -> VisualizerStyle.SEGMENTS
+                VisualizerStyle.WAVE, VisualizerStyle.ORBIT -> VisualizerStyle.SCOPE
                 else -> this
             }
-        UiStyle.SMOOTH, UiStyle.HAIRLINE ->
+        UiStyle.SMOOTH ->
             when (this) {
-                VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC -> VisualizerStyle.BARS
-                VisualizerStyle.SCOPE, VisualizerStyle.RING -> VisualizerStyle.WAVE
+                VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC, VisualizerStyle.LINES -> VisualizerStyle.BARS
+                VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.ORBIT, VisualizerStyle.TERRAIN -> VisualizerStyle.WAVE
+                else -> this
+            }
+        UiStyle.HAIRLINE ->
+            when (this) {
+                VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC, VisualizerStyle.BARS -> VisualizerStyle.LINES
+                VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.WAVE -> VisualizerStyle.ORBIT
                 else -> this
             }
     }
@@ -83,6 +90,7 @@ fun Visualizer(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
     val tokens = styleTokens
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -94,6 +102,10 @@ fun Visualizer(
     // Двойной буфер: фон пишет в один, рисование читает другой.
     val levels = remember { FloatArray(BANDS) }
     val wave = remember { FloatArray(WAVE_POINTS) }
+    // Hairline: «зависшие» пики и стопка прошлых спектров для рельефа.
+    val peaks = remember { FloatArray(BANDS) }
+    val history = remember { Array(HISTORY) { FloatArray(BANDS) } }
+    var historyHead by remember { mutableLongStateOf(0L) }
     var frame by remember { mutableLongStateOf(0L) }
     val isPlaying by rememberUpdatedState(playing)
     val gain by rememberUpdatedState(sensitivity)
@@ -119,6 +131,11 @@ fun Visualizer(
                 }
                 synchronized(levels) {
                     analyzer.levels.copyInto(levels)
+                    for (i in 0 until BANDS) peaks[i] = maxOf(levels[i], peaks[i] - PEAK_FALL)
+                    if (frame % HISTORY_EVERY == 0L) {
+                        historyHead++
+                        levels.copyInto(history[(historyHead % HISTORY).toInt()])
+                    }
                     val step = analyzer.samples.size / WAVE_POINTS
                     for (i in 0 until WAVE_POINTS) wave[i] = if (isPlaying) analyzer.samples[i * step] * gain else wave[i] * 0.85f
                 }
@@ -155,6 +172,9 @@ fun Visualizer(
                     VisualizerStyle.MOSAIC -> mosaic(levels, analyzer.bass, colors.accent, colors.secondary, colors.surfaceHigh)
                     VisualizerStyle.BARS -> bars(levels, colors.accent, colors.secondary)
                     VisualizerStyle.WAVE -> smoothWave(levels, colors.accent, colors.secondary)
+                    VisualizerStyle.LINES -> hairLines(levels, peaks, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
+                    VisualizerStyle.ORBIT -> hairOrbit(levels, analyzer.bass, frame, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.progress, colors.border, look.line.toPx())
+                    VisualizerStyle.TERRAIN -> hairTerrain(history, historyHead, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.surface, look.line.toPx())
                 }
             }
         }
@@ -280,7 +300,96 @@ private fun DrawScope.smoothWave(levels: FloatArray, lit: Color, peak: Color) {
     }
 }
 
+/** Hairline: «линии» — вертикальные штрихи, пик висит точкой, под основанием дрожит отражение. */
+private fun DrawScope.hairLines(levels: FloatArray, peaks: FloatArray, line: Color, accent: Color, grid: Color, w: Float) {
+    val slot = size.width / levels.size
+    val base = size.height * 0.58f
+    val room = base - size.height * 0.06f
+    // Основание и деления под ним.
+    drawLine(grid, Offset(0f, base), Offset(size.width, base), w)
+    levels.forEachIndexed { i, v ->
+        val x = i * slot + slot / 2f
+        val h = (room * v).coerceAtLeast(w * 2f)
+        drawLine(line.copy(alpha = 0.9f), Offset(x, base), Offset(x, base - h), w * 1.4f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        // Отражение: короче и бледнее.
+        drawLine(line.copy(alpha = 0.22f), Offset(x, base + w * 3f), Offset(x, base + w * 3f + h * 0.45f), w * 1.2f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        // Пик — акцентная точка над штрихом.
+        val py = base - (room * peaks[i]).coerceAtLeast(w * 2f) - 5.dp.toPx()
+        drawCircle(accent, w * 1.6f, Offset(x, py))
+    }
+}
+
+/** Hairline: «орбита» — три кольца дышат от баса, по окружности лучи спектра и медленно бегущая метка. */
+private fun DrawScope.hairOrbit(levels: FloatArray, bass: Float, frame: Long, line: Color, accent: Color, progress: Color, grid: Color, w: Float) {
+    val c = center
+    val base = min(size.width, size.height) * 0.20f
+    val pulse = bass.coerceIn(0f, 1f)
+    for (k in 0..2) {
+        val r = base * (1f + 0.34f * k) + pulse * base * (0.10f + 0.07f * k)
+        drawCircle(line.copy(alpha = (0.55f - 0.15f * k)), r, c, style = Stroke(w))
+    }
+    val n = levels.size * 2
+    val spin = frame * 0.004f
+    val r0 = base * 1.75f
+    val reach = min(size.width, size.height) * 0.20f
+    for (i in 0 until n) {
+        val v = levels[if (i < levels.size) i else n - 1 - i]
+        val a = (i.toFloat() / n) * 2f * PI.toFloat() - PI.toFloat() / 2f + spin
+        val dir = Offset(cos(a), sin(a))
+        val len = (reach * v).coerceAtLeast(2.dp.toPx())
+        drawLine(line.copy(alpha = 0.85f), c + dir * r0, c + dir * (r0 + len), w * 1.3f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        if (v > 0.75f) drawCircle(accent, w * 1.8f, c + dir * (r0 + len + 4.dp.toPx()))
+    }
+    // Бегущая метка по внешнему кольцу.
+    val ma = frame * 0.012f
+    drawCircle(progress, w * 2.4f, c + Offset(cos(ma), sin(ma)) * (base * 1.68f))
+    drawCircle(grid, base * 0.5f, c, style = Stroke(w))
+}
+
+/** Hairline: «рельеф» — прошлые спектры стопкой линий; ближние закрывают дальние, как на обложке Unknown Pleasures. */
+private fun DrawScope.hairTerrain(history: Array<FloatArray>, head: Long, line: Color, accent: Color, ground: Color, w: Float) {
+    val rows = history.size
+    val top = size.height * 0.16f
+    val bottom = size.height * 0.92f
+    val step = (bottom - top) / rows
+    val amp = step * 3.4f
+    val points = 46
+    val padX = size.width * 0.08f
+    val width = size.width - padX * 2f
+    // От дальних (старых) к ближним (новым): новые закрывают старые.
+    for (row in 0 until rows) {
+        val age = rows - 1 - row
+        val data = history[((head - age) % rows + rows).toInt() % rows]
+        val y0 = top + (row + 1) * step
+        val path = Path()
+        for (p in 0..points) {
+            val f = p.toFloat() / points
+            val band = (f * (data.size - 1))
+            val i0 = band.toInt().coerceIn(0, data.size - 1)
+            val i1 = (i0 + 1).coerceAtMost(data.size - 1)
+            val v = data[i0] + (data[i1] - data[i0]) * (band - i0)
+            // Края гасим: холмик по центру, как на оригинале.
+            val edge = sin(f * PI.toFloat()).coerceIn(0f, 1f)
+            val x = padX + width * f
+            val y = y0 - v * amp * edge
+            if (p == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        val fill = Path().apply {
+            addPath(path)
+            lineTo(padX + width, y0 + step)
+            lineTo(padX, y0 + step)
+            close()
+        }
+        drawPath(fill, ground)
+        val t = row.toFloat() / (rows - 1)
+        drawPath(path, if (row == rows - 1) accent else line.copy(alpha = 0.25f + 0.6f * t), style = Stroke(w * 1.2f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    }
+}
+
 private const val BANDS = 32
 private const val WAVE_POINTS = 128
+private const val HISTORY = 14
+private const val HISTORY_EVERY = 3L
+private const val PEAK_FALL = 0.014f
 private const val IDLE_FRAMES = 60
 private const val IDLE_MS = 250L

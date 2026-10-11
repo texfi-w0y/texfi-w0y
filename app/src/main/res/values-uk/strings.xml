@@ -682,4 +682,11 @@
     <string name="hl_preview_sub">Приклад артиста</string>
     <string name="hl_preview_button">Грати</string>
     <string name="hl_copied">Скопійовано: %1$s</string>
+    <string name="hl_cd_video">Показати відео</string>
+    <string name="hl_lyrics_none">Для цього треку немає тексту</string>
+    <string name="hl_video_loading">Завантажую відео</string>
+    <string name="hl_video_failed">Відео для цього треку недоступне</string>
+    <string name="viz_lines">Лінії</string>
+    <string name="viz_orbit">Орбіта</string>
+    <string name="viz_terrain">Рельєф</string>
 </resources>

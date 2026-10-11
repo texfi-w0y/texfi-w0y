@@ -682,4 +682,11 @@
     <string name="hl_preview_sub">Sample artist</string>
     <string name="hl_preview_button">Play</string>
     <string name="hl_copied">Copied: %1$s</string>
+    <string name="hl_cd_video">Show video</string>
+    <string name="hl_lyrics_none">No lyrics for this track</string>
+    <string name="hl_video_loading">Loading video</string>
+    <string name="hl_video_failed">Video isn\'t available for this track</string>
+    <string name="viz_lines">Lines</string>
+    <string name="viz_orbit">Orbit</string>
+    <string name="viz_terrain">Terrain</string>
 </resources>

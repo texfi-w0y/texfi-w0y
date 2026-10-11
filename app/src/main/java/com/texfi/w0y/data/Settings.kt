@@ -195,13 +195,22 @@ enum class LyricsSize(@StringRes val label: Int, val sp: Int) {
  * Стиль визуализатора. Первые четыре — для Pixel, последние два — для
  * Smooth; если выбран стиль чужого оформления, берётся ближайший свой.
  */
-enum class VisualizerStyle(@StringRes val label: Int, val smooth: Boolean) {
+enum class VisualizerStyle(@StringRes val label: Int, val smooth: Boolean, val hair: Boolean = false) {
     SEGMENTS(R.string.viz_segments, false),
     RING(R.string.viz_ring, false),
     SCOPE(R.string.viz_scope, false),
     MOSAIC(R.string.viz_mosaic, false),
     BARS(R.string.viz_bars, true),
     WAVE(R.string.viz_wave, true),
+
+    /** Hairline: тонкие линии с «зависающими» пиками и отражением. */
+    LINES(R.string.viz_lines, false, hair = true),
+
+    /** Hairline: кольца, дышащие от баса, и лучи спектра по окружности. */
+    ORBIT(R.string.viz_orbit, false, hair = true),
+
+    /** Hairline: рельеф — стопка линий-спектров, уходящих вглубь по времени. */
+    TERRAIN(R.string.viz_terrain, false, hair = true),
 }
 
 /** Что занимает место обложки в плеере. */

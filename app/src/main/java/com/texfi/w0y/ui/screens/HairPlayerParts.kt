@@ -86,6 +86,11 @@ internal fun HairPlayerHeader(
     visualizerOn: Boolean,
     onToggleArt: () -> Unit,
     onStand: () -> Unit,
+    lyricsOn: Boolean,
+    onToggleLyrics: () -> Unit,
+    videoAvailable: Boolean,
+    videoOn: Boolean,
+    onToggleVideo: () -> Unit,
 ) {
     val colors = LocalW0yColors.current
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -98,12 +103,12 @@ internal fun HairPlayerHeader(
             )
             if (position != null) Text(position, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         }
-        HairIconButton(
-            HairGlyph.WAVE,
-            stringResource(R.string.player_visualizer),
-            onToggleArt,
-            tint = if (visualizerOn) Contrast.ensure(colors.accent, colors.background) else colors.textMuted,
-        )
+        val on = Contrast.ensure(colors.accent, colors.background)
+        if (videoAvailable) {
+            HairIconButton(HairGlyph.VIDEO, stringResource(R.string.hl_cd_video), onToggleVideo, tint = if (videoOn) on else colors.textMuted)
+        }
+        HairIconButton(HairGlyph.LYRICS, stringResource(R.string.player_lyrics), onToggleLyrics, tint = if (lyricsOn) on else colors.textMuted)
+        HairIconButton(HairGlyph.WAVE, stringResource(R.string.player_visualizer), onToggleArt, tint = if (visualizerOn) on else colors.textMuted)
         HairIconButton(HairGlyph.STAND, stringResource(R.string.player_stand), onStand)
     }
 }

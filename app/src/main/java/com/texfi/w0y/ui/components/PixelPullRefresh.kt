@@ -53,7 +53,8 @@ fun PixelPullRefresh(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val density = LocalDensity.current
     val thresholdPx = with(density) { THRESHOLD.toPx() }
-    val holdPx = with(density) { HOLD.toPx() }
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val holdPx = with(density) { (if (hair) HOLD_HAIR else HOLD).toPx() }
     val maxPx = thresholdPx * MAX_PULL
     var pull by remember { mutableFloatStateOf(0f) }
     var armed by remember { mutableFloatStateOf(0f) }
@@ -126,12 +127,46 @@ fun PixelPullRefresh(
         }
 
     Box(modifier.nestedScroll(connection)) {
-        Box(Modifier.graphicsLayer { translationY = pull * CONTENT_SHIFT }) { content() }
+        val shift = if (hair) CONTENT_SHIFT_HAIR else CONTENT_SHIFT
+        Box(Modifier.graphicsLayer { translationY = pull * shift }) { content() }
         val phase = rememberAnimationPhase(RUN_MS, RUN_FPS, enabled = refreshing)
         val lit = colors.accent
         val alt = colors.secondary
         val dim = colors.border
-        Canvas(
+        if (hair) {
+            // Hairline: кольцо делений — набирается пальцем, на пороге щёлкает,
+            // при загрузке по нему бежит комета, на конце — круг-вспышка.
+            val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+            val line = com.texfi.w0y.ui.theme.hairLook.line
+            val text = colors.text
+            Canvas(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(HAIR_ZONE)) {
+                if (pull <= 0f && flash <= 0f) return@Canvas
+                val c = Offset(size.width / 2f, (pull * CONTENT_SHIFT_HAIR / 2f).coerceAtLeast(0f))
+                val r = 9.dp.toPx()
+                val inner = r - 5.dp.toPx()
+                val progress = (pull / thresholdPx).coerceIn(0f, 1f)
+                val head = phase.floatValue / TWO_PI
+                val spokes = HAIR_TICKS
+                val lit = floor(progress * spokes + EPS).toInt()
+                for (i in 0 until spokes) {
+                    val f = i.toFloat() / spokes
+                    val a = (f * TWO_PI - Math.PI.toFloat() / 2f)
+                    val behind = ((head - f) % 1f + 1f) % 1f
+                    val (col, alpha) =
+                        when {
+                            isRefreshing -> (if (behind < 0.08f) tone else text) to (1f - behind * 2.2f).coerceAtLeast(0.15f)
+                            i < lit -> (if (progress >= 1f) tone else text) to 0.95f
+                            else -> text to 0.16f
+                        }
+                    val d = Offset(kotlin.math.cos(a), kotlin.math.sin(a))
+                    drawLine(col.copy(alpha = alpha), c + d * inner, c + d * r, line.toPx() * 1.4f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                }
+                if (flash > 0f) {
+                    drawCircle(tone.copy(alpha = flash), r + (1f - flash) * 26.dp.toPx(), c, style = androidx.compose.ui.graphics.drawscope.Stroke(line.toPx()))
+                }
+            }
+        }
+        if (!hair) Canvas(
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
@@ -162,6 +197,10 @@ fun PixelPullRefresh(
 
 private val THRESHOLD = 88.dp
 private val HOLD = 28.dp
+private val HOLD_HAIR = 56.dp
+private val HAIR_ZONE = 96.dp
+private const val CONTENT_SHIFT_HAIR = 0.5f
+private const val HAIR_TICKS = 20
 private val BAR_HEIGHT = 8.dp
 private const val MAX_PULL = 1.35f
 private const val PULL_RESISTANCE = 0.55f

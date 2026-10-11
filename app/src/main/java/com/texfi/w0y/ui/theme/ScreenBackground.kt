@@ -7,6 +7,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 /**
  * Фон экрана. В обычных темах — сплошной цвет темы.
@@ -19,6 +20,19 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun Modifier.screenBackground(): Modifier {
     val colors = LocalW0yColors.current
+    if (isHair) {
+        // Hairline: тот же «чертёжный лист», что под всем приложением — холодный отсвет и сетка.
+        return background(colors.background).drawBehind {
+            drawRect(Brush.verticalGradient(0f to colors.progress.copy(alpha = 0.10f), 0.5f to Color.Transparent))
+            val step = 48.dp.toPx()
+            val grid = androidx.compose.ui.graphics.Path()
+            var x = step
+            while (x < size.width) { grid.moveTo(x, 0f); grid.lineTo(x, size.height); x += step }
+            var y = step
+            while (y < size.height) { grid.moveTo(0f, y); grid.lineTo(size.width, y); y += step }
+            drawPath(grid, colors.text.copy(alpha = 0.04f), style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
+        }
+    }
     if (!colors.glass) return background(colors.background)
     val accent = colors.accent
     return background(colors.background).drawBehind {

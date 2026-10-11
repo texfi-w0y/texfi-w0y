@@ -324,6 +324,29 @@ class YouTubeRepository @Inject constructor(
         }
     }
 
+    /**
+     * Настоящее ли это видео: YouTube Music помечает звуковые дорожки
+     * `ATV`, всё остальное (клипы, ролики с YouTube) — видео. Известно
+     * только когда поток уже получен для воспроизведения; до этого null.
+     */
+    fun isVideoTrack(videoId: String): Boolean? =
+        streams[videoId]?.mediaMetadata?.musicVideoType?.let { it != "MUSIC_VIDEO_TYPE_ATV" }
+
+    /**
+     * Видеопоток трека — отдельным запросом, только когда человек включил
+     * видео: обычное воспроизведение за видео не платит ни трафиком, ни
+     * временем. Потоки SABR сюда не годятся (их читает только звуковой
+     * путь), тогда null и кнопка честно говорит «недоступно».
+     */
+    suspend fun videoSource(videoId: String): VideoSource? =
+        withContext(Dispatchers.IO) {
+            val stream =
+                runCatching { extractor.extract(videoId = videoId, hints = ContentHints(wantVideo = true), audioQuality = currentQuality()) }
+                    .getOrNull() ?: return@withContext null
+            val url = stream.videoUrl?.takeIf { it.startsWith("http") } ?: return@withContext null
+            VideoSource(url, stream.headers, stream.videoWidth, stream.videoHeight)
+        }
+
     /** Ключ потока в кэше: у загрузок своё качество — свой ключ. */
     fun streamKey(videoId: String, quality: Quality?): String = if (quality == null) videoId else "$videoId#${quality.name}"
 
@@ -511,3 +534,6 @@ class YouTubeRepository @Inject constructor(
         private const val STREAM_CACHE_SIZE = 80
     }
 }
+
+/** Адрес видео и заголовки запроса; размер — если YouTube его назвал. */
+data class VideoSource(val url: String, val headers: Map<String, String>, val width: Int?, val height: Int?)

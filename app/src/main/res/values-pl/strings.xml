@@ -682,4 +682,11 @@
     <string name="hl_preview_sub">Przykładowy artysta</string>
     <string name="hl_preview_button">Odtwórz</string>
     <string name="hl_copied">Skopiowano: %1$s</string>
+    <string name="hl_cd_video">Pokaż wideo</string>
+    <string name="hl_lyrics_none">Brak tekstu dla tego utworu</string>
+    <string name="hl_video_loading">Wczytuję wideo</string>
+    <string name="hl_video_failed">Wideo dla tego utworu jest niedostępne</string>
+    <string name="viz_lines">Linie</string>
+    <string name="viz_orbit">Orbita</string>
+    <string name="viz_terrain">Rzeźba</string>
 </resources>

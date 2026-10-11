@@ -364,15 +364,15 @@ val LocalSongActions = androidx.compose.runtime.staticCompositionLocalOf<SongAct
  * паузе стоят; на «Без движения» — просто стоят.
  */
 @Composable
-internal fun HairPlayingMark(modifier: Modifier, rect: Boolean) {
+internal fun HairPlayingMark(modifier: Modifier, rect: Boolean, boxed: Boolean = true) {
     val colors = LocalW0yColors.current
     val playing = LocalIsPlaying.current
     val look = com.texfi.w0y.ui.theme.hairLook
     val live = playing && look.motion.moves
     val phase = rememberAnimationPhase(MARK_PERIOD_MS, MARK_FPS, enabled = live)
     val shape = com.texfi.w0y.ui.theme.styleTokens.cover.takeIf { !rect } ?: androidx.compose.foundation.shape.RoundedCornerShape(percent = 8)
-    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, androidx.compose.ui.graphics.Color.Black)
-    Canvas(modifier.clip(shape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.58f))) {
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, if (boxed) androidx.compose.ui.graphics.Color.Black else colors.background)
+    Canvas(if (boxed) modifier.clip(shape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.58f)) else modifier) {
         val w = look.line.toPx()
         val gap = 5.dp.toPx()
         val total = 3 * gap

@@ -682,4 +682,11 @@
     <string name="hl_preview_sub">Пример артиста</string>
     <string name="hl_preview_button">Играть</string>
     <string name="hl_copied">Скопировано: %1$s</string>
+    <string name="hl_cd_video">Показать видео</string>
+    <string name="hl_lyrics_none">Для этого трека нет текста</string>
+    <string name="hl_video_loading">Загружаю видео</string>
+    <string name="hl_video_failed">Видео для этого трека недоступно</string>
+    <string name="viz_lines">Линии</string>
+    <string name="viz_orbit">Орбита</string>
+    <string name="viz_terrain">Рельеф</string>
 </resources>

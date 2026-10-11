@@ -543,8 +543,15 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
         Modifier
             .padding(horizontal = 18.dp)
             .fillMaxWidth()
-            .styledSurface(8)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .then(
+                if (com.texfi.w0y.ui.theme.isHair) {
+                    val look = com.texfi.w0y.ui.theme.hairLook
+                    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(12.dp))
+                    Modifier.clip(shape).border(look.line, colors.outline, shape)
+                } else {
+                    Modifier.styledSurface(8)
+                },
+            ).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PixelSprite(rows = Sprites.search, color = colors.textMuted, modifier = Modifier.size(14.dp))
@@ -967,7 +974,7 @@ private fun settingsRows(
                 title = stringResource(R.string.viz_style_title),
                 description = stringResource(R.string.viz_style_desc),
                 keywords = "visualizer spectrum",
-                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
+                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { if (settings.uiStyle == com.texfi.w0y.data.UiStyle.HAIRLINE) it.hair else (!it.hair && it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL)) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
             ),
         )
         add(

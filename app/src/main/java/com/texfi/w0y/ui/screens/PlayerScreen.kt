@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.verticalScroll
 import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -200,8 +201,34 @@ fun PlayerScreen(
     var tab by remember { mutableStateOf(PlayerTab.QUEUE) }
     var lyricsFull by remember { mutableStateOf(false) }
     val art = settings.playerArt
+    // Что вместо обложки: текст и видео живут только на этом треке, визуализатор — в настройке.
+    var lyricsOn by remember { mutableStateOf(false) }
+    var videoOn by remember(song.id) { mutableStateOf(false) }
+    var video by remember(song.id) { mutableStateOf<com.texfi.w0y.data.VideoSource?>(null) }
+    var videoLoading by remember(song.id) { mutableStateOf(false) }
+    var isVideoTrack by remember(song.id) { mutableStateOf(false) }
     val toggleArt: () -> Unit = {
+        lyricsOn = false
+        videoOn = false
         viewModel.setPlayerArt(if (art == PlayerArt.COVER) PlayerArt.VISUALIZER else PlayerArt.COVER)
+    }
+    LaunchedEffect(song.id) {
+        // Поток получается вместе с запуском трека: ждём, пока в нём появится тип записи.
+        repeat(VIDEO_PROBES) {
+            viewModel.isVideoTrack(song.id)?.let { isVideoTrack = it; return@LaunchedEffect }
+            delay(500)
+        }
+    }
+    LaunchedEffect(videoOn, song.id) {
+        if (videoOn && video == null) {
+            videoLoading = true
+            video = viewModel.videoSource(song.id)
+            videoLoading = false
+            if (video == null) {
+                videoOn = false
+                android.widget.Toast.makeText(context, context.getString(R.string.hl_video_failed), android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     LaunchedEffect(song.id) { viewModel.ensureLyrics(song) }
@@ -303,9 +330,14 @@ fun PlayerScreen(
                 HairPlayerHeader(
                     onCollapse = onCollapse,
                     position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
-                    visualizerOn = art == PlayerArt.VISUALIZER,
+                    visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
                     onToggleArt = toggleArt,
                     onStand = onStand,
+                    lyricsOn = lyricsOn,
+                    onToggleLyrics = { lyricsOn = !lyricsOn; videoOn = false },
+                    videoAvailable = isVideoTrack,
+                    videoOn = videoOn,
+                    onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
                 )
                 if (findingClean) {
                     Text(
@@ -371,22 +403,69 @@ fun PlayerScreen(
 
             if (hair) item {
                 val progressNow = { if (state.durationMs > 0) ((dragPosition ?: position).toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f }
-                val visualizer: (@Composable () -> Unit)? =
-                    if (art == PlayerArt.VISUALIZER) {
-                        {
-                            Visualizer(
-                                bus = viewModel.spectrum,
-                                style = settings.visualizerStyle.forUi(settings.uiStyle),
-                                playing = state.isPlaying,
-                                sensitivity = settings.visualizerSensitivity,
-                                fps = settings.visualizerFps,
-                                backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
-                                modifier = Modifier.fillMaxSize().background(colors.surface),
-                            )
+                // Содержимое диска: обложка, видео, текст или визуализатор — сменяются плавно.
+                val stage = when {
+                    videoOn -> 3
+                    lyricsOn -> 2
+                    art == PlayerArt.VISUALIZER -> 1
+                    else -> 0
+                }
+                val stageContent: @Composable (String?) -> Unit = { coverUrl ->
+                    androidx.compose.animation.Crossfade(targetState = stage, animationSpec = com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "discStage") { s ->
+                        when (s) {
+                            1 ->
+                                Visualizer(
+                                    bus = viewModel.spectrum,
+                                    style = settings.visualizerStyle.forUi(settings.uiStyle),
+                                    playing = state.isPlaying,
+                                    sensitivity = settings.visualizerSensitivity,
+                                    fps = settings.visualizerFps,
+                                    backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
+                                    modifier = Modifier.fillMaxSize().background(colors.surface),
+                                )
+                            2 ->
+                                Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.92f))) {
+                                    val text = lyrics
+                                    if (text != null && text.synced.isNotEmpty()) {
+                                        LyricsView(
+                                            lines = text.synced,
+                                            translation = translation,
+                                            positionProvider = viewModel.player::positionMs,
+                                            playing = state.isPlaying,
+                                            size = LyricsSize.SMALL,
+                                            onSeek = seekNow,
+                                            centered = true,
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                        )
+                                    } else {
+                                        Text(
+                                            text = text?.plain ?: stringResource(R.string.hl_lyrics_none),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.textMuted,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier.align(Alignment.Center).padding(20.dp).then(if (text?.plain != null) Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()) else Modifier),
+                                        )
+                                    }
+                                }
+                            3 ->
+                                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                                    val source = video
+                                    if (source != null) {
+                                        com.texfi.w0y.ui.components.HairVideoSurface(
+                                            source = source,
+                                            playing = state.isPlaying,
+                                            positionProvider = viewModel.player::positionMs,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    } else if (videoLoading) {
+                                        com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp))
+                                    }
+                                }
+                            else -> com.texfi.w0y.ui.components.CoverImage(url = coverUrl, px = com.texfi.w0y.data.Thumbnails.HERO, modifier = Modifier.fillMaxSize())
                         }
-                    } else {
-                        null
                     }
+                }
+                val visualizer: (@Composable (String?) -> Unit)? = stageContent
                 when (layout) {
                     com.texfi.w0y.data.PlayerLayout.RING ->
                         androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 14.dp), contentAlignment = Alignment.Center) {
@@ -400,7 +479,7 @@ fun PlayerScreen(
                                 onToggle = viewModel.player::togglePlayPause,
                                 onNext = { viewModel.player.skipNext() },
                                 onPrevious = { viewModel.player.skipPrevious() },
-                                onTap = toggleArt,
+                                onTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
                                 onSeek = seekNow,
                                 content = visualizer,
                             )
@@ -418,7 +497,7 @@ fun PlayerScreen(
                                 onToggle = viewModel.player::togglePlayPause,
                                 onNext = { viewModel.player.skipNext() },
                                 onPrevious = { viewModel.player.skipPrevious() },
-                                onTap = toggleArt,
+                                onTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
                                 onSeek = seekNow,
                                 content = visualizer,
                             )
@@ -427,6 +506,14 @@ fun PlayerScreen(
                         }
 
                     com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
+                }
+                if (lyricsOn && lyrics != null) {
+                    LyricsLangRow(
+                        selected = lyricsLang,
+                        failed = lyricsLang.isNotBlank() && translation == null && !translating,
+                        onSelect = viewModel::setLyricsLang,
+                    )
+                    Spacer(Modifier.height(8.dp))
                 }
                 if (!settings.gestureHintSeen && layout != com.texfi.w0y.data.PlayerLayout.MINIMAL) {
                     LaunchedEffect(Unit) {
@@ -780,11 +867,13 @@ fun PlayerScreen(
             stickyHeader {
                 // Полоса вкладок липнет к верху: список под ней едет, а
                 // переключиться можно не возвращаясь наверх.
-                Box(Modifier.background(colors.background).padding(bottom = 10.dp)) {
+                Box(Modifier.background(if (hair) colors.background.copy(alpha = 0.78f) else colors.background).padding(bottom = 10.dp)) {
+                    // В Hairline текст живёт в диске, вкладок две.
+                    val tabs = if (hair) PlayerTab.entries.filter { it != PlayerTab.LYRICS } else PlayerTab.entries
                     PixelSegmented(
-                        options = PlayerTab.entries.map { stringResource(it.label) },
-                        selectedIndex = PlayerTab.entries.indexOf(tab),
-                        onSelect = { tab = PlayerTab.entries[it] },
+                        options = tabs.map { stringResource(it.label) },
+                        selectedIndex = tabs.indexOf(tab).coerceAtLeast(0),
+                        onSelect = { tab = tabs[it] },
                     )
                 }
             }
@@ -1123,7 +1212,7 @@ private fun QueueRow(
             // Номер — моно; у играющего вместо него качаются четыре линии.
             Box(Modifier.width(36.dp).height(24.dp), contentAlignment = Alignment.CenterStart) {
                 if (active) {
-                    com.texfi.w0y.ui.components.HairPlayingMark(Modifier.size(24.dp), rect = true)
+                    com.texfi.w0y.ui.components.HairPlayingMark(Modifier.size(24.dp), rect = true, boxed = false)
                 } else {
                     Text(
                         text = (index + 1).toString().padStart(2, '0'),
@@ -1329,6 +1418,9 @@ private fun formatTime(ms: Long): String {
 
 /** Пока играет — четыре раза в секунду; на паузе опроса нет вовсе. */
 private const val POSITION_POLL_MS = 250L
+
+/** Сколько раз по полсекунды ждём тип записи, пока поток не получен. */
+private const val VIDEO_PROBES = 24
 
 /** Подсказка жестов висит, пока её не прочтут, но не дольше. */
 private const val HINT_MS = 9_000L

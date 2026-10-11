@@ -63,6 +63,11 @@ class PlayerViewModel @Inject constructor(
 
     fun setStandFlipped(value: Boolean) = viewModelScope.launch { settingsRepository.setStandFlipped(value) }
 
+    /** Видео ли играющий трек; null, пока поток не получен. */
+    fun isVideoTrack(videoId: String): Boolean? = youtube.isVideoTrack(videoId)
+
+    suspend fun videoSource(videoId: String): com.texfi.w0y.data.VideoSource? = youtube.videoSource(videoId)
+
     private val _edit = MutableStateFlow<EditSearch>(EditSearch.Idle)
 
     /** Поиск готовой переделки: идёт, не нашлось или уже играет. */

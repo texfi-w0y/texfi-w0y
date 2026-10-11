@@ -158,10 +158,11 @@ fun HairPlayButton(
                 val half = this.size.minDimension / 2f
                 val r = half * 0.8f
                 val c = center
-                // Главная кнопка — сплошная, цвета текста, как белая кнопка PhotoCraft.
-                drawCircle(androidx.compose.ui.graphics.lerp(colors.text, colors.textMuted, 0.25f * press), r, c)
+                // Кольцо в одну линию цвета текста; под пальцем заливается, значок меняется на тёмный.
+                drawCircle(colors.text.copy(alpha = 0.92f * press), r, c)
+                drawCircle(colors.text, r, c, style = Stroke(stroke * 1.2f))
                 val f = flash.value
-                if (f < 1f) drawCircle(colors.text.copy(alpha = 0.5f * (1f - f)), r + (half - r) * f, c, style = Stroke(stroke))
+                if (f < 1f) drawCircle(colors.text.copy(alpha = 0.5f * (1f - f)), r + (half - r) * f - stroke / 2f, c, style = Stroke(stroke))
                 // Иконка: два четырёхугольника, треугольник ↔ две полосы.
                 val k = r * 1.05f / 12f
                 val ox = c.x - 12f * k
@@ -175,7 +176,7 @@ fun HairPlayButton(
                     }
                     path.close()
                 }
-                drawPath(path, colors.background, style = Fill)
+                drawPath(path, androidx.compose.ui.graphics.lerp(colors.text, colors.background, press), style = Fill)
             },
     )
 }
@@ -217,7 +218,8 @@ fun HairDisc(
     onTap: () -> Unit,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    content: (@Composable () -> Unit)? = null,
+    /** Что показать в диске вместо обложки (визуализатор, текст, видео); получает адрес обложки именно своего трека. */
+    content: (@Composable (String?) -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
@@ -382,7 +384,7 @@ fun HairDisc(
                 modifier = Modifier.fillMaxSize(),
             ) { (_, shownUrl) ->
                 Box(Modifier.fillMaxSize().clip(shape)) {
-                    if (content != null) content() else CoverImage(url = shownUrl, px = Thumbnails.HERO, modifier = Modifier.fillMaxSize())
+                    if (content != null) content(shownUrl) else CoverImage(url = shownUrl, px = Thumbnails.HERO, modifier = Modifier.fillMaxSize())
                 }
             }
             // Перекрестие — только при перемотке: показывает, куда ведёт палец.
