@@ -58,7 +58,22 @@ class MainActivity : ComponentActivity() {
             val customAccent by shellViewModel.customAccent.collectAsStateWithLifecycle()
             val style by shellViewModel.uiStyle.collectAsStateWithLifecycle()
             val glass by shellViewModel.smoothGlass.collectAsStateWithLifecycle()
-            W0yTheme(mode = theme, accent = accent, customAccent = customAccent, style = style, glass = glass) {
+            val lookState by shellViewModel.look.collectAsStateWithLifecycle()
+            val motion = com.texfi.w0y.ui.components.rememberMotionLevel(lookState.motion)
+            val look =
+                androidx.compose.runtime.remember(lookState, motion) {
+                    com.texfi.w0y.ui.theme.HairlineLook(
+                        weight = lookState.weight,
+                        corners = lookState.corners,
+                        coverShape = lookState.cover,
+                        layout = lookState.layout,
+                        caps = lookState.caps,
+                        density = lookState.density,
+                        motion = motion,
+                        iconStyle = lookState.icons,
+                    )
+                }
+            W0yTheme(mode = theme, accent = accent, customAccent = customAccent, style = style, glass = glass, look = look) {
                 // Смена стиля — снимок старого вида и круг нового поверх, без
                 // пересоздания экрана: музыка и состояние экранов не трогаются.
                 StyleRevealHost(current = style, onApply = shellViewModel::setUiStyle) {

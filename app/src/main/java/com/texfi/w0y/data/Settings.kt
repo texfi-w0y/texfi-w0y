@@ -133,6 +133,9 @@ enum class ThemeMode {
     OLED,
     LIGHT,
 
+    /** По системе: тёмная или светлая — как включено в телефоне. Только Hairline. */
+    SYSTEM,
+
     /** Стекло — скрытая, экспериментальная; открывается в «О приложении». */
     GLASS,
 }
@@ -159,6 +162,8 @@ enum class Accent(
     MINT(R.string.accent_mint, 0xFF3ED9A4, 0xFF167A5B, 0xFFE0A860),
     CRIMSON(R.string.accent_crimson, 0xFFFF5A5A, 0xFF8F2020, 0xFFE0A860),
     SAND(R.string.accent_sand, 0xFFE0A860, 0xFF8A5F26, 0xFF7FB5FF),
+    LIGHT_BLUE(R.string.accent_light_blue, 0xFF7FB5FF, 0xFF2F5C94, 0xFFE0A860),
+    WARM(R.string.accent_warm, 0xFFF0B49A, 0xFF8A4A32, 0xFF7FB5FF),
 
     /** Свой цвет: значение лежит в настройках, здесь только заглушка. */
     CUSTOM(R.string.accent_custom, 0xFFA06CFF, 0xFF4E3580, 0xFFE0A860),
@@ -173,6 +178,8 @@ enum class Accent(
  * тон текста у обоих общие.
  */
 enum class UiStyle(@StringRes val label: Int, @StringRes val hint: Int) {
+    /** Тонкие линии, чистая геометрия, диск-обложка с кольцом прогресса. По умолчанию. */
+    HAIRLINE(R.string.style_hairline, R.string.style_hairline_hint),
     PIXEL(R.string.style_pixel, R.string.style_pixel_hint),
     SMOOTH(R.string.style_smooth, R.string.style_smooth_hint),
 }
@@ -202,6 +209,82 @@ enum class PlayerArt { COVER, VISUALIZER }
 
 /** Что крупно в режиме подставки: название с исполнителем или обложка. */
 enum class StandView { TEXT, COVER }
+
+// ── Hairline: настройки вида ─────────────────────────────────────────────
+
+/** Толщина линий Hairline, dp. Тоньше одного dp не бывает: на плотных экранах линия пропадает. */
+enum class LineWeight(@StringRes val label: Int, val dp: Float) {
+    THIN(R.string.hl_weight_thin, 1f),
+    REGULAR(R.string.hl_weight_regular, 1.5f),
+    BOLD(R.string.hl_weight_bold, 2f),
+}
+
+/** Скругления карточек и кнопок: от острых до кругов. */
+enum class CornerStyle(@StringRes val label: Int, val dp: Int) {
+    SHARP(R.string.hl_corner_sharp, 0),
+    SOFT(R.string.hl_corner_soft, 8),
+    ROUND(R.string.hl_corner_round, 16),
+    CIRCLE(R.string.hl_corner_circle, 999),
+}
+
+/** Форма обложки в плеере и списках. */
+enum class CoverShape(@StringRes val label: Int) {
+    DISC(R.string.hl_cover_disc),
+    ROUNDED(R.string.hl_cover_rounded),
+    SQUARE(R.string.hl_cover_square),
+}
+
+/** Раскладка полного плеера. */
+enum class PlayerLayout(@StringRes val label: Int) {
+    RING(R.string.hl_layout_ring),
+    MINIMAL(R.string.hl_layout_minimal),
+    COMPACT(R.string.hl_layout_compact),
+}
+
+/** Где текст набирается заглавными. */
+enum class CapsMode(@StringRes val label: Int) {
+    TITLES_LABELS(R.string.hl_caps_titles),
+    LABELS(R.string.hl_caps_labels),
+    OFF(R.string.hl_caps_off),
+}
+
+enum class Density(@StringRes val label: Int) {
+    COMFORTABLE(R.string.hl_density_comfortable),
+    COMPACT(R.string.hl_density_compact),
+}
+
+/**
+ * Качество анимаций. AUTO сам выбирает по системному «убрать анимацию»,
+ * экономии заряда и классу устройства; остальное — явный выбор.
+ */
+enum class MotionMode(@StringRes val label: Int) {
+    AUTO(R.string.hl_motion_auto),
+    FULL(R.string.hl_motion_full),
+    LITE(R.string.hl_motion_lite),
+    OFF(R.string.hl_motion_off),
+}
+
+enum class HapticLevel(@StringRes val label: Int) {
+    OFF(R.string.hl_haptic_off),
+    LIGHT(R.string.hl_haptic_light),
+    FULL(R.string.hl_haptic_full),
+}
+
+/** Набор иконок интерфейса. */
+enum class IconStyle(@StringRes val label: Int) {
+    LINE(R.string.hl_icons_line),
+    FILLED_OUTLINE(R.string.hl_icons_filled),
+    DOTS(R.string.hl_icons_dots),
+}
+
+/** Иконка приложения на рабочем столе: по одному activity-alias на вариант. */
+enum class AppIcon(@StringRes val label: Int, val alias: String) {
+    W(R.string.hl_icon_w, ".IconW"),
+    LEAF(R.string.hl_icon_leaf, ".IconLeaf"),
+    BARS(R.string.hl_icon_bars, ".IconBars"),
+    RINGS(R.string.hl_icon_rings, ".IconRings"),
+    LEAF_LINE(R.string.hl_icon_leaf_line, ".IconLeafLine"),
+}
 
 /**
  * Все настройки одним снимком — так экраны и плеер читают согласованное
@@ -277,7 +360,7 @@ data class W0ySettings(
     /** Со скольких прослушиваний трек попадает в быстрый набор. */
     val dialMinPlays: Int = 1,
     // ── Стиль ────────────────────────────────────────────────────────────
-    val uiStyle: UiStyle = UiStyle.PIXEL,
+    val uiStyle: UiStyle = UiStyle.HAIRLINE,
     /** Smooth: жидкое стекло с бликами (true) или матовые плотные поверхности. */
     val smoothGlass: Boolean = true,
     /** Показан ли выбор стиля — на первом запуске и один раз после обновления. */
@@ -306,6 +389,21 @@ data class W0ySettings(
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
     val standMaxMinutes: Int = 60,
     val standLowBatteryExit: Boolean = true,
+    // ── Hairline ─────────────────────────────────────────────────────────
+    val lineWeight: LineWeight = LineWeight.THIN,
+    val corners: CornerStyle = CornerStyle.SOFT,
+    val coverShape: CoverShape = CoverShape.DISC,
+    val playerLayout: PlayerLayout = PlayerLayout.RING,
+    val caps: CapsMode = CapsMode.TITLES_LABELS,
+    val density: Density = Density.COMFORTABLE,
+    val motion: MotionMode = MotionMode.AUTO,
+    val hapticLevel: HapticLevel = HapticLevel.FULL,
+    val iconStyle: IconStyle = IconStyle.LINE,
+    val appIcon: AppIcon = AppIcon.W,
+    /** Потянуть мини-плеер вниз — остановить и убрать. */
+    val swipeDismiss: Boolean = true,
+    /** Подсказки жестов показаны. */
+    val gestureHintSeen: Boolean = false,
 )
 
 @Singleton
@@ -353,7 +451,8 @@ class SettingsRepository @Inject constructor(
                     customAccent = prefs[Keys.CUSTOM_ACCENT] ?: 0xFFA06CFF.toInt(),
                     syncPlaylists = prefs[Keys.SYNC_PLAYLISTS] ?: true,
                     searchSuggestions = prefs[Keys.SEARCH_SUGGESTIONS] ?: true,
-                    haptics = prefs[Keys.HAPTICS] ?: true,
+                    haptics = hapticLevelOf(prefs) != HapticLevel.OFF,
+                    hapticLevel = hapticLevelOf(prefs),
                     seekStepSec = prefs[Keys.SEEK_STEP] ?: 10,
                     playerCoverGlow = prefs[Keys.COVER_GLOW] ?: true,
                     fallbackAudio = prefs[Keys.FALLBACK_AUDIO] ?: true,
@@ -377,7 +476,7 @@ class SettingsRepository @Inject constructor(
                         prefs[Keys.AUTO_DL_PLAYLISTS].orEmpty().split(',').mapNotNull { it.toLongOrNull() }.toSet(),
                     showPlaylistRecommendations = prefs[Keys.PLAYLIST_RECS] ?: false,
                     dialMinPlays = (prefs[Keys.DIAL_MIN_PLAYS] ?: 1).coerceIn(1, 20),
-                    uiStyle = prefs.enum(Keys.UI_STYLE, UiStyle.PIXEL),
+                    uiStyle = prefs.enum(Keys.UI_STYLE, UiStyle.HAIRLINE),
                     smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: true,
                     stylePicked = prefs[Keys.STYLE_PICKED] ?: false,
                     lyricsSize = prefs.enum(Keys.LYRICS_SIZE, LyricsSize.MEDIUM),
@@ -395,6 +494,17 @@ class SettingsRepository @Inject constructor(
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: false,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: 60,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: true,
+                    lineWeight = prefs.enum(Keys.HL_WEIGHT, LineWeight.THIN),
+                    corners = prefs.enum(Keys.HL_CORNERS, CornerStyle.SOFT),
+                    coverShape = prefs.enum(Keys.HL_COVER, CoverShape.DISC),
+                    playerLayout = prefs.enum(Keys.HL_LAYOUT, PlayerLayout.RING),
+                    caps = prefs.enum(Keys.HL_CAPS, CapsMode.TITLES_LABELS),
+                    density = prefs.enum(Keys.HL_DENSITY, Density.COMFORTABLE),
+                    motion = prefs.enum(Keys.HL_MOTION, MotionMode.AUTO),
+                    iconStyle = prefs.enum(Keys.HL_ICONS, IconStyle.LINE),
+                    appIcon = prefs.enum(Keys.HL_APP_ICON, AppIcon.W),
+                    swipeDismiss = prefs[Keys.HL_SWIPE_DISMISS] ?: true,
+                    gestureHintSeen = prefs[Keys.HL_HINT_SEEN] ?: false,
                 )
             }
 
@@ -479,7 +589,53 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSearchSuggestions(value: Boolean) = put(Keys.SEARCH_SUGGESTIONS, value)
 
-    suspend fun setHaptics(value: Boolean) = put(Keys.HAPTICS, value)
+    suspend fun setHaptics(value: Boolean) {
+        put(Keys.HAPTICS, value)
+        put(Keys.HL_HAPTIC, (if (value) HapticLevel.FULL else HapticLevel.OFF).name)
+    }
+
+    suspend fun setHapticLevel(value: HapticLevel) {
+        put(Keys.HAPTICS, value != HapticLevel.OFF)
+        put(Keys.HL_HAPTIC, value.name)
+    }
+
+    suspend fun setLineWeight(value: LineWeight) = put(Keys.HL_WEIGHT, value.name)
+
+    suspend fun setCorners(value: CornerStyle) = put(Keys.HL_CORNERS, value.name)
+
+    suspend fun setCoverShape(value: CoverShape) = put(Keys.HL_COVER, value.name)
+
+    suspend fun setPlayerLayout(value: PlayerLayout) = put(Keys.HL_LAYOUT, value.name)
+
+    suspend fun setCaps(value: CapsMode) = put(Keys.HL_CAPS, value.name)
+
+    suspend fun setDensity(value: Density) = put(Keys.HL_DENSITY, value.name)
+
+    suspend fun setMotion(value: MotionMode) = put(Keys.HL_MOTION, value.name)
+
+    suspend fun setIconStyle(value: IconStyle) = put(Keys.HL_ICONS, value.name)
+
+    suspend fun setAppIcon(value: AppIcon) = put(Keys.HL_APP_ICON, value.name)
+
+    suspend fun setSwipeDismiss(value: Boolean) = put(Keys.HL_SWIPE_DISMISS, value)
+
+    suspend fun setGestureHintSeen(value: Boolean) = put(Keys.HL_HINT_SEEN, value)
+
+    /** Вернуть всё, что настроено в разделе Look → Hairline, к значениям по умолчанию. */
+    suspend fun resetLook() {
+        context.dataStore.edit {
+            listOf(
+                Keys.HL_WEIGHT, Keys.HL_CORNERS, Keys.HL_COVER, Keys.HL_LAYOUT, Keys.HL_CAPS,
+                Keys.HL_DENSITY, Keys.HL_MOTION, Keys.HL_ICONS,
+            ).forEach { key -> it.remove(key) }
+            it.remove(Keys.ACCENT)
+        }
+    }
+
+    /** Старые установки хранили вибрацию флагом: нет уровня — берём флаг. */
+    private fun hapticLevelOf(prefs: Preferences): HapticLevel =
+        prefs[Keys.HL_HAPTIC]?.let { name -> runCatching { enumValueOf<HapticLevel>(name) }.getOrNull() }
+            ?: if (prefs[Keys.HAPTICS] == false) HapticLevel.OFF else HapticLevel.FULL
 
     suspend fun setSeekStep(seconds: Int) = put(Keys.SEEK_STEP, seconds)
 
@@ -620,6 +776,16 @@ class SettingsRepository @Inject constructor(
             .put("dialMinPlays", current.dialMinPlays)
             .put("lyricsSize", current.lyricsSize.name)
             .put("visualizerStyle", current.visualizerStyle.name)
+            .put("lineWeight", current.lineWeight.name)
+            .put("corners", current.corners.name)
+            .put("coverShape", current.coverShape.name)
+            .put("playerLayout", current.playerLayout.name)
+            .put("caps", current.caps.name)
+            .put("density", current.density.name)
+            .put("motion", current.motion.name)
+            .put("hapticLevel", current.hapticLevel.name)
+            .put("iconStyle", current.iconStyle.name)
+            .put("swipeDismiss", current.swipeDismiss)
             .toString(2)
 
     suspend fun import(json: String) {
@@ -658,6 +824,16 @@ class SettingsRepository @Inject constructor(
             if (obj.has("dialMinPlays")) prefs[Keys.DIAL_MIN_PLAYS] = obj.getInt("dialMinPlays")
             obj.optString("lyricsSize").takeIf { it.isNotBlank() }?.let { prefs[Keys.LYRICS_SIZE] = it }
             obj.optString("visualizerStyle").takeIf { it.isNotBlank() }?.let { prefs[Keys.VIZ_STYLE] = it }
+            obj.optString("lineWeight").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_WEIGHT] = it }
+            obj.optString("corners").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_CORNERS] = it }
+            obj.optString("coverShape").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_COVER] = it }
+            obj.optString("playerLayout").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_LAYOUT] = it }
+            obj.optString("caps").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_CAPS] = it }
+            obj.optString("density").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_DENSITY] = it }
+            obj.optString("motion").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_MOTION] = it }
+            obj.optString("hapticLevel").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_HAPTIC] = it }
+            obj.optString("iconStyle").takeIf { it.isNotBlank() }?.let { prefs[Keys.HL_ICONS] = it }
+            if (obj.has("swipeDismiss")) prefs[Keys.HL_SWIPE_DISMISS] = obj.getBoolean("swipeDismiss")
             // Язык из выгрузки нужно продублировать в синхронное хранилище:
             // именно оттуда его читает attachBaseContext при следующем старте.
             obj.optString("language").takeIf { it.isNotBlank() }?.let { name ->
@@ -760,6 +936,18 @@ class SettingsRepository @Inject constructor(
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")
         val STAND_MAX_MIN = intPreferencesKey("stand_max_minutes")
         val STAND_LOW_BATTERY = booleanPreferencesKey("stand_low_battery_exit")
+        val HL_WEIGHT = stringPreferencesKey("hl_line_weight")
+        val HL_CORNERS = stringPreferencesKey("hl_corners")
+        val HL_COVER = stringPreferencesKey("hl_cover_shape")
+        val HL_LAYOUT = stringPreferencesKey("hl_player_layout")
+        val HL_CAPS = stringPreferencesKey("hl_caps")
+        val HL_DENSITY = stringPreferencesKey("hl_density")
+        val HL_MOTION = stringPreferencesKey("hl_motion")
+        val HL_HAPTIC = stringPreferencesKey("hl_haptic_level")
+        val HL_ICONS = stringPreferencesKey("hl_icon_style")
+        val HL_APP_ICON = stringPreferencesKey("hl_app_icon")
+        val HL_SWIPE_DISMISS = booleanPreferencesKey("hl_swipe_dismiss")
+        val HL_HINT_SEEN = booleanPreferencesKey("hl_gesture_hint_seen")
     }
 }
 

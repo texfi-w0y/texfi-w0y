@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.texfi.w0y.ui.icons.SmoothIcons
+import com.texfi.w0y.ui.theme.isHair
 import com.texfi.w0y.ui.theme.isSmooth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +31,12 @@ fun PixelSprite(
     // Плавный стиль рисует ту же иконку из своего набора: имя одно, рисунок
     // разный. Фирменные знаки TexFi пиксельные в обоих стилях — у них
     // плавной версии нет и быть не должно.
+    if (isHair) {
+        com.texfi.w0y.ui.icons.HairIcons.forSprite(rows)?.let { glyph ->
+            com.texfi.w0y.ui.icons.HairIcon(glyph, color, modifier)
+            return
+        }
+    }
     if (isSmooth) {
         SmoothIcons.forSprite(rows)?.let { vector ->
             Image(rememberVectorPainter(vector), null, modifier, colorFilter = ColorFilter.tint(color))

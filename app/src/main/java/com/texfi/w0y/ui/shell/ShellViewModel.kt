@@ -8,6 +8,7 @@ import com.texfi.w0y.data.StartTab
 import com.texfi.w0y.data.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -15,6 +16,18 @@ import com.texfi.w0y.playback.DownloadsRepository
 import com.texfi.w0y.playback.PlayerConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+
+/** То, из чего собирается вид Hairline; уровень движения решается уже в окне, по системе. */
+data class LookState(
+    val weight: com.texfi.w0y.data.LineWeight = com.texfi.w0y.data.LineWeight.THIN,
+    val corners: com.texfi.w0y.data.CornerStyle = com.texfi.w0y.data.CornerStyle.SOFT,
+    val cover: com.texfi.w0y.data.CoverShape = com.texfi.w0y.data.CoverShape.DISC,
+    val layout: com.texfi.w0y.data.PlayerLayout = com.texfi.w0y.data.PlayerLayout.RING,
+    val caps: com.texfi.w0y.data.CapsMode = com.texfi.w0y.data.CapsMode.TITLES_LABELS,
+    val density: com.texfi.w0y.data.Density = com.texfi.w0y.data.Density.COMFORTABLE,
+    val motion: com.texfi.w0y.data.MotionMode = com.texfi.w0y.data.MotionMode.AUTO,
+    val icons: com.texfi.w0y.data.IconStyle = com.texfi.w0y.data.IconStyle.LINE,
+)
 
 @HiltViewModel
 class ShellViewModel @Inject constructor(
@@ -60,6 +73,24 @@ class ShellViewModel @Inject constructor(
             .map { it.compactRows }
             .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    val look: StateFlow<LookState> =
+        settings.settings
+            .map {
+                LookState(it.lineWeight, it.corners, it.coverShape, it.playerLayout, it.caps, it.density, it.motion, it.iconStyle)
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, LookState())
+
+    val hapticLevel: StateFlow<com.texfi.w0y.data.HapticLevel> =
+        settings.settings
+            .map { it.hapticLevel }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.HapticLevel.FULL)
+
+    val swipeDismiss: StateFlow<Boolean> =
+        settings.settings
+            .map { it.swipeDismiss }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     val animatedBackground: StateFlow<Boolean> =
         settings.settings
             .map { it.animatedBackground }
@@ -83,7 +114,7 @@ class ShellViewModel @Inject constructor(
     val uiStyle: StateFlow<com.texfi.w0y.data.UiStyle> =
         settings.settings
             .map { it.uiStyle }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.UiStyle.PIXEL)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.UiStyle.HAIRLINE)
 
     /** null, пока настройки не прочитаны: выбор стиля вслепую не показываем. */
     val stylePicked: StateFlow<Boolean?> =

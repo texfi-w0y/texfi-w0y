@@ -97,9 +97,38 @@ val SmoothTokens =
         segmented = false,
     )
 
+/**
+ * Токены Hairline: форма и толщина линии приходят из настроек вида.
+ * Тень нулевая, заливка редкая — карточку держит только контур.
+ */
+fun hairlineTokens(look: HairlineLook): StyleTokens {
+    val card = RoundedCornerShape(look.cardRadius)
+    val pill = RoundedCornerShape(look.pillRadius)
+    return StyleTokens(
+        style = UiStyle.HAIRLINE,
+        card = card,
+        cardBorder = look.line,
+        cardShadow = 0.dp,
+        button = pill,
+        buttonBorder = look.line,
+        buttonShadow = 0.dp,
+        chip = pill,
+        cover = if (look.coverShape == com.texfi.w0y.data.CoverShape.DISC) CircleShape else RoundedCornerShape(minOf(look.pillRadius, 16.dp)),
+        sheet = RoundedCornerShape(topStart = look.cardRadius, topEnd = look.cardRadius),
+        bar = card,
+        switchTrack = RoundedCornerShape(50),
+        switchThumb = CircleShape,
+        sliderThumb = CircleShape,
+        pressScale = 0.96f,
+        stepped = false,
+        segmented = false,
+    )
+}
+
 /** Токены стиля; ветка на каждый стиль обязательна — компилятор не даст забыть новый. */
-fun tokensFor(style: UiStyle, glass: Boolean = true): StyleTokens =
+fun tokensFor(style: UiStyle, glass: Boolean = true, look: HairlineLook = HairlineLook()): StyleTokens =
     when (style) {
+        UiStyle.HAIRLINE -> hairlineTokens(look)
         UiStyle.PIXEL -> PixelTokens
         UiStyle.SMOOTH -> if (glass) SmoothGlassTokens else SmoothTokens
     }
@@ -113,9 +142,14 @@ val styleTokens: StyleTokens
     @Composable @ReadOnlyComposable
     get() = LocalStyleTokens.current
 
+/**
+ * «Не пиксельный»: Smooth и Hairline. Всё, что рисуется без спрайтов, ступеней
+ * и смещённых теней, берёт эту ветку; чем Hairline отличается от Smooth
+ * дальше, решает [isHair].
+ */
 val isSmooth: Boolean
     @Composable @ReadOnlyComposable
-    get() = LocalStyleTokens.current.style == UiStyle.SMOOTH
+    get() = LocalStyleTokens.current.style != UiStyle.PIXEL
 
 /**
  * Рамка элемента по стилю: в Pixel — сплошная 2 dp, в Smooth — никакой

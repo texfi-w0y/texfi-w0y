@@ -54,7 +54,7 @@ fun VisualizerStyle.forUi(style: UiStyle): VisualizerStyle =
                 VisualizerStyle.WAVE -> VisualizerStyle.SCOPE
                 else -> this
             }
-        UiStyle.SMOOTH ->
+        UiStyle.SMOOTH, UiStyle.HAIRLINE ->
             when (this) {
                 VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC -> VisualizerStyle.BARS
                 VisualizerStyle.SCOPE, VisualizerStyle.RING -> VisualizerStyle.WAVE

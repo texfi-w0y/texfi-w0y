@@ -183,7 +183,7 @@ private fun StyleOption(
         Text(stringResource(style.hint), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         Spacer(Modifier.height(12.dp))
         // Живой образец: тот же код компонентов, только под этим стилем.
-        W0yTheme(mode = theme, accent = accent, customAccent = customAccent, style = style, glass = glass) {
+        W0yTheme(mode = theme, accent = accent, customAccent = customAccent, style = style, glass = glass, look = com.texfi.w0y.ui.theme.LocalHairLook.current) {
             StyleSample()
         }
     }

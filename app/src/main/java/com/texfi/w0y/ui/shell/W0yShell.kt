@@ -404,8 +404,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 onAccent = viewModel::setAccent,
                 onDone = viewModel::completeStylePick,
                 onSkip = {
-                    // Пропуск оставляет Pixel, даже если по пути успели переключить.
-                    viewModel.setUiStyle(UiStyle.PIXEL)
+                    // Пропуск оставляет стиль по умолчанию, даже если по пути успели переключить.
+                    viewModel.setUiStyle(UiStyle.HAIRLINE)
                     viewModel.completeStylePick()
                 },
             )

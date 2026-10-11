@@ -936,7 +936,7 @@ private fun settingsRows(
                 title = stringResource(R.string.viz_style_title),
                 description = stringResource(R.string.viz_style_desc),
                 keywords = "visualizer spectrum",
-                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { it.smooth == (settings.uiStyle == com.texfi.w0y.data.UiStyle.SMOOTH) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
+                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
             ),
         )
         add(
@@ -1634,4 +1634,5 @@ private fun themeLabel(mode: ThemeMode): String =
         ThemeMode.OLED -> stringResource(R.string.theme_oled)
         ThemeMode.LIGHT -> stringResource(R.string.theme_light)
         ThemeMode.GLASS -> stringResource(R.string.theme_glass)
+        ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
     }

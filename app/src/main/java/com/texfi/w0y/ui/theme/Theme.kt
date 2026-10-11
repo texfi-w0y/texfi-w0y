@@ -42,7 +42,14 @@ data class W0yColors(
     val onAccent: Color = Color.White,
     /** Текст цветом акцента, подтянутый до читаемого на фоне. */
     val accentText: Color = TexFiBlue,
-)
+    /** Прогресс и время — всегда синий TexFi, какой бы ни был акцент действия. */
+    val progress: Color = TexFiBlue,
+    /** Контур интерактивных элементов Hairline; у других стилей совпадает с рамкой. */
+    val lineStrong: Color = Color.Unspecified,
+) {
+    /** Контур интерактивного элемента: у Hairline ярче разделителя, у остальных — рамка. */
+    val outline: Color get() = if (lineStrong == Color.Unspecified) border else lineStrong
+}
 
 /**
  * Тёмная — графит, а не чернота: карточки заметно светлее фона. Раньше
@@ -118,6 +125,44 @@ private val LightColors =
         textMuted = Color(0xFF6B6455),
     )
 
+/**
+ * Палитры Hairline. Фон и карточка из токенов языка; разделитель `border`
+ * для линий-подложек, `lineStrong` — контур всего, что нажимается (контраст
+ * к фону не ниже 1.6:1, проверяется тестом).
+ */
+private val HairDark =
+    DarkColors.copy(
+        background = Color(0xFF0A090C),
+        surface = Color(0xFF121116),
+        surfaceHigh = Color(0xFF1B1A21),
+        border = Color(0xFF2A2A34),
+        lineStrong = Color(0xFF3A3A46),
+        shadow = Color(0x00000000),
+        text = Color(0xFFF6F1E5),
+        textMuted = Color(0xFF9C978B),
+    )
+
+private val HairBlack =
+    HairDark.copy(
+        background = Color(0xFF000000),
+        surface = Color(0xFF050507),
+        surfaceHigh = Color(0xFF111015),
+        border = Color(0xFF24242D),
+    )
+
+private val HairLight =
+    LightColors.copy(
+        background = Color(0xFFF6F1E5),
+        surface = Color(0xFFFFFDF7),
+        surfaceHigh = Color(0xFFEDE5D2),
+        border = Color(0xFFD9D0BB),
+        lineStrong = Color(0xFFA29780),
+        shadow = Color(0x00000000),
+        text = Color(0xFF14121A),
+        textMuted = Color(0xFF5E584B),
+        secondary = Color(0xFF2F5FD0),
+    )
+
 val LocalW0yColors = staticCompositionLocalOf { DarkColors }
 
 @Composable
@@ -125,11 +170,16 @@ fun W0yTheme(
     mode: ThemeMode = ThemeMode.DARK,
     accent: Accent = Accent.SAND,
     customAccent: Int = 0xFFA06CFF.toInt(),
-    style: UiStyle = UiStyle.PIXEL,
+    style: UiStyle = UiStyle.HAIRLINE,
     glass: Boolean = true,
+    look: HairlineLook = HairlineLook(),
     content: @Composable () -> Unit,
 ) {
-    val target = resolveColors(mode, accent, customAccent)
+    // «По системе» решается здесь, где известна тема телефона; ниже всюду
+    // только светлая или тёмная.
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val effective = if (mode == ThemeMode.SYSTEM) (if (systemDark) ThemeMode.DARK else ThemeMode.LIGHT) else mode
+    val target = resolveColors(effective, accent, customAccent, style)
     // Смена акцента — перетекание цвета, а не скачок: так видно, что
     // поменялся именно акцент, а не перерисовался весь экран.
     val spec = tween<Color>(ACCENT_MS)
@@ -143,7 +193,7 @@ fun W0yTheme(
             secondary = secondaryNow,
         )
     val scheme =
-        if (mode == ThemeMode.LIGHT) {
+        if (effective == ThemeMode.LIGHT) {
             lightColorScheme(
                 primary = colors.accent,
                 onPrimary = Color.White,
@@ -175,10 +225,10 @@ fun W0yTheme(
             )
         }
 
-    val tokens = tokensFor(style, glass)
+    val tokens = remember(style, glass, look) { tokensFor(style, glass, look) }
     val typography = remember(style) { typographyFor(style) }
     SideEffect { com.texfi.w0y.ui.components.W0yMotion.stepped = tokens.stepped }
-    CompositionLocalProvider(LocalW0yColors provides colors, LocalStyleTokens provides tokens) {
+    CompositionLocalProvider(LocalW0yColors provides colors, LocalStyleTokens provides tokens, LocalHairLook provides look) {
         MaterialTheme(
             colorScheme = scheme,
             typography = typography,
@@ -191,13 +241,15 @@ fun W0yTheme(
  * Палитра темы с акцентом — без Compose, чтобы проверять контраст всех
  * сочетаний тестом.
  */
-fun resolveColors(mode: ThemeMode, accent: Accent, customAccent: Int): W0yColors {
+fun resolveColors(mode: ThemeMode, accent: Accent, customAccent: Int, style: UiStyle = UiStyle.PIXEL): W0yColors {
+    val hair = style == UiStyle.HAIRLINE
     val base =
         when (mode) {
-            ThemeMode.DARK -> DarkColors
-            ThemeMode.OLED -> OledColors
-            ThemeMode.GLASS -> GlassColors
-            ThemeMode.LIGHT -> LightColors
+            ThemeMode.DARK, ThemeMode.SYSTEM -> if (hair) HairDark else DarkColors
+            ThemeMode.OLED -> if (hair) HairBlack else OledColors
+            // Стекло — только Smooth; у Hairline его нет, берём тёмную.
+            ThemeMode.GLASS -> if (hair) HairDark else GlassColors
+            ThemeMode.LIGHT -> if (hair) HairLight else LightColors
         }
     // Схема меняет только пару акцентов: фон, поверхности и текст остаются
     // от темы. Иначе «розовая» схема на светлой теме превращалась бы
@@ -221,6 +273,8 @@ fun resolveColors(mode: ThemeMode, accent: Accent, customAccent: Int): W0yColors
         textMuted = Contrast.ensure(tinted.textMuted, if (tinted.glass) GlassOpaqueSurface else tinted.surface),
         onAccent = Contrast.on(tinted.accent),
         accentText = Contrast.ensure(tinted.accent, ground),
+        // Прогресс — синий; на светлой теме берём тот, что держит контраст линии 3:1.
+        progress = Contrast.ensure(TexFiBlue, ground, if (hair) 3f else Contrast.TEXT),
     )
 }
 

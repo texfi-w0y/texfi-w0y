@@ -52,36 +52,37 @@ private val SmoothBigNumberStyle =
     TextStyle(fontFamily = BodyFamily, fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 36.sp)
 
 private fun smooth(style: UiStyle) = style == UiStyle.SMOOTH
+private fun hair(style: UiStyle) = style == UiStyle.HAIRLINE
 
 /** Заголовок блока. */
 val PixelTitle: TextStyle
     @Composable @ReadOnlyComposable
-    get() = if (smooth(LocalStyleTokens.current.style)) SmoothTitleStyle else PixelTitleStyle
+    get() = LocalStyleTokens.current.style.let { if (hair(it)) HairTitleStyle else if (smooth(it)) SmoothTitleStyle else PixelTitleStyle }
 
 /** Заголовок экрана — крупнее внутренних: он задаёт верх страницы. */
 val PixelScreenTitle: TextStyle
     @Composable @ReadOnlyComposable
-    get() = if (smooth(LocalStyleTokens.current.style)) SmoothScreenTitleStyle else PixelScreenTitleStyle
+    get() = LocalStyleTokens.current.style.let { if (hair(it)) HairScreenTitleStyle else if (smooth(it)) SmoothScreenTitleStyle else PixelScreenTitleStyle }
 
 val PixelSectionLabel: TextStyle
     @Composable @ReadOnlyComposable
-    get() = if (smooth(LocalStyleTokens.current.style)) SmoothSectionLabelStyle else PixelSectionLabelStyle
+    get() = LocalStyleTokens.current.style.let { if (hair(it)) HairLabelStyle else if (smooth(it)) SmoothSectionLabelStyle else PixelSectionLabelStyle }
 
 val PixelBigNumber: TextStyle
     @Composable @ReadOnlyComposable
-    get() = if (smooth(LocalStyleTokens.current.style)) SmoothBigNumberStyle else PixelBigNumberStyle
+    get() = LocalStyleTokens.current.style.let { if (hair(it)) HairBigNumberStyle else if (smooth(it)) SmoothBigNumberStyle else PixelBigNumberStyle }
 
 /** Типографика Material под стиль: заголовочные роли меняются, текстовые общие. */
 fun typographyFor(style: UiStyle): Typography {
-    val title = if (smooth(style)) SmoothTitleStyle else PixelTitleStyle
+    val title = if (hair(style)) HairTitleStyle else if (smooth(style)) SmoothTitleStyle else PixelTitleStyle
     return Typography(
         titleLarge = title,
-        titleMedium = if (smooth(style)) title.copy(fontSize = 16.sp, lineHeight = 22.sp) else title.copy(fontSize = 12.sp, lineHeight = 18.sp),
-        labelSmall = if (smooth(style)) SmoothSectionLabelStyle else PixelSectionLabelStyle,
+        titleMedium = if (hair(style)) HairTitleStyle.copy(fontSize = 14.sp, lineHeight = 20.sp) else if (smooth(style)) title.copy(fontSize = 16.sp, lineHeight = 22.sp) else title.copy(fontSize = 12.sp, lineHeight = 18.sp),
+        labelSmall = if (hair(style)) HairLabelStyle else if (smooth(style)) SmoothSectionLabelStyle else PixelSectionLabelStyle,
         bodyLarge = TextStyle(fontFamily = BodyFamily, fontSize = 15.sp, lineHeight = 21.sp),
         bodyMedium = TextStyle(fontFamily = BodyFamily, fontSize = 14.sp, lineHeight = 20.sp),
         bodySmall = TextStyle(fontFamily = BodyFamily, fontSize = 12.sp, lineHeight = 17.sp),
-        labelMedium = TextStyle(fontFamily = BodyFamily, fontSize = 11.sp, lineHeight = 15.sp),
+        labelMedium = if (hair(style)) HairLabelStyle.copy(letterSpacing = 1.sp) else TextStyle(fontFamily = BodyFamily, fontSize = 11.sp, lineHeight = 15.sp),
     )
 }
 
