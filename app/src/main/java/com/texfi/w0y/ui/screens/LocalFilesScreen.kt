@@ -119,7 +119,8 @@ fun LocalFilesList(viewModel: LibraryViewModel) {
                             Box(Modifier.animateItem().hairStagger(songs.indexOf(song))) {
                                 SongRow(
                                     song = song,
-                                    onClick = { viewModel.playCollection(songs, songs.indexOf(song)) },
+                                    // Играет один трек: дальше подборка (рекомендации по этому файлу), а не весь список файлов.
+                                    onClick = { viewModel.play(listOf(song), 0) },
                                     onLongClick = { editing = song },
                                     actions = { SpriteButton(Sprites.sliders, onClick = { editing = song }) },
                                 )

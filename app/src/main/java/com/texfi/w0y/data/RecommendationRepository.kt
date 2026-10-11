@@ -31,7 +31,9 @@ class RecommendationRepository @Inject constructor(
         // Сама найденная запись тоже может попасться в подборке — как «тот же трек
         // в другом виде» — но не сразу после файла.
         val twin = if (LocalMusic.isLocal(seed.id)) youtube.findEquivalent(seed) else null
-        val radioSeed = twin?.id ?: if (LocalMusic.isLocal(seed.id)) return emptyList() else seed.id
+        val radioSeed =
+            twin?.id
+                ?: if (LocalMusic.isLocal(seed.id)) (youtube.similarSeed(seed)?.id ?: return emptyList()) else seed.id
         val candidates =
             youtube
                 .radio(radioSeed)

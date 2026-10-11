@@ -180,6 +180,24 @@ class YouTubeRepository @Inject constructor(
     }
 
     /**
+     * Опорный трек для рекомендаций к своему файлу, если точного двойника нет:
+     * сначала что-то того же исполнителя, потом просто первая находка по запросу.
+     * Рекомендации лучше слегка мимо, чем пустые.
+     */
+    suspend fun similarSeed(song: SongItem): SongItem? {
+        val artistKey = CleanMatch.normalize(song.artist).split(' ').firstOrNull().orEmpty()
+        val queries = listOf("${song.artist} ${song.title}".trim(), song.artist.trim(), song.title.trim()).filter { it.isNotBlank() }.distinct()
+        var first: SongItem? = null
+        for (query in queries) {
+            val found = runCatching { searchSongs(query) }.getOrDefault(emptyList())
+            if (first == null) first = found.firstOrNull()
+            val sameArtist = if (artistKey.isBlank()) null else found.firstOrNull { CleanMatch.normalize(it.artist).contains(artistKey) }
+            if (sameArtist != null) return sameArtist
+        }
+        return first
+    }
+
+    /**
      * Чистая версия трека, если она вообще выложена.
      *
      * Вырезать слова из записи нельзя, но у половины таких треков есть
