@@ -474,7 +474,8 @@ class PlayerConnection @Inject constructor(
                     .setTitle(song.title)
                     .setArtist(song.artist)
                     .setAlbumTitle(song.album)
-                    .setArtworkUri(song.thumbnailUrl?.toUri())
+                    // В шторке и на экране блокировки обложка крупная: мелкую из выдачи просим в нормальном размере.
+                    .setArtworkUri(com.texfi.w0y.data.Thumbnails.sized(song.thumbnailUrl, ARTWORK_PX)?.toUri())
                     .setExtras(
                         Bundle().apply {
                             putString(EXTRA_ARTIST_ID, song.artistId)
@@ -485,6 +486,7 @@ class PlayerConnection @Inject constructor(
             ).build()
 
     private companion object {
+        const val ARTWORK_PX = 720
         const val SAVE_DEBOUNCE_MS = 600L
         const val SAVE_TICK_MS = 15_000L
         const val EXTRA_ARTIST_ID = "w0y.artistId"

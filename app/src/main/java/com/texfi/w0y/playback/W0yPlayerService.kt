@@ -552,6 +552,38 @@ class W0yPlayerService : MediaSessionService() {
                 }
         }
 
+        /**
+         * Свой файл не открылся (удалён или повреждён): ищем тот же трек в каталоге
+         * и подставляем его на то же место. Нет такого — идём дальше.
+         */
+        private fun replaceBrokenFile(item: MediaItem) {
+            val index = player.currentMediaItemIndex
+            val broken =
+                SongItem(
+                    id = item.mediaId,
+                    title = item.mediaMetadata.title?.toString().orEmpty(),
+                    artist = item.mediaMetadata.artist?.toString().orEmpty(),
+                )
+            scope.launch {
+                val twin = runCatching { repository.findEquivalent(broken) }.getOrNull()
+                if (twin == null || player.currentMediaItem?.mediaId != item.mediaId) {
+                    skipStuck()
+                    return@launch
+                }
+                val replacement =
+                    MediaItem
+                        .Builder()
+                        .setMediaId(twin.id)
+                        .setUri(w0yUri(twin))
+                        .setCustomCacheKey(twin.id)
+                        .setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(twin.title).setArtist(twin.artist).build())
+                        .build()
+                player.replaceMediaItem(index, replacement)
+                player.prepare()
+                player.play()
+            }
+        }
+
         private fun skipStuck() {
             Timber.w("Трек не запустился за ${STUCK_MS / 1000} с, иду дальше")
             if (player.hasNextMediaItem()) {
@@ -567,7 +599,12 @@ class W0yPlayerService : MediaSessionService() {
 
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             Timber.w(error, "Ошибка воспроизведения")
-            skipStuck()
+            val current = player.currentMediaItem
+            if (current != null && com.texfi.w0y.data.LocalMusic.isLocal(current.mediaId)) {
+                replaceBrokenFile(current)
+            } else {
+                skipStuck()
+            }
         }
 
         /**

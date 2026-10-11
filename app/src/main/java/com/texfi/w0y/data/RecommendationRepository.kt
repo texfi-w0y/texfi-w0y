@@ -27,10 +27,15 @@ class RecommendationRepository @Inject constructor(
         exclude: Set<String> = emptySet(),
         limit: Int = 25,
     ): List<SongItem> {
+        // Свой файл знает только YouTube: ищем этот же трек в каталоге и берём его радио.
+        // Сама найденная запись тоже может попасться в подборке — как «тот же трек
+        // в другом виде» — но не сразу после файла.
+        val twin = if (LocalMusic.isLocal(seed.id)) youtube.findEquivalent(seed) else null
+        val radioSeed = twin?.id ?: if (LocalMusic.isLocal(seed.id)) return emptyList() else seed.id
         val candidates =
             youtube
-                .radio(seed.id)
-                .filterNot { it.id in exclude || it.id == seed.id }
+                .radio(radioSeed)
+                .filterNot { it.id in exclude || it.id == seed.id || it.id == twin?.id }
         if (candidates.isEmpty()) return emptyList()
 
         val taste = dao.topArtists().associate { it.artist.lowercase(Locale.ROOT) to it.plays }
@@ -54,6 +59,13 @@ class RecommendationRepository @Inject constructor(
                 if (words.any { it in haystack }) score += SEARCHED
                 score
             }.take(limit)
+            .let { ranked ->
+                if (twin == null || exclude.contains(twin.id)) {
+                    ranked
+                } else {
+                    ranked.toMutableList().also { it.add(TWIN_POSITION.coerceAtMost(it.size), twin) }
+                }
+            }
     }
 
     private companion object {
@@ -68,5 +80,8 @@ class RecommendationRepository @Inject constructor(
         const val SEARCHED = 6
 
         const val MIN_WORD = 3
+
+        /** Куда в подборке встаёт тот же трек из каталога. */
+        const val TWIN_POSITION = 4
     }
 }

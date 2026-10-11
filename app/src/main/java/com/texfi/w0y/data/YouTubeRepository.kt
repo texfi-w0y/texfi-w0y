@@ -163,6 +163,23 @@ class YouTubeRepository @Inject constructor(
     }
 
     /**
+     * Тот же трек в каталоге YouTube Music — для своих файлов: по исполнителю
+     * и названию. Нужен, чтобы подобрать рекомендации или заменить файл,
+     * который не играет. Пустое название или нет совпадения — null.
+     */
+    suspend fun findEquivalent(song: SongItem): SongItem? {
+        val core = CleanMatch.normalize(song.title)
+        if (core.isBlank()) return null
+        val artistKey = CleanMatch.normalize(song.artist).split(' ').firstOrNull().orEmpty()
+        val found = runCatching { searchSongs("${song.artist} ${song.title}".trim()) }.getOrDefault(emptyList())
+        return found.firstOrNull { candidate ->
+            val title = CleanMatch.normalize(candidate.title)
+            val sameSong = title.isNotBlank() && (title == core || title.contains(core) || core.contains(title))
+            sameSong && (artistKey.isBlank() || CleanMatch.normalize(candidate.artist).contains(artistKey))
+        }
+    }
+
+    /**
      * Чистая версия трека, если она вообще выложена.
      *
      * Вырезать слова из записи нельзя, но у половины таких треков есть

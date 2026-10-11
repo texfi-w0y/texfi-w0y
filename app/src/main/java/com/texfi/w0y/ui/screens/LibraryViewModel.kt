@@ -291,11 +291,17 @@ class LibraryViewModel @Inject constructor(
     private val _currentPlaylistSongs = MutableStateFlow<List<SongItem>>(emptyList())
     val currentPlaylistSongs: StateFlow<List<SongItem>> = _currentPlaylistSongs.asStateFlow()
 
+    /** Подписка на состав открытого плейлиста: прежняя снимается, иначе треки соседних плейлистов смешиваются. */
+    private var playlistJob: kotlinx.coroutines.Job? = null
+
     fun open(route: LibraryRoute) {
         _route.value = route
+        playlistJob?.cancel()
+        playlistJob = null
         when (route) {
             is LibraryRoute.Local -> {
-                viewModelScope.launch {
+                _currentPlaylistSongs.value = emptyList()
+                playlistJob = viewModelScope.launch {
                     library.playlistSongs(route.playlistId).collect { _currentPlaylistSongs.value = it }
                 }
                 // Состав сверяется с аккаунтом при открытии: правили его там — увидим сразу.
@@ -323,6 +329,8 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun back() {
+        playlistJob?.cancel()
+        playlistJob = null
         _route.value = LibraryRoute.Root
         _currentPlaylistSongs.value = emptyList()
         _remoteSongs.value = emptyList()
