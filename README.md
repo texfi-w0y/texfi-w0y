@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-v0.0.2%20beta--2-4a7cfb?style=flat-square">
+  <img alt="version" src="https://img.shields.io/badge/version-v0.0.3%20beta--1-4a7cfb?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-e0a860?style=flat-square">
   <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%20%C2%B7%20Linux-4a7cfb?style=flat-square">
 </p>
@@ -11,8 +11,9 @@ tracks quickly, has a lot of settings, shows no ads of its own and sends no
 telemetry anywhere. You can sign in to your own account to get your library,
 playlists and likes.
 
-Part of the [TexFi](https://texfi-hub.vercel.app) family: pixel visual
-language, dark theme by default, the same blue `#4a7cfb` and sand `#e0a860`.
+Part of the [TexFi](https://texfi-hub.vercel.app) family. The default look
+is **Hairline**: thin lines, sharp corners, one hero per screen, a floating
+bottom dock. The older Pixel and Smooth looks are still in Settings → Look.
 
 ## Screenshots
 
@@ -31,8 +32,16 @@ language, dark theme by default, the same blue `#4a7cfb` and sand `#e0a860`.
 - **Your account** — pick one of the Google accounts on the phone and confirm
   on Google's page, or paste a cookie by hand. Playlists, likes and
   subscriptions are synchronised both ways.
-- **Lyrics** from [LRCLIB](https://lrclib.net), synchronised line by line,
-  with translation.
+- **Lyrics** as a full page, line by line in time with the voice, with
+  translation and an adjustable delay. Searched by artist and title in
+  [LRCLIB](https://lrclib.net) first, then NetEase, lyrics.ovh and Genius
+  (can be turned off).
+- **Your own files** — add mp3, wav and other audio from the phone, edit the
+  title, artist, album and cover inside the app. They go into playlists and
+  speed dial, and get recommendations like any track. If a file stops
+  opening, the same track from the catalogue plays instead.
+- **Video** — for tracks that are real YouTube videos you can switch the cover
+  to the video; the sound keeps playing from the same stream.
 - **Your own sound per track** — speed, pitch and reverb (SLOWED, SPED UP)
   applied to the original file and remembered for that track only.
 - **Downloads** — tracks, albums, playlists; a "Wi-Fi only" limit; a button
@@ -59,7 +68,9 @@ language, dark theme by default, the same blue `#4a7cfb` and sand `#e0a860`.
   - `music.youtube.com` — search, your library, stream links. If you sign in,
     the session cookie is sent there like a web browser would.
   - `accounts.google.com` — only the sign-in page.
-  - `lrclib.net` — lyrics (artist, title and duration of the track).
+  - `lrclib.net` — lyrics (artist, title and duration of the track). If it
+    has none and "Search lyrics everywhere" is on: `music.163.com`,
+    `api.lyrics.ovh` and `genius.com` get the artist and title.
   - `translate.googleapis.com` — only if you turn lyrics translation on; the
     lyric lines are sent for translation.
   - Public Piped servers — a fallback source of audio when YouTube does not
@@ -70,8 +81,8 @@ language, dark theme by default, the same blue `#4a7cfb` and sand `#e0a860`.
 
 **Android 8.0 (API 26) or newer.**
 
-1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.2-beta-2/TexFi-w0y-android.apk)
-   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.2-beta-2)
+1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-1/TexFi-w0y-android.apk)
+   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.3-beta-1)
    and open it. Checksums are in `SHA256SUMS.txt` next to it.
 2. Or add `https://github.com/texfi-w0y/texfi-w0y` to
    [Obtainium](https://github.com/ImranR98/Obtainium).
@@ -79,7 +90,7 @@ language, dark theme by default, the same blue `#4a7cfb` and sand `#e0a860`.
 Updates install over the top as long as they come signed with the project key.
 
 **Linux (x86_64):** download
-[`w0y-linux-x86_64.tar.gz`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.2-beta-2/w0y-linux-x86_64.tar.gz),
+[`w0y-linux-x86_64.tar.gz`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-1/w0y-linux-x86_64.tar.gz),
 unpack it and run `./install.sh`. You need `mpv` installed. The interface of
 the Linux version is in Russian only.
 

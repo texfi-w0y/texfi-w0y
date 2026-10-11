@@ -1,42 +1,66 @@
-# w0y v0.0.2 beta-2
+# w0y v0.0.3 beta-1
 
-Fixes for beta-1 and a new look: Easy Glass in Smooth, split bars
-and grouped settings in both styles.
+A new look — **Hairline** — your own audio files, better lyrics, and the
+Linux version catches up with the phone.
+
+## New look: Hairline
+
+- Thin lines instead of pixels and glass: near-black bluish background with a
+  faint grid, sharp corners, Unbounded for titles and a mono for labels. Sand
+  stays the default accent. Pixel and Smooth are still in Settings → Look,
+  and Hairline has its own settings section (line weight, corners, cover
+  shape, caps, density, motion).
+- A floating bottom dock whose outline is the track progress; the active tab
+  gets a small label that slides between tabs.
+- The player: a progress ring around the cover, a thin Play button, seek that
+  works while paused, long-press on the title or artist copies it, swipe down
+  closes it with a spring, links to the artist and album (also on the first
+  play).
+- Lyrics as a full page: the cover shrinks to a small header, big bold lines,
+  the current line eases up. A button toggles it; the LYRICS tab is gone.
+- New visualizer styles in Hairline: Lines, Orbit, Terrain.
+- A loading animation, a pull-to-refresh ring on Home, a new intro, five app
+  icons to choose from (Settings → Look).
+- Home: speed dial in three columns, two rows.
 
 ## New
 
-- **Easy Glass.** In Smooth with Easy Glass on, the screen now runs
-  under the bottom bars, and they blur and slightly bend what is behind
-  them, with a thin bright rim — like iOS 26. Cards, buttons and the track
-  menu use the same glass. Blur needs Android 12, the bending Android 13;
-  older phones get denser bars.
-- **Split bottom bar.** Tabs sit in one block, search in its own button on
-  the right. In Smooth it is a capsule and a circle, in Pixel two TexFi
-  blocks with hard shadows.
-- **Grouped settings.** Sections are gathered into captioned groups (Sound
-  & player, Speed & storage, Music & account, App): grey glass in Smooth,
-  bordered blocks in Pixel. Settings open under the bottom bars; a tab
-  closes them.
-- **Stand mode:** brightness follows the system by default and has a slider
-  right in stand mode; a "cover" view with a large cover; long press
-  switches title and cover; optional scrolling title; an upside-down view
-  for a phone standing port-up.
+- **My files.** Add mp3, wav and other audio from the phone (Library → My
+  files). Title, artist, album and cover are read from the tags and can be
+  edited in the app. They play from the disk, go into playlists, speed dial
+  and history, and are never sent to YouTube. After a file, recommendations
+  are built from the same track found in the catalogue, and a broken file is
+  replaced by that track.
+- **Lyrics everywhere.** After LRCLIB the app tries NetEase (timed), lyrics.ovh
+  and Genius by artist and title (Settings → Player, can be turned off).
+- **Lyrics delay** from −0.5 to +2 s for lines that run ahead of the voice.
+- **Video** for tracks that are YouTube videos: cover or video in the player.
+- Sharper artwork in the notification shade.
+
+## Linux desktop
+
+- **Two looks, switchable in Settings → Look:** Pixel and Smooth with Easy
+  Glass (or matte). Same icons as on the phone, calm screen transitions.
+- **Settings as on the phone:** sound, tone, player, equaliser, visualizer,
+  stand mode, downloads (parallel, speed limit, retries, space limit, MP3 via
+  ffmpeg, folder, auto-download playlists), search, account, clean mode, look,
+  devices, data, full reset.
+- **Keyboard:** every action has a shortcut and can be rebound in
+  Settings → Keys; `?` shows the list; the Russian layout works too.
+  `w0y --do play_pause` (and `w0y --do list`) controls a running app, so any
+  action can go on a desktop hotkey.
+- **New:** speed dial, stats, shuffle and repeat (also over MPRIS), visualizer
+  (needs `pactl` and `parec`), stand mode, notifications on track change and
+  when downloads finish.
+- **Four languages**, from the same files as the phone.
 
 ## Fixed
 
-- **Playback and downloads failed** on tracks YouTube serves only over its
-  SABR protocol ("Expected URL scheme 'http' or 'https'"). Such tracks now
-  play and download.
-- **Recommendations leaked into playlists.** Account sync read the second
-  page of a short playlist from YouTube's recommendations, so foreign
-  tracks got in and kept changing. Sync now reads only the playlist itself,
-  and playlists already mixed up are restored once from the account. A
-  track added on the phone that never reached the account can be removed
-  by that one-time restore.
-- A playlist's queue no longer turns into recommendations after the app
-  restarts, and shuffle on albums and artists plays only their tracks.
-- Stand mode no longer lights the screen brighter than the system setting,
-  and the brightness controls no longer overlap the close button.
+- Tracks from other playlists no longer show up in the playlist you open.
+- A track that played to the end on some streams stopped instead of moving
+  on to the next one.
+- Video, lyrics taps near the end of a track and artist/album links on the
+  first play work as intended.
 
 ## Files
 
@@ -45,8 +69,8 @@ and grouped settings in both styles.
   run `./install.sh`.
 - `SHA256SUMS.txt` — checksums of the files above.
 
-The APK is signed with the project key: it installs over beta-1 and your
-data stays.
+The APK is signed with the project key: it installs over the previous beta
+and your data stays.
 
 ## Honest about the limits
 
@@ -57,7 +81,12 @@ data stays.
   audio is compressed more than that.
 - Account sync works by reading YouTube's pages the way the web app does,
   and YouTube can change them without notice.
-- The Linux version's interface is in Russian only and does not have the new
-  features of this release yet.
+- The Linux version's interface is in Russian only and does not have
+  Hairline, your own files or the new lyrics sources.
+- Genius and NetEase lyrics are read from their public pages and can stop
+  working when those sites change; they may be for a different version of
+  the song.
+- Video plays over YouTube's SABR protocol; if a video does not open, the
+  player says so and the sound keeps playing.
 
 w0y is not affiliated with YouTube or Google.
