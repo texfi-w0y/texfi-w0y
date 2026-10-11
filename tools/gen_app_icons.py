@@ -100,6 +100,10 @@ def icons():
     return out
 
 
+# Рисунок чуть меньше, чем сетка 18…90: на домашнем экране он выглядел крупнее прежнего значка.
+SCALE = 0.7
+
+
 def svg_of(items, bg=True):
     parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">']
     grads = []
@@ -128,7 +132,9 @@ def svg_of(items, bg=True):
         parts.append("<defs>" + "".join(grads) + "</defs>")
     if bg:
         parts.append(f'<rect width="108" height="108" fill="{BG}"/>')
+    parts.append(f'<g transform="translate(54 54) scale({SCALE}) translate(-54 -54)">')
     parts += body
+    parts.append("</g>")
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 
@@ -142,6 +148,7 @@ def vector_of(items):
         '    android:height="108dp"',
         '    android:viewportWidth="108"',
         '    android:viewportHeight="108">',
+        f'    <group android:scaleX="{SCALE}" android:scaleY="{SCALE}" android:pivotX="54" android:pivotY="54">',
     ]
     for _, d, kind, color, x in items:
         c = "#" + color.lstrip("#").upper()
@@ -174,6 +181,7 @@ def vector_of(items):
             if x.get("alpha"):
                 extra += f'\n        android:strokeAlpha="{x["alpha"]}"'
             lines.append(head + extra + " />")
+    lines.append("    </group>")
     lines.append("</vector>")
     return "\n".join(lines) + "\n"
 
