@@ -361,11 +361,17 @@ class YouTubeRepository @Inject constructor(
     suspend fun videoSource(videoId: String): VideoSource? =
         withContext(Dispatchers.IO) {
             val stream =
-                runCatching { extractor.extract(videoId = videoId, hints = ContentHints(wantVideo = true), audioQuality = currentQuality()) }
+                runCatching { extractor.extract(videoId = videoId, hints = ContentHints(wantVideo = true, maxVideoHeight = VIDEO_MAX_HEIGHT), audioQuality = currentQuality()) }
                     .getOrNull() ?: return@withContext null
-            val url = stream.videoUrl?.takeIf { it.startsWith("http") } ?: return@withContext null
-            VideoSource(url, stream.headers, stream.videoWidth, stream.videoHeight)
+            val url = stream.videoUrl ?: return@withContext null
+            if (url.startsWith("http")) return@withContext VideoSource(url, stream.headers, stream.videoWidth, stream.videoHeight)
+            // YouTube отдаёт видео по SABR: проигрывается тем же источником, что и звук.
+            val bootstrap = stream.sabrVideoBootstrap ?: return@withContext null
+            videoBootstraps[videoId] = bootstrap
+            VideoSource(com.texfi.w0y.playback.sabrUri(VIDEO_KEY + videoId).toString(), emptyMap(), stream.videoWidth, stream.videoHeight, sabr = true)
         }
+
+    private val videoBootstraps = ConcurrentHashMap<String, com.metrolist.innertubex.sabr.SabrBootstrap>()
 
     /** Ключ потока в кэше: у загрузок своё качество — свой ключ. */
     fun streamKey(videoId: String, quality: Quality?): String = if (quality == null) videoId else "$videoId#${quality.name}"
@@ -385,7 +391,8 @@ class YouTubeRepository @Inject constructor(
         stream.sabrBootstrap != null && stream.audioUrl.substringBefore(':') == com.texfi.w0y.playback.SABR_SCHEME
 
     /** Данные SABR-потока из кэша — их читает [com.texfi.w0y.playback.SabrDataSource]. */
-    fun sabrBootstrap(key: String): com.metrolist.innertubex.sabr.SabrBootstrap? = streams[key]?.sabrBootstrap
+    fun sabrBootstrap(key: String): com.metrolist.innertubex.sabr.SabrBootstrap? =
+        if (key.startsWith(VIDEO_KEY)) videoBootstraps[key.removePrefix(VIDEO_KEY)] else streams[key]?.sabrBootstrap
 
     /** Сколько заняло последнее получение адреса — часть разбора «нажал → звук». */
     private val resolveMs = ConcurrentHashMap<String, Long>()
@@ -556,4 +563,7 @@ class YouTubeRepository @Inject constructor(
 }
 
 /** Адрес видео и заголовки запроса; размер — если YouTube его назвал. */
-data class VideoSource(val url: String, val headers: Map<String, String>, val width: Int?, val height: Int?)
+data class VideoSource(val url: String, val headers: Map<String, String>, val width: Int?, val height: Int?, val sabr: Boolean = false)
+
+private const val VIDEO_KEY = "v-"
+private const val VIDEO_MAX_HEIGHT = 720

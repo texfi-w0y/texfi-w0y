@@ -50,6 +50,7 @@ internal fun HairLyricsPage(
     positionProvider: () -> Long,
     playing: Boolean,
     onSeekLine: (Long) -> Unit,
+    loading: Boolean,
     onClose: () -> Unit,
     translate: @Composable () -> Unit,
     controls: @Composable () -> Unit,
@@ -100,6 +101,8 @@ internal fun HairLyricsPage(
                         color = colors.text,
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
                     )
+                loading ->
+                    com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp).align(Alignment.Center))
                 else ->
                     Text(
                         text = stringResource(R.string.hl_lyrics_none),

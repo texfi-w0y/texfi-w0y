@@ -47,6 +47,7 @@ class PlayerViewModel @Inject constructor(
     private val playback: PlaybackStarter,
     private val shareCards: ShareCardRenderer,
     private val youtube: YouTubeRepository,
+    private val httpClient: io.ktor.client.HttpClient,
     devices: AudioDevicesRepository,
     /** Отвод звука для визуализатора. */
     val spectrum: com.texfi.w0y.playback.SpectrumBus,
@@ -64,6 +65,10 @@ class PlayerViewModel @Inject constructor(
     fun setStandFlipped(value: Boolean) = viewModelScope.launch { settingsRepository.setStandFlipped(value) }
 
     /** Видео ли играющий трек; null, пока поток не получен. */
+    /** Источник для видео, которое YouTube отдаёт по SABR. */
+    fun videoFactory(): androidx.media3.datasource.DataSource.Factory =
+        com.texfi.w0y.playback.SabrDataSource.Factory(httpClient, youtube::sabrBootstrap)
+
     fun isVideoTrack(videoId: String): Boolean? = youtube.isVideoTrack(videoId)
 
     suspend fun videoSource(videoId: String): com.texfi.w0y.data.VideoSource? = youtube.videoSource(videoId)
@@ -188,6 +193,11 @@ class PlayerViewModel @Inject constructor(
 
     private var lyricsForId: String? = null
 
+    private val _lyricsLoading = MutableStateFlow(false)
+
+    /** Текст ещё ищется (в нескольких источниках это занимает секунды). */
+    val lyricsLoading: StateFlow<Boolean> = _lyricsLoading.asStateFlow()
+
     private val _details = MutableStateFlow<SongItem?>(null)
 
     /** Исполнители и альбом текущего трека, догруженные, если YouTube не дал их сразу. */
@@ -214,10 +224,18 @@ class PlayerViewModel @Inject constructor(
         if (song == null || song.id == lyricsForId) return
         lyricsForId = song.id
         _lyrics.value = null
+        _lyricsLoading.value = true
         viewModelScope.launch {
             val prefs = settingsRepository.settings.first()
-            if (!prefs.showLyrics) return@launch
-            _lyrics.value = lyricsRepository.lyrics(song, prefs.lyricsAllSources)
+            if (!prefs.showLyrics) {
+                _lyricsLoading.value = false
+                return@launch
+            }
+            val found = lyricsRepository.lyrics(song, prefs.lyricsAllSources)
+            if (lyricsForId == song.id) {
+                _lyrics.value = found
+                _lyricsLoading.value = false
+            }
         }
     }
 

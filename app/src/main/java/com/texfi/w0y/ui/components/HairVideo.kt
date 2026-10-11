@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun HairVideoSurface(
     source: VideoSource,
+    sabrFactory: androidx.media3.datasource.DataSource.Factory?,
     playing: Boolean,
     positionProvider: () -> Long,
     modifier: Modifier = Modifier,
@@ -39,7 +40,8 @@ fun HairVideoSurface(
     val context = LocalContext.current
     val player =
         remember(source.url) {
-            val http = DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
+            val http: androidx.media3.datasource.DataSource.Factory =
+                if (source.sabr && sabrFactory != null) sabrFactory else DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
             ExoPlayer
                 .Builder(context)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))

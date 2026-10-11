@@ -175,6 +175,7 @@ fun PlayerScreen(
     val edit by viewModel.edit.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val current = state.song ?: return
+    val lyricsLoading by viewModel.lyricsLoading.collectAsStateWithLifecycle()
     val details by viewModel.details.collectAsStateWithLifecycle()
     LaunchedEffect(current.id) { viewModel.ensureDetails(current) }
     val song =
@@ -270,6 +271,12 @@ fun PlayerScreen(
         position = target
     }
     val seekStep: (Long) -> Unit = { delta -> seekNow(position + delta) }
+    // Тап по строке текста: тайминги из другой версии записи могут оказаться за
+    // концом трека — перемотка туда включала бы следующий, поэтому такие строки
+    // игнорируем, а у самого края оставляем запас.
+    val seekLine: (Long) -> Unit = { ms ->
+        if (knownDuration <= 0 || ms < knownDuration - LINE_SEEK_MARGIN_MS) seekNow(ms)
+    }
 
     // Текст во весь экран: тот же компонент, крупнее и по центру.
     val syncedLyrics = lyrics?.synced.orEmpty()
@@ -288,7 +295,7 @@ fun PlayerScreen(
                 positionProvider = viewModel.player::positionMs,
                 playing = state.isPlaying,
                 size = settings.lyricsSize,
-                onSeek = seekNow,
+                onSeek = seekLine,
                 centered = true,
                 modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             )
@@ -356,7 +363,8 @@ fun PlayerScreen(
                     translation = translation,
                     positionProvider = viewModel.player::positionMs,
                     playing = state.isPlaying,
-                    onSeekLine = seekNow,
+                    onSeekLine = seekLine,
+                    loading = lyricsLoading,
                     onClose = { lyricsOn = false },
                     translate = {
                         if (lyrics != null) {
@@ -512,7 +520,7 @@ fun PlayerScreen(
                                             positionProvider = viewModel.player::positionMs,
                                             playing = state.isPlaying,
                                             size = LyricsSize.SMALL,
-                                            onSeek = seekNow,
+                                            onSeek = seekLine,
                                             centered = true,
                                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                                         )
@@ -532,6 +540,7 @@ fun PlayerScreen(
                                     if (source != null) {
                                         com.texfi.w0y.ui.components.HairVideoSurface(
                                             source = source,
+                                            sabrFactory = remember { viewModel.videoFactory() },
                                             playing = state.isPlaying,
                                             positionProvider = viewModel.player::positionMs,
                                             modifier = Modifier.fillMaxSize(),
@@ -1102,7 +1111,7 @@ fun PlayerScreen(
                                         positionProvider = viewModel.player::positionMs,
                                         playing = state.isPlaying,
                                         size = settings.lyricsSize,
-                                        onSeek = seekNow,
+                                        onSeek = seekLine,
                                         modifier = Modifier.fillMaxWidth().height(LYRICS_HEIGHT),
                                     )
                                 }
@@ -1506,6 +1515,7 @@ private const val POSITION_POLL_MS = 250L
 
 /** Сколько раз по полсекунды ждём тип записи, пока поток не получен. */
 private const val VIDEO_PROBES = 24
+private const val LINE_SEEK_MARGIN_MS = 2_000L
 
 /** Подсказка жестов висит, пока её не прочтут, но не дольше. */
 private const val HINT_MS = 9_000L
