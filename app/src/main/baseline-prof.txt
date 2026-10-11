@@ -1,0 +1,24 @@
+# Базовый профиль: что компилируется заранее, до первого запуска.
+# Записан руками по горячим путям, не снят прибором: шаблоны с ** разрешены
+# форматом. Hairline: оболочка, нижние полосы, диск плеера, мини-плеер,
+# иконки и тексты, строки списков, математика кольца.
+HSPLcom/texfi/w0y/MainActivity;->**(**)**
+HSPLcom/texfi/w0y/ui/shell/**;->**(**)**
+HSPLcom/texfi/w0y/ui/theme/**;->**(**)**
+HSPLcom/texfi/w0y/ui/icons/**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/Hair**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/SongRow**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/CoverImage**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/FloatingBars**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/MiniPlayer**;->**(**)**
+HSPLcom/texfi/w0y/ui/components/Layout**;->**(**)**
+HSPLcom/texfi/w0y/ui/screens/HomeScreen**;->**(**)**
+HSPLcom/texfi/w0y/ui/screens/HairPlayerParts**;->**(**)**
+HSPLcom/texfi/w0y/ui/screens/PlayerScreen**;->**(**)**
+HSPLcom/texfi/w0y/playback/PlayerConnection**;->**(**)**
+HSPLcom/texfi/w0y/playback/MiniDismiss**;->**(**)**
+HSPLcom/texfi/w0y/data/NumberText;->**(**)**
+HSPLcom/texfi/w0y/data/SettingsRepository**;->**(**)**
+Lcom/texfi/w0y/ui/theme/**;
+Lcom/texfi/w0y/ui/components/Hair**;
+Lcom/texfi/w0y/ui/icons/**;
