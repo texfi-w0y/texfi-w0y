@@ -231,7 +231,7 @@ private fun DockNav(
     val tick = rememberTapHaptic()
     val currentSelected by rememberUpdatedState(selected)
     val select by rememberUpdatedState(onSelect)
-    val lensRadius = (dockRadius - 4.dp).coerceAtLeast(4.dp)
+    val tagColor = colors.text
 
     Row(
         Modifier
@@ -239,15 +239,16 @@ private fun DockNav(
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .height(NAV_ITEM_HEIGHT)
             .drawBehind {
+                // Метка-негатив под подписью активной вкладки, как «CRAFT APPS» у PhotoCraft.
+                // Передний край бежит быстрее заднего — на переходе метка тянется каплей.
                 val slot = size.width / items.size
-                val inset = 3.dp.toPx()
-                val left = min(head.value, tail.value) * slot + inset
-                val right = (max(head.value, tail.value) + 1f) * slot - inset
-                val r = CornerRadius(lensRadius.toPx())
-                val box = Rect(left, 0f, right, size.height)
-                val path = Path().apply { addRoundRect(RoundRect(box, r)) }
-                drawPath(path, Brush.verticalGradient(listOf(tone.copy(alpha = 0.20f), tone.copy(alpha = 0.07f)), startY = 0f, endY = size.height))
-                drawPath(path, tone.copy(alpha = 0.55f), style = Stroke(look.line.toPx()))
+                val tagW = TAG_WIDTH.toPx().coerceAtMost(slot - 8.dp.toPx())
+                val pad = (slot - tagW) / 2f
+                val left = min(head.value, tail.value) * slot + pad
+                val right = (max(head.value, tail.value) + 1f) * slot - pad
+                val bottom = size.height - TAG_BOTTOM.toPx()
+                val box = Rect(left, bottom - TAG_HEIGHT.toPx(), right, bottom)
+                drawRoundRect(tagColor, box.topLeft, box.size, CornerRadius(2.dp.toPx()))
             }
             .pointerInput(items.size) {
                 var last = -1
@@ -274,6 +275,12 @@ private fun DockNav(
                 animationSpec = tween(HairTokens.SHORT_MS),
                 label = "dockTint",
             )
+            // Подпись активной лежит на светлой метке — значит, сама тёмная.
+            val labelTint by animateColorAsState(
+                targetValue = if (active) colors.background else colors.textMuted,
+                animationSpec = tween(HairTokens.MID_MS),
+                label = "dockLabel",
+            )
             val lift by animateFloatAsState(if (active) 1f else 0f, tween(HairTokens.MID_MS, easing = HairTokens.EaseOut), label = "dockLift")
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -292,7 +299,7 @@ private fun DockNav(
             ) {
                 PixelSprite(
                     rows = item.sprite,
-                    color = if (active) tone else tint,
+                    color = tint,
                     modifier =
                         Modifier
                             .size(22.dp)
@@ -306,16 +313,19 @@ private fun DockNav(
                 Text(
                     text = item.label.asLabel(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = tint,
+                    color = labelTint,
                     maxLines = 1,
-                    modifier = Modifier.padding(top = 3.dp),
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }
     }
 }
 
-private val NAV_ITEM_HEIGHT = 54.dp
+private val NAV_ITEM_HEIGHT = 52.dp
+private val TAG_WIDTH = 76.dp
+private val TAG_HEIGHT = 19.dp
+private val TAG_BOTTOM = 4.dp
 private const val PROGRESS_POLL_MS = 400L
 private const val GLOW_ALPHA = 0.34f
 private val GLOW_REACH = 90.dp

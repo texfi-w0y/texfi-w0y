@@ -77,8 +77,8 @@ private const val DIAL_COLUMNS = 3
 private const val DIAL_ROWS = 3
 private const val DIAL_PAGE = DIAL_COLUMNS * DIAL_ROWS
 private val TILE_GAP = 10.dp
-private const val HAIR_COLUMNS = 2
-private const val HAIR_ROWS = 3
+private const val HAIR_COLUMNS = 3
+private const val HAIR_ROWS = 2
 
 @Composable
 fun HomeScreen(
@@ -150,21 +150,6 @@ fun HomeScreen(
                 subtitle = if (hair) null else startupAverage?.let { stringResource(R.string.home_meta, it.toInt()) },
                 actions = { SpriteButton(Sprites.gear, onClick = onOpenSettings, size = 22) },
             )
-        }
-
-        // Герой Hairline: что играет сейчас — диском с кольцом прогресса.
-        if (hair && playing.song != null) {
-            item(key = "hero") {
-                com.texfi.w0y.ui.components.HairNowHero(
-                    state = playing,
-                    positionProvider = viewModel.player::positionMs,
-                    onToggle = viewModel.player::togglePlayPause,
-                    onNext = { viewModel.player.skipNext() },
-                    onPrevious = { viewModel.player.skipPrevious() },
-                    onSeek = viewModel.player::seekTo,
-                    onOpen = onOpenPlayer,
-                )
-            }
         }
 
         item {
@@ -549,8 +534,8 @@ private fun HairDialGrid(
     val state = rememberPagerState(pageCount = { pages.size })
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val tile = (maxWidth - Gutter * 2 - TILE_GAP * (HAIR_COLUMNS - 1)) / HAIR_COLUMNS
-        // Квадратная обложка + подпись в две строки + поля плитки.
-        val tileHeight = tile - 20.dp + 8.dp + 40.dp + 20.dp
+        // Квадратная обложка + подпись в две строки, без рамки плитки.
+        val tileHeight = tile + 6.dp + 38.dp
         val pageHeight = tileHeight * HAIR_ROWS + TILE_GAP * (HAIR_ROWS - 1)
         Column {
             HorizontalPager(

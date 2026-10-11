@@ -158,10 +158,10 @@ fun HairPlayButton(
                 val half = this.size.minDimension / 2f
                 val r = half * 0.8f
                 val c = center
-                drawCircle(tone.copy(alpha = 0.16f * press), r, c)
-                drawCircle(tone, r, c, style = Stroke(stroke))
+                // Главная кнопка — сплошная, цвета текста, как белая кнопка PhotoCraft.
+                drawCircle(androidx.compose.ui.graphics.lerp(colors.text, colors.textMuted, 0.25f * press), r, c)
                 val f = flash.value
-                if (f < 1f) drawCircle(tone.copy(alpha = 1f - f), r + (half - r) * f - stroke / 2f, c, style = Stroke(stroke))
+                if (f < 1f) drawCircle(colors.text.copy(alpha = 0.5f * (1f - f)), r + (half - r) * f, c, style = Stroke(stroke))
                 // Иконка: два четырёхугольника, треугольник ↔ две полосы.
                 val k = r * 1.05f / 12f
                 val ox = c.x - 12f * k
@@ -175,7 +175,7 @@ fun HairPlayButton(
                     }
                     path.close()
                 }
-                drawPath(path, tone, style = Fill)
+                drawPath(path, colors.background, style = Fill)
             },
     )
 }
@@ -322,10 +322,11 @@ fun HairDisc(
                     val track = sweep.value
                     // Деления.
                     val shown = if (seeking) seekFraction else progress().coerceIn(0f, 1f)
-                    for (i in 0 until count) {
+                    // Деления появляются только при перемотке: в покое обложка чистая.
+                    if (seekAmount > 0.01f) for (i in 0 until count) {
                         val on = fractions[i] <= shown
                         drawLine(
-                            color = if (on) colors.progress.copy(alpha = 0.85f) else colors.outline,
+                            color = (if (on) colors.progress else colors.outline).copy(alpha = seekAmount),
                             start = Offset(ticks[i * 4], ticks[i * 4 + 1]),
                             end = Offset(ticks[i * 4 + 2], ticks[i * 4 + 3]),
                             strokeWidth = stroke,
@@ -384,15 +385,17 @@ fun HairDisc(
                     if (content != null) content() else CoverImage(url = shownUrl, px = Thumbnails.HERO, modifier = Modifier.fillMaxSize())
                 }
             }
-            // Перекрестие поверх обложки: тонкое, при перемотке ярче.
+            // Перекрестие — только при перемотке: показывает, куда ведёт палец.
             Canvas(Modifier.fillMaxSize()) {
                 val w = look.line.toPx()
-                val a = 0.30f + 0.55f * seekAmount
+                val a = 0.85f * seekAmount
                 val line = Color.White.copy(alpha = a)
                 val sz = this.size
-                drawLine(line, Offset(0f, sz.height / 2f), Offset(sz.width, sz.height / 2f), w)
-                drawLine(line, Offset(sz.width / 2f, 0f), Offset(sz.width / 2f, sz.height), w)
-                drawCircle(line, 3.dp.toPx(), center, style = Stroke(w))
+                if (a > 0.01f) {
+                    drawLine(line, Offset(0f, sz.height / 2f), Offset(sz.width, sz.height / 2f), w)
+                    drawLine(line, Offset(sz.width / 2f, 0f), Offset(sz.width / 2f, sz.height), w)
+                    drawCircle(line, 3.dp.toPx(), center, style = Stroke(w))
+                }
             }
             if (seekAmount > 0f) {
                 Text(
@@ -411,7 +414,7 @@ fun HairDisc(
     }
 }
 
-private val RING_GAP = 14.dp
+private val RING_GAP = 7.dp
 private const val SWIPE_PX = 120f
 /**
  * Живая линия мини-плеера: волна из заранее посчитанных амплитуд. Пройденная
@@ -595,7 +598,16 @@ fun HairMiniPlayer(
                         .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    HairMiniDisc(song.thumbnailUrl, progress, onExpand)
+                    if (docked) {
+                        // В панели прогресс рисует её контур — у обложки рамки нет.
+                        CoverImage(
+                            url = song.thumbnailUrl,
+                            px = Thumbnails.ROW,
+                            modifier = Modifier.size(44.dp).clickable(onClick = onExpand),
+                        )
+                    } else {
+                        HairMiniDisc(song.thumbnailUrl, progress, onExpand)
+                    }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f).clickable(onClick = onExpand)) {
                         Text(
@@ -613,7 +625,7 @@ fun HairMiniPlayer(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    HairPlayButton(playing = state.isPlaying, onClick = onToggle, size = 52.dp)
+                    HairPlayButton(playing = state.isPlaying, onClick = onToggle, size = 46.dp)
                     HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text)
                 }
             }

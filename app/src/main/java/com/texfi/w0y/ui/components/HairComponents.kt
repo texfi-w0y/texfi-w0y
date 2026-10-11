@@ -307,11 +307,8 @@ internal fun HairDialTile(
                 scaleX = k
                 scaleY = k
             }
-            .clip(shape)
-            .hairSurface(shape)
-            .border(look.line, lerp(colors.outline, tone, press), shape)
-            .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick)
-            .padding(10.dp),
+            // Без коробки вокруг: обложка и подпись, как в галерее. Рамка — у самой обложки.
+            .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick),
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
             CoverImage(
@@ -331,7 +328,7 @@ internal fun HairDialTile(
                 ) { PixelSprite(rows = Sprites.pin, color = tone, modifier = Modifier.size(14.dp)) }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (kindSprite != null) {
                 PixelSprite(rows = kindSprite, color = tone, modifier = Modifier.size(12.dp))

@@ -487,7 +487,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             )
         }
 
-        if (!introDone) {
+        // Пиксельное перо — заставка Pixel/Smooth; в Hairline экран открывается сразу.
+        if (!introDone && !hair) {
             FeatherIntro(onFinished = { introDone = true })
         }
 

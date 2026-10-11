@@ -578,7 +578,37 @@ fun PlayerScreen(
                 // всего и хочется уйти «послушать, что ещё у них есть».
                 // У фита — кнопка на каждого исполнителя.
                 val artists = song.artistLinks()
-                if (artists.isNotEmpty() || song.albumId != null) {
+                if (hair && (artists.isNotEmpty() || song.albumId != null)) {
+                    // Hairline: ссылки строкой моно-подписей, а не стопка кнопок.
+                    Spacer(Modifier.height(6.dp))
+                    androidx.compose.foundation.layout.FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        val links = artists.map { artist ->
+                            artist.name to {
+                                onCollapse()
+                                navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
+                            }
+                        } + listOfNotNull(
+                            song.albumId?.let { id ->
+                                stringResource(R.string.player_to_album) to {
+                                    onCollapse()
+                                    navigator.open(BrowseRoute.Album(id, song.album ?: song.title, song.thumbnailUrl))
+                                }
+                            },
+                        )
+                        links.forEachIndexed { i, (label, open) ->
+                            if (i > 0) Text(" / ", style = MaterialTheme.typography.labelMedium, color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
+                            Text(
+                                text = label.uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = colors.textMuted,
+                                modifier = Modifier.clickable(onClick = open).padding(horizontal = 4.dp, vertical = 12.dp),
+                            )
+                        }
+                    }
+                } else if (artists.isNotEmpty() || song.albumId != null) {
                     Spacer(Modifier.height(12.dp))
                     androidx.compose.foundation.layout.FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),

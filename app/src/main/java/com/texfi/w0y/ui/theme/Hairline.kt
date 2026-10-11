@@ -56,7 +56,7 @@ object HairTokens {
     val MIN_LINE: Dp = 1.dp
 
     /** Диск плеера: доля ширины экрана. */
-    const val DISC_SHARE = 0.78f
+    const val DISC_SHARE = 0.86f
 
     /** Скруглённый квадрат обложки: чуть-чуть — доля стороны, но в пределах 3…10 dp. */
     const val COVER_ROUND_SHARE = 0.07f

@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.ui.unit.sp
+import com.texfi.w0y.ui.theme.HairTitleStyle
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -131,7 +133,7 @@ internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProf
         } else {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
                 color = colors.text,
                 maxLines = 1,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,
@@ -306,7 +308,7 @@ private fun HairStepChip(text: String, onClick: () -> Unit) {
     ) {
         Box(
             Modifier
-                .border(look.line, androidx.compose.ui.graphics.lerp(colors.outline, tone, press), RoundedCornerShape(50))
+                .border(look.line, androidx.compose.ui.graphics.lerp(colors.outline, tone, press), RoundedCornerShape(look.pillRadius))
                 .padding(horizontal = 14.dp, vertical = 6.dp),
         ) { Text(text, style = MaterialTheme.typography.labelMedium, color = androidx.compose.ui.graphics.lerp(colors.text, tone, press)) }
     }
