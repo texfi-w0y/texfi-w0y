@@ -19,6 +19,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -112,6 +114,7 @@ private fun LibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
     // Повторные входы в течение минуты сверку не запускают (см. AccountSync).
     LaunchedEffect(signedIn) { if (signedIn) viewModel.sync(force = false) }
 
+    val hairLook = com.texfi.w0y.ui.theme.isHair
     LazyColumn(
         Modifier
             .fillMaxSize()
@@ -253,7 +256,40 @@ private fun LibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
             }
         }
 
-        items(playlists, key = { it.id }) { playlist ->
+        if (hairLook && playlists.isNotEmpty()) {
+            // Hairline: плейлисты сеткой обложек, три в ряд.
+            items(playlists.chunked(HAIR_PLAYLIST_COLUMNS), key = { row -> "hp-" + row.first().id }) { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { playlist ->
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clickable { viewModel.open(LibraryRoute.Local(playlist.id)) },
+                        ) {
+                            CoverImage(
+                                url = covers[playlist.id],
+                                px = Thumbnails.TILE,
+                                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(playlist.name, style = MaterialTheme.typography.bodyMedium, color = colors.text, maxLines = 1)
+                            Text(
+                                text =
+                                    when {
+                                        playlist.remoteId != null && !playlist.remoteEditable -> stringResource(R.string.library_playlist_saved)
+                                        playlist.remoteId != null -> stringResource(R.string.library_playlist_mirrored)
+                                        else -> stringResource(R.string.library_own_playlist)
+                                    },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    repeat(HAIR_PLAYLIST_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        } else items(playlists, key = { it.id }) { playlist ->
             CollectionRow(
                 title = playlist.name,
                 // Сразу видно, где плейлист лежит: только на телефоне или
@@ -341,6 +377,32 @@ private fun ShortcutCard(
     onClick: () -> Unit,
 ) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        // Hairline: крупное число героем блока, подпись моно над ним.
+        val look = com.texfi.w0y.ui.theme.hairLook
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius)
+        val isNumber = value.all { it.isDigit() }
+        Column(
+            modifier
+                .clip(shape)
+                .border(look.line, colors.border, shape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PixelSprite(rows = sprite, color = colors.textMuted, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(label.asLabel(), style = MaterialTheme.typography.labelMedium, color = colors.textMuted, maxLines = 1)
+            }
+            Spacer(Modifier.height(10.dp))
+            if (isNumber) {
+                Text(value, style = com.texfi.w0y.ui.theme.hairBigNumber, color = colors.text, maxLines = 1)
+            } else {
+                Text(value, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 2, minLines = 2)
+            }
+        }
+        return
+    }
     Box(
         modifier
             .styledSurface(8)
@@ -848,3 +910,6 @@ private fun folderName(tree: String): String? {
         android.provider.DocumentsContract.getTreeDocumentId(android.net.Uri.parse(tree)).substringAfter(':').ifBlank { "/" }
     }.getOrNull()
 }
+
+/** Плейлистов в ряду сетки Hairline. */
+private const val HAIR_PLAYLIST_COLUMNS = 3
