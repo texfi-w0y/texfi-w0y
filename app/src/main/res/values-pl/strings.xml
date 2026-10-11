@@ -625,4 +625,14 @@
     <string name="hl_icon_rings">Pierścienie</string>
     <string name="hl_icon_leaf_line">Pióro linią</string>
     <string name="theme_system">jak w systemie</string>
+    <string name="hl_cd_play">Odtwórz</string>
+    <string name="hl_cd_pause">Pauza</string>
+    <string name="hl_cd_next">Następny utwór</string>
+    <string name="hl_cd_prev">Poprzedni utwór</string>
+    <string name="hl_cd_disc">Dysk okładki. Dwa stuknięcia — pauza, przesunięcie w bok — zmiana utworu, przytrzymaj i przesuwaj po pierścieniu — przewijanie.</string>
+    <string name="hl_cd_dismiss">Usuń odtwarzacz</string>
+    <string name="hl_cd_mini">Teraz gra: %1$s, %2$s. Przeciągnij w dół, aby usunąć.</string>
+    <string name="hl_mini_stopped">ZATRZYMANO</string>
+    <string name="hl_undo">COFNIJ</string>
+    <string name="hl_hint_gestures">Dwa stuknięcia w dysk — pauza · przesunięcie — zmiana utworu · przytrzymanie i ruch po pierścieniu — przewijanie</string>
 </resources>

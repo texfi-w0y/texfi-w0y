@@ -1,6 +1,7 @@
 package com.texfi.w0y.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -107,12 +108,17 @@ fun SongRow(
                     url = song.thumbnailUrl,
                     px = Thumbnails.ROW,
                     modifier = Modifier.fillMaxSize(),
+                    rect = wideCover,
                 )
                 // Играющий трек помечен живым столбиком, а не только цветом
                 // названия: в длинном списке цвет строки глазом не найти,
                 // а движение находится сразу.
                 if (highlighted) {
-                    PlayingMark(Modifier.align(Alignment.BottomStart).padding(3.dp))
+                    if (com.texfi.w0y.ui.theme.isHair) {
+                        HairPlayingMark(Modifier.matchParentSize(), wideCover)
+                    } else {
+                        PlayingMark(Modifier.align(Alignment.BottomStart).padding(3.dp))
+                    }
                 }
             }
             Spacer(Modifier.width(12.dp))
@@ -163,6 +169,16 @@ fun SongRow(
                 cell = 8.dp,
             )
         }
+        if (com.texfi.w0y.ui.theme.isHair) {
+            // Тонкий разделитель от края названия: список читается как таблица, без карточек.
+            Box(
+                Modifier
+                    .padding(start = cover + 12.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(colors.border),
+            )
+        }
     }
     }
 }
@@ -188,6 +204,32 @@ fun SpriteButton(
         animationSpec = tween(180),
         label = "spriteColor",
     )
+    if (com.texfi.w0y.ui.theme.isHair) {
+        val glyph = com.texfi.w0y.ui.icons.HairIcons.forSprite(rows)
+        if (glyph != null) {
+            // Контур сердца и значка закрепления заполняется, когда включено.
+            val fill by animateFloatAsState(
+                if (active && (glyph == com.texfi.w0y.ui.icons.HairGlyph.HEART || glyph == com.texfi.w0y.ui.icons.HairGlyph.PIN)) 1f else 0f,
+                hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS),
+                label = "hairFill",
+            )
+            com.texfi.w0y.ui.icons.HairIcon(
+                glyph = glyph,
+                color = color,
+                fill = { fill },
+                modifier =
+                    Modifier
+                        .size(size.dp)
+                        .pressScale(interaction, pressed = 0.82f)
+                        .popWhenActivated(active)
+                        .clickable(interactionSource = interaction, indication = null) {
+                            tap()
+                            onClick()
+                        },
+            )
+            return
+        }
+    }
     PixelSprite(
         rows = rows,
         color = color,
@@ -314,3 +356,32 @@ class SongActions(
 val LocalIsPlaying = androidx.compose.runtime.compositionLocalOf { false }
 
 val LocalSongActions = androidx.compose.runtime.staticCompositionLocalOf<SongActions?> { null }
+
+
+/**
+ * Отметка играющего трека в Hairline: обложка затемняется, по центру
+ * четыре тонкие линии качаются. Только на видимых строках, 30 кадров, на
+ * паузе стоят; на «Без движения» — просто стоят.
+ */
+@Composable
+internal fun HairPlayingMark(modifier: Modifier, rect: Boolean) {
+    val colors = LocalW0yColors.current
+    val playing = LocalIsPlaying.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val live = playing && look.motion.moves
+    val phase = rememberAnimationPhase(MARK_PERIOD_MS, MARK_FPS, enabled = live)
+    val shape = com.texfi.w0y.ui.theme.styleTokens.cover.takeIf { !rect } ?: androidx.compose.foundation.shape.RoundedCornerShape(percent = 8)
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, androidx.compose.ui.graphics.Color.Black)
+    Canvas(modifier.clip(shape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.58f))) {
+        val w = look.line.toPx()
+        val gap = 5.dp.toPx()
+        val total = 3 * gap
+        val x0 = (size.width - total) / 2f
+        val maxH = size.height * 0.34f
+        repeat(4) { i ->
+            val h = (0.35f + 0.65f * abs(sin(phase.floatValue + i * 0.9f))) * maxH
+            val x = x0 + i * gap
+            drawLine(tone, Offset(x, size.height / 2f - h / 2f), Offset(x, size.height / 2f + h / 2f), w, androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+    }
+}

@@ -51,6 +51,10 @@ fun PixelButton(
     val sink = if (pressed) 4 else 0
     val body = fill ?: colors.accent
 
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairButton(text, onClick, modifier, body, enabled, interaction, pressed, tap)
+        return
+    }
     if (colors.glass) {
         GlassButton(text, onClick, modifier, body, enabled, interaction, pressed, tap)
         return

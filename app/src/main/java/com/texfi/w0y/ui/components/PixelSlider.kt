@@ -73,7 +73,9 @@ fun PixelSlider(
             },
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (isSmooth) {
+        if (com.texfi.w0y.ui.theme.isHair) {
+            HairSliderVisual(fraction, widthPx, thumbPx, dragging = drag != null, color = colors.accent)
+        } else if (isSmooth) {
             // Плавный: тонкая скруглённая дорожка, пройденная часть акцентом, круглый бегунок.
             val tokens = styleTokens
             Box(

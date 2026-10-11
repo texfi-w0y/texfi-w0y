@@ -167,11 +167,28 @@ internal val HairBigNumberStyle =
 
 // ── Регистр ──────────────────────────────────────────────────────────────
 
+/** Строка, набранная целиком заглавными: в строках приложения так записаны старые метки. */
+private fun isShouting(text: String): Boolean = text.any { it.isLetter() } && text == text.uppercase()
+
+/** Обычный регистр: первая буква заглавная; «КРИЧАЩАЯ» строка опускается целиком. */
+private fun sentence(text: String): String {
+    val base = if (isShouting(text)) text.lowercase() else text
+    return base.replaceFirstChar { it.uppercase() }
+}
+
 /** Регистр метки: заглавные, пока не выключены совсем. Названия треков сюда не попадают. */
-fun hairLabelCase(text: String, caps: CapsMode): String = if (caps == CapsMode.OFF) text else text.uppercase()
+fun hairLabelCase(text: String, caps: CapsMode): String = if (caps == CapsMode.OFF) sentence(text) else text.uppercase()
 
 /** Регистр заголовка экрана и ключевого слова. */
-fun hairTitleCase(text: String, caps: CapsMode): String = if (caps == CapsMode.TITLES_LABELS) text.uppercase() else text
+fun hairTitleCase(text: String, caps: CapsMode): String = if (caps == CapsMode.TITLES_LABELS) text.uppercase() else sentence(text)
+
+/** Форма обложки по настройке: диск, скруглённый квадрат или квадрат. */
+fun hairCoverShape(look: HairlineLook): androidx.compose.ui.graphics.Shape =
+    when (look.coverShape) {
+        CoverShape.DISC -> androidx.compose.foundation.shape.CircleShape
+        CoverShape.ROUNDED -> androidx.compose.foundation.shape.RoundedCornerShape(percent = 14)
+        CoverShape.SQUARE -> androidx.compose.ui.graphics.RectangleShape
+    }
 
 /** Метка: заглавные в Hairline, как есть в остальных стилях. */
 @Composable

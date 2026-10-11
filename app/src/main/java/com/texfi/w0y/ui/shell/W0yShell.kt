@@ -148,6 +148,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val customAccent by viewModel.customAccent.collectAsStateWithLifecycle()
     val animatedBackground by viewModel.animatedBackground.collectAsStateWithLifecycle()
     val haptics by viewModel.haptics.collectAsStateWithLifecycle()
+    val hapticLevel by viewModel.hapticLevel.collectAsStateWithLifecycle()
     // Заставка играет один раз за запуск, а не при каждом повороте экрана.
     var introDone by rememberSaveable { mutableStateOf(false) }
     val libraryRoute by libraryViewModel.route.collectAsStateWithLifecycle()
@@ -196,13 +197,34 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     CompositionLocalProvider(
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
-        LocalCompactRows provides compactRows,
+        LocalCompactRows provides (compactRows || com.texfi.w0y.ui.theme.hairLook.compact),
         LocalHaptics provides haptics,
+        com.texfi.w0y.ui.components.LocalHapticLevel provides hapticLevel,
         LocalPlayingSongId provides playerState.song?.id,
         com.texfi.w0y.ui.components.LocalIsPlaying provides playerState.isPlaying,
         LocalSongActions provides songActions,
     ) {
     val haptic = rememberHaptics()
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val swipeDismiss by viewModel.swipeDismiss.collectAsStateWithLifecycle()
+    var undoVisible by remember { mutableStateOf(false) }
+    val dismissPlayer: () -> Unit = {
+        playerExpanded = false
+        if (viewModel.player.dismissPlayer()) {
+            haptic(Buzz.MINIMIZE)
+            undoVisible = true
+        }
+    }
+    // Окно «Отменить» закрывается само: очередь после него больше не хранится.
+    LaunchedEffect(undoVisible) {
+        if (undoVisible) {
+            kotlinx.coroutines.delay(com.texfi.w0y.playback.MiniDismiss.UNDO_MS)
+            viewModel.player.commitDismiss()
+            undoVisible = false
+        }
+    }
+    // Любой запущенный трек возвращает плеер и убирает «Отменить».
+    LaunchedEffect(playerState.song?.id) { if (playerState.song != null) undoVisible = false }
     // Стеклянный Smooth: экран уходит под нижние панели, а они его размывают
     // и преломляют. В остальных стилях панели стоят под экраном, как раньше:
     // список кончается над ними, и под непрозрачной панелью ничего не прячется.
@@ -226,7 +248,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         ) {
         // Фон экосистемы: он виден в промежутках между карточками и
         // строками — как на сайте, где чёрный тоже не пустой.
-        if (com.texfi.w0y.ui.theme.isSmooth) {
+        if (hair) {
+            // Hairline: чистый фон без звёзд и без размытия — быстрее и тише.
+        } else if (com.texfi.w0y.ui.theme.isSmooth) {
             com.texfi.w0y.ui.components.SmoothBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
         } else {
             Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
@@ -289,37 +313,74 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     tab = Tab.LIBRARY
                 },
             )
-            // Мини-плеер и навигация — плавающие блоки в одной колонке с
-            // контентом: список заканчивается над ними и ничем не закрыт.
-            // На широком экране блоки стоят по центру, не растягиваясь.
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Column(Modifier.widthIn(max = BAR_MAX_WIDTH)) {
-                    MiniPlayer(
-                        state = playerState,
-                        positionProvider = viewModel.player::positionMs,
-                        onToggle = viewModel.player::togglePlayPause,
-                        onNext = { viewModel.player.skipNext() },
-                        onPrevious = { viewModel.player.skipPrevious() },
-                        onExpand = { playerExpanded = true },
-                    )
+            val mini: @Composable () -> Unit = {
+                MiniPlayer(
+                    state = playerState,
+                    positionProvider = viewModel.player::positionMs,
+                    onToggle = viewModel.player::togglePlayPause,
+                    onNext = { viewModel.player.skipNext() },
+                    onPrevious = { viewModel.player.skipPrevious() },
+                    onExpand = { playerExpanded = true },
+                    onDismiss = if (hair && swipeDismiss) dismissPlayer else null,
+                )
+            }
+            val navItems = Tab.entries.map { NavItem(stringResource(it.labelRes), it.sprite) }
+            if (hair) {
+                // Hairline: полосы во всю ширину, без плавающих блоков.
+                mini()
+                Box(Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding()) {
                     FloatingNavBar(
-                        items = Tab.entries.map { NavItem(stringResource(it.labelRes), it.sprite) },
+                        items = navItems,
                         selected = tab.ordinal,
                         onSelect = {
                             tab = Tab.entries[it]
                             settingsOpen = false
                         },
-                        standalone = Tab.SEARCH.ordinal,
                     )
+                }
+            } else {
+                // Мини-плеер и навигация — плавающие блоки в одной колонке с
+                // контентом: список заканчивается над ними и ничем не закрыт.
+                // На широком экране блоки стоят по центру, не растягиваясь.
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Column(Modifier.widthIn(max = BAR_MAX_WIDTH)) {
+                        mini()
+                        FloatingNavBar(
+                            items = navItems,
+                            selected = tab.ordinal,
+                            onSelect = {
+                                tab = Tab.entries[it]
+                                settingsOpen = false
+                            },
+                            standalone = Tab.SEARCH.ordinal,
+                        )
+                    }
                 }
             }
         }
+        }
+
+        // «Остановлено · Отменить» — четыре секунды после того, как плеер убрали жестом.
+        AnimatedVisibility(
+            visible = undoVisible,
+            enter = fadeIn(tween(W0yMotion.FAST_MS)),
+            exit = fadeOut(tween(W0yMotion.FAST_MS)),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = barsHeight + 12.dp),
+        ) {
+            com.texfi.w0y.ui.components.HairSnack(
+                message = stringResource(R.string.hl_mini_stopped),
+                action = stringResource(R.string.hl_undo),
+                onAction = {
+                    undoVisible = false
+                    viewModel.player.undoDismiss()
+                },
+            )
         }
 
         PlayerSheet(

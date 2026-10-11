@@ -101,6 +101,53 @@ class PlayerConnection @Inject constructor(
             }
         }
 
+    // ── Скрытие мини-плеера жестом ───────────────────────────────────────
+
+    private val dismisser =
+        PlayerDismisser(
+            object : DismissPort {
+                override fun snapshot(): QueueSnapshot? {
+                    val media = controller ?: return null
+                    if (media.mediaItemCount == 0) return null
+                    val songs = (0 until media.mediaItemCount).map { media.getMediaItemAt(it).toSong() }
+                    return QueueSnapshot(songs, media.currentMediaItemIndex, media.currentPosition, media.isPlaying)
+                }
+
+                override fun pause() {
+                    controller?.pause()
+                }
+
+                override fun stopAndClear() {
+                    controller?.run {
+                        stop()
+                        clearMediaItems()
+                    }
+                }
+
+                override fun restore(snapshot: QueueSnapshot, play: Boolean) {
+                    val media = controller ?: return
+                    media.setMediaItems(snapshot.songs.map(::toMediaItem), snapshot.index, snapshot.positionMs)
+                    media.prepare()
+                    if (play) media.play()
+                }
+            },
+        )
+
+    /** Остановить и убрать плеер; очередь и позиция остаются для [undoDismiss]. */
+    fun dismissPlayer(): Boolean {
+        saveJob?.cancel()
+        return dismisser.dismiss()
+    }
+
+    fun undoDismiss(): Boolean = dismisser.undo()
+
+    /** Окно «Отменить» закрыто: очередь больше не нужна ни в памяти, ни на диске. */
+    fun commitDismiss() {
+        if (dismisser.pending == null) return
+        dismisser.commit()
+        scope.launch { runCatching { queueStore.save(emptyList(), 0, 0L) } }
+    }
+
     fun connect() {
         if (controller != null) return
         val token = SessionToken(context, ComponentName(context, W0yPlayerService::class.java))
@@ -265,6 +312,9 @@ class PlayerConnection @Inject constructor(
      */
     private fun scheduleSave(player: Player) {
         if (!restored) return
+        // Плеер скрыт жестом: пустая очередь не должна стереть сохранённую,
+        // пока можно нажать «Отменить».
+        if (player.mediaItemCount == 0 && dismisser.pending != null) return
         saveJob?.cancel()
         saveJob =
             scope.launch {
@@ -376,6 +426,8 @@ class PlayerConnection @Inject constructor(
             (0 until player.mediaItemCount).map { index ->
                 player.getMediaItemAt(index).toSong()
             }
+        // Запущен другой трек — скрытый плеер уже не вернуть, «Отменить» гаснет.
+        if (queue.isNotEmpty() && dismisser.pending != null) dismisser.commit()
         val index = player.currentMediaItemIndex
         _state.value =
             PlayerUiState(

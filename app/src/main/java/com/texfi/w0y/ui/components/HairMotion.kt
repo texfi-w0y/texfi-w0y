@@ -94,7 +94,7 @@ private const val LOW_MEMORY_CLASS_MB = 128
  * длиннее короткой, без движения — мгновенно.
  */
 @Composable
-fun <T> hairSpec(ms: Int = HairTokens.MID_MS): AnimationSpec<T> =
+fun <T> hairSpec(ms: Int = HairTokens.MID_MS): androidx.compose.animation.core.FiniteAnimationSpec<T> =
     when (hairLook.motion) {
         MotionLevel.FULL -> tween(ms, easing = HairTokens.EaseOut)
         MotionLevel.LITE -> tween(minOf(ms, HairTokens.SHORT_MS), easing = HairTokens.EaseOut)

@@ -26,6 +26,8 @@ import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.isSmooth
 import com.texfi.w0y.ui.theme.PixelScreenTitle
 import com.texfi.w0y.ui.theme.PixelSectionLabel
+import com.texfi.w0y.ui.theme.asLabel
+import com.texfi.w0y.ui.theme.asTitle
 
 /** Единый боковой отступ на всех экранах. Разнобой в полях — первое, что читается как небрежность. */
 val Gutter: Dp = 18.dp
@@ -50,14 +52,14 @@ fun ScreenTitle(
         modifier
             .fillMaxWidth()
             .padding(horizontal = horizontalPadding)
-            .padding(top = 18.dp, bottom = 14.dp),
+            .padding(top = if (com.texfi.w0y.ui.theme.isHair) 28.dp else 18.dp, bottom = 14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 SpriteButton(Sprites.chevronLeft, onClick = onBack, size = 22)
                 Spacer(Modifier.width(12.dp))
             }
-            Text(title, style = PixelScreenTitle, color = colors.text, modifier = Modifier.weight(1f))
+            Text(title.asTitle(), style = PixelScreenTitle, color = colors.text, modifier = Modifier.weight(1f))
             actions()
         }
         if (!isSmooth) {
@@ -92,6 +94,7 @@ fun SectionHeader(
 ) {
     val colors = LocalW0yColors.current
     val smooth = isSmooth
+    val hair = com.texfi.w0y.ui.theme.isHair
     Column(modifier.fillMaxWidth()) {
         // Подписи отдаётся столько, сколько ей нужно, но не больше 80%:
         // иначе линия и действие делили бы ширину с ней поровну, и
@@ -108,9 +111,9 @@ fun SectionHeader(
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    text = if (smooth) label else "❯ ${label.uppercase()}",
-                    style = if (smooth) MaterialTheme.typography.titleMedium else PixelSectionLabel,
-                    color = if (smooth) colors.text else colors.accentText,
+                    text = if (hair) "❯ ${label.asLabel()}" else if (smooth) label else "❯ ${label.uppercase()}",
+                    style = if (hair) PixelSectionLabel else if (smooth) MaterialTheme.typography.titleMedium else PixelSectionLabel,
+                    color = if (hair) colors.textMuted else if (smooth) colors.text else colors.accentText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = labelMax),
@@ -119,7 +122,7 @@ fun SectionHeader(
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(if (smooth) 0.dp else 2.dp)
+                        .height(if (hair) 1.dp else if (smooth) 0.dp else 2.dp)
                         .background(colors.border),
                 )
                 Spacer(Modifier.width(10.dp))
@@ -154,7 +157,7 @@ fun ShelfTitle(text: String, modifier: Modifier = Modifier) {
             Spacer(Modifier.width(8.dp))
         }
         Text(
-            text = if (isSmooth) text else text.uppercase(),
+            text = if (com.texfi.w0y.ui.theme.isHair) text.asLabel() else if (isSmooth) text else text.uppercase(),
             style = PixelSectionLabel,
             color = colors.text,
             maxLines = 1,
@@ -183,8 +186,8 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PixelSprite(rows = sprite, color = colors.border, modifier = Modifier.size(56.dp))
-        Text(title, style = PixelSectionLabel, color = colors.textMuted, textAlign = TextAlign.Center)
+        PixelSprite(rows = sprite, color = if (com.texfi.w0y.ui.theme.isHair) colors.outline else colors.border, modifier = Modifier.size(56.dp))
+        Text(title.asLabel(), style = PixelSectionLabel, color = colors.textMuted, textAlign = TextAlign.Center)
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
@@ -202,7 +205,7 @@ fun Hairline(modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .height(2.dp)
+            .height(if (com.texfi.w0y.ui.theme.isHair) 1.dp else 2.dp)
             .background(colors.border),
     )
 }

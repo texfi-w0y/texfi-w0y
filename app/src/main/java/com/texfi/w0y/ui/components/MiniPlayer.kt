@@ -53,8 +53,14 @@ fun MiniPlayer(
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Потянуть вниз — остановить и убрать (только Hairline); null — жест выключен. */
+    onDismiss: (() -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairMiniPlayer(state, positionProvider, onToggle, onNext, onPrevious, onExpand, onDismiss, modifier)
+        return
+    }
     AnimatedVisibility(
         visible = state.song != null,
         enter = expandVertically(androidx.compose.animation.core.tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)),

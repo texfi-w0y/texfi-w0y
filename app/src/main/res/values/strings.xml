@@ -625,4 +625,14 @@
     <string name="hl_icon_rings">Rings</string>
     <string name="hl_icon_leaf_line">Leaf line</string>
     <string name="theme_system">follow system</string>
+    <string name="hl_cd_play">Play</string>
+    <string name="hl_cd_pause">Pause</string>
+    <string name="hl_cd_next">Next track</string>
+    <string name="hl_cd_prev">Previous track</string>
+    <string name="hl_cd_disc">Cover disc. Double tap to pause, swipe sideways to change the track, press and hold, then move around the ring to seek.</string>
+    <string name="hl_cd_dismiss">Dismiss player</string>
+    <string name="hl_cd_mini">Now playing: %1$s, %2$s. Swipe down to dismiss.</string>
+    <string name="hl_mini_stopped">STOPPED</string>
+    <string name="hl_undo">UNDO</string>
+    <string name="hl_hint_gestures">Double tap the disc to pause · swipe it to change track · hold and move around the ring to seek</string>
 </resources>

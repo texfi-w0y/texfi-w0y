@@ -20,6 +20,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
  */
 val LocalHaptics = compositionLocalOf { true }
 
+/** Сила отклика: «лёгкая» вдвое слабее и без длинных рисунков, «полная» — как раньше. */
+val LocalHapticLevel = compositionLocalOf { com.texfi.w0y.data.HapticLevel.FULL }
+
 /**
  * События с собственным рисунком вибрации.
  *
@@ -46,12 +49,17 @@ enum class Buzz(
     WELCOME(longArrayOf(0, 30, 70, 14), intArrayOf(0, 180, 0, 90), HapticFeedbackType.LongPress),
     ;
 
-    internal fun effect(hasAmplitude: Boolean): VibrationEffect =
-        if (hasAmplitude) {
-            VibrationEffect.createWaveform(timings, amplitudes, -1)
+    internal fun effect(hasAmplitude: Boolean, light: Boolean = false): VibrationEffect {
+        // Лёгкая вибрация: слабее вдвое, и только короткие отклики — длинные
+        // рисунки (лайк, готово, ошибка) сворачиваются в одно касание.
+        val t = if (light && timings.size > 4) longArrayOf(0, timings[1]) else timings
+        val a = if (light) IntArray(minOf(amplitudes.size, t.size)) { amplitudes[it] / 2 } else amplitudes
+        return if (hasAmplitude) {
+            VibrationEffect.createWaveform(t, a, -1)
         } else {
-            VibrationEffect.createWaveform(timings, -1)
+            VibrationEffect.createWaveform(t, -1)
         }
+    }
 }
 
 private fun vibratorOf(context: Context): Vibrator? =
@@ -64,13 +72,13 @@ private fun vibratorOf(context: Context): Vibrator? =
         }
     }.getOrNull()
 
-private fun buzz(vibrator: Vibrator?, feedback: HapticFeedback, kind: Buzz) {
+private fun buzz(vibrator: Vibrator?, feedback: HapticFeedback, kind: Buzz, light: Boolean) {
     // Цепочка деградации: свой рисунок → системный отклик, если железо
     // не умеет вибрировать по паттерну.
     val played =
         vibrator != null &&
             vibrator.hasVibrator() &&
-            runCatching { vibrator.vibrate(kind.effect(vibrator.hasAmplitudeControl())) }.isSuccess
+            runCatching { vibrator.vibrate(kind.effect(vibrator.hasAmplitudeControl(), light)) }.isSuccess
     if (!played) feedback.performHapticFeedback(kind.fallback)
 }
 
@@ -78,11 +86,12 @@ private fun buzz(vibrator: Vibrator?, feedback: HapticFeedback, kind: Buzz) {
 @Composable
 fun rememberHaptics(): (Buzz) -> Unit {
     val enabled = LocalHaptics.current
+    val level = LocalHapticLevel.current
     val feedback = LocalHapticFeedback.current
     val context = LocalContext.current
     val vibrator = remember(context) { vibratorOf(context) }
-    return remember(enabled, feedback, vibrator) {
-        { kind -> if (enabled) buzz(vibrator, feedback, kind) }
+    return remember(enabled, level, feedback, vibrator) {
+        { kind -> if (enabled && level != com.texfi.w0y.data.HapticLevel.OFF) buzz(vibrator, feedback, kind, level == com.texfi.w0y.data.HapticLevel.LIGHT) }
     }
 }
 

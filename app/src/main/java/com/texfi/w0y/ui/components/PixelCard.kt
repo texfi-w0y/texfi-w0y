@@ -37,6 +37,10 @@ fun PixelCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairCard(modifier, label, content)
+        return
+    }
     if (colors.glass) {
         GlassCard(modifier, label, content)
         return

@@ -1,6 +1,7 @@
 package com.texfi.w0y.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -31,14 +32,35 @@ fun CoverImage(
     px: Int,
     modifier: Modifier = Modifier,
     corner: Int = 4,
+    /** Hairline: всегда круг (артисты). */
+    circle: Boolean = false,
+    /** Hairline: прямоугольный кадр (видео 16:9), форма «диск» тут не годится. */
+    rect: Boolean = false,
 ) {
     val colors = LocalW0yColors.current
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val look = com.texfi.w0y.ui.theme.hairLook
     // В плавном стиле углы обложек крупнее: та же пропорция к размеру, что у карточек.
-    val shape = RoundedCornerShape((if (isSmooth) corner * 3 else corner).dp())
+    val shape: androidx.compose.ui.graphics.Shape =
+        if (hair) {
+            when {
+                circle -> androidx.compose.foundation.shape.CircleShape
+                rect -> RoundedCornerShape(percent = 8)
+                else ->
+                    when (look.coverShape) {
+                        com.texfi.w0y.data.CoverShape.DISC -> androidx.compose.foundation.shape.CircleShape
+                        com.texfi.w0y.data.CoverShape.ROUNDED -> RoundedCornerShape(percent = 14)
+                        com.texfi.w0y.data.CoverShape.SQUARE -> androidx.compose.ui.graphics.RectangleShape
+                    }
+            }
+        } else {
+            RoundedCornerShape((if (isSmooth) corner * 3 else corner).dp())
+        }
     Box(
         modifier
             .clip(shape)
-            .background(colors.surfaceHigh),
+            .background(colors.surfaceHigh)
+            .then(if (hair) Modifier.border(look.line, colors.border, shape) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         // Нота лежит под картинкой: пока та грузится или если не пришла

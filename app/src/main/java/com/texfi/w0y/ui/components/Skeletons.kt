@@ -1,6 +1,8 @@
 package com.texfi.w0y.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +30,10 @@ import kotlin.math.sin
 @Composable
 fun SkeletonRow(modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairSkeletonRow(modifier)
+        return
+    }
     // Прозрачность меняется в лямбде graphicsLayer, а не в теле composable:
     // слой обновляется без рекомпозиции и без перерисовки самих прямоугольников.
     val phase = rememberAnimationPhase(PULSE_PERIOD_MS, PULSE_FPS)
@@ -70,3 +76,46 @@ private const val PULSE_PERIOD_MS = 1_800
 
 /** Скелетон живёт секунду-две, ему хватает двадцати кадров. */
 private const val PULSE_FPS = 20
+
+
+/**
+ * Скелетон Hairline: те же формы, но контуром, а по ним бежит светлая линия —
+ * вместо пульсации заливки. Линия двигается в слое рисования, раскладка не
+ * пересчитывается; без движения — просто контуры.
+ */
+@Composable
+private fun HairSkeletonRow(modifier: Modifier) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val phase = rememberAnimationPhase(SWEEP_PERIOD_MS, PULSE_FPS, enabled = look.motion.moves)
+    val line = colors.border
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .drawWithContent {
+                drawContent()
+                if (look.motion.moves) {
+                    // Светлая вертикальная линия бежит слева направо и обратно не возвращается.
+                    val t = (phase.floatValue / (2f * Math.PI.toFloat())).let { it - kotlin.math.floor(it) }
+                    val x = size.width * t
+                    drawLine(colors.outline, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), look.line.toPx())
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(48.dp)
+                .border(look.line, line, com.texfi.w0y.ui.theme.styleTokens.cover),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Box(Modifier.fillMaxWidth(0.7f).height(12.dp).border(look.line, line, RoundedCornerShape(6.dp)))
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.fillMaxWidth(0.4f).height(10.dp).border(look.line, line, RoundedCornerShape(5.dp)))
+        }
+    }
+}
+
+private const val SWEEP_PERIOD_MS = 1_400

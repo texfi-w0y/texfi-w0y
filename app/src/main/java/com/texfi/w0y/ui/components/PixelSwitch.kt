@@ -31,6 +31,10 @@ import androidx.compose.ui.draw.clip
 fun PixelSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val colors = LocalW0yColors.current
     val haptic = rememberHaptics()
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairSwitch(checked, onCheckedChange, haptic)
+        return
+    }
     if (isSmooth) {
         SmoothSwitch(checked, onCheckedChange, haptic)
         return

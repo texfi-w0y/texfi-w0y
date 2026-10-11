@@ -124,11 +124,12 @@ private fun BoxScope.Reveal(
         Modifier
             .matchParentSize()
             .graphicsLayer { alpha = if (visible()) 1f else 0f }
-            .background(fill)
+            .background(if (com.texfi.w0y.ui.theme.isHair) Color.Transparent else fill)
             .padding(horizontal = 16.dp),
         contentAlignment = alignment,
     ) {
-        Text(text = label, style = PixelSectionLabel, color = text)
+        // Hairline: без цветного блока — только подпись действия акцентом.
+        Text(text = label, style = PixelSectionLabel, color = if (com.texfi.w0y.ui.theme.isHair) fill else text)
     }
 }
 

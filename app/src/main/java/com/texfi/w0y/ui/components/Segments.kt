@@ -38,6 +38,10 @@ fun SegmentedBar(
     cell: Dp = 8.dp,
     gap: Dp = 2.dp,
 ) {
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairProgressLine(progress, modifier, height)
+        return
+    }
     if (!styleTokens.segmented) {
         // Плавный стиль: сплошная скруглённая полоса вместо клеток.
         Canvas(modifier.height(height)) {

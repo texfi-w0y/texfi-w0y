@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.isSmooth
+import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.liquidGlass
 import com.texfi.w0y.ui.theme.LocalBarBackdrop
 import com.texfi.w0y.ui.theme.glassBar
@@ -52,6 +53,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import com.texfi.w0y.ui.theme.styleTokens
 import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 
 /** Пункт нижней навигации. */
 data class NavItem(val label: String, val sprite: List<String>)
@@ -73,6 +78,10 @@ fun FloatingSurface(
     val colors = LocalW0yColors.current
     val tokens = styleTokens
     val backdrop = LocalBarBackdrop.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        Box(modifier.background(colors.surface), content = content)
+        return
+    }
     if (backdrop != null && tokens.glass) {
         Box(modifier.glassBar(shape ?: GlassCapsule, backdrop), content = content)
         return
@@ -121,6 +130,10 @@ fun FloatingNavBar(
     modifier: Modifier = Modifier,
     standalone: Int? = null,
 ) {
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairNavBar(items, selected, onSelect, modifier)
+        return
+    }
     if (standalone != null) {
         SplitNavBar(items, selected, onSelect, modifier, standalone)
         return
@@ -372,3 +385,95 @@ private const val NAV_STEPS = 5
  * докручивается до места над панелями. Без стекла — ноль.
  */
 val LocalBarsInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
+
+/**
+ * Навигация Hairline: одна полоса во всю ширину, тонкая линия сверху.
+ * Выбранная вкладка — яркая иконка и подпись, а под ней тонкая линия,
+ * которая скользит между вкладками (по ней же можно вести пальцем).
+ */
+@Composable
+internal fun HairNavBar(
+    items: List<NavItem>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val position = remember { Animatable(selected.toFloat()) }
+    val spec = hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+    LaunchedEffect(selected) { position.animateTo(selected.toFloat(), spec) }
+    val tick = rememberTapHaptic()
+    val currentSelected by rememberUpdatedState(selected)
+    val select by rememberUpdatedState(onSelect)
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+    Box(modifier.fillMaxWidth().background(colors.surface)) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+        BoxWithConstraints(
+            Modifier
+                .fillMaxWidth()
+                .pointerInput(items.size) {
+                    var last = -1
+                    fun moveTo(x: Float) {
+                        val index = (x / (size.width.toFloat() / items.size)).toInt().coerceIn(0, items.lastIndex)
+                        if (index != last) {
+                            last = index
+                            tick()
+                            select(index)
+                        }
+                    }
+                    detectHorizontalDragGestures(onDragStart = { last = currentSelected; moveTo(it.x) }) { change, _ ->
+                        change.consume()
+                        moveTo(change.position.x)
+                    }
+                },
+        ) {
+            val slot = maxWidth / items.size
+            Row(Modifier.fillMaxWidth()) {
+                items.forEachIndexed { index, item ->
+                    val active = index == selected
+                    val interaction = remember { MutableInteractionSource() }
+                    val tint by animateColorAsState(
+                        targetValue = if (active) colors.text else colors.textMuted,
+                        animationSpec = hairSpec(com.texfi.w0y.ui.theme.HairTokens.SHORT_MS),
+                        label = "hairNavTint",
+                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(NAV_HEIGHT + 8.dp)
+                                .semantics {
+                                    contentDescription = item.label
+                                    role = androidx.compose.ui.semantics.Role.Tab
+                                    this.selected = active
+                                }
+                                .pressScale(interaction, pressed = 0.94f)
+                                .clickable(interactionSource = interaction, indication = null) { onSelect(index) },
+                    ) {
+                        PixelSprite(rows = item.sprite, color = tint, modifier = Modifier.size(22.dp))
+                        Text(
+                            text = item.label.asLabel(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = tint,
+                            maxLines = 1,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+            // Скользящая линия под активной вкладкой.
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .offset { IntOffset(((slot.toPx() * position.value) + (slot.toPx() - 28.dp.toPx()) / 2f).roundToInt(), 0) }
+                    .width(28.dp)
+                    .height(maxOf(2.dp, look.line * 2))
+                    .background(tone),
+            )
+        }
+    }
+}

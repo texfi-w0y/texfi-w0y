@@ -76,6 +76,10 @@ fun SpeedDialTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
 ) {
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairDialTile(title, thumbnailUrl, modifier, subtitle, pinned, kindSprite, round, onClick, onLongClick)
+        return
+    }
     val colors = LocalW0yColors.current
     val shape = if (round) CircleShape else TileShape
     val interaction = remember { MutableInteractionSource() }
@@ -260,10 +264,11 @@ fun ArtistTile(card: ArtistCard, onClick: () -> Unit) {
             url = card.thumbnailUrl,
             px = Thumbnails.TILE,
             corner = 52,
+            circle = true,
             modifier =
                 Modifier
                     .size(104.dp)
-                    .border(2.dp, colors.border, CircleShape),
+                    .then(if (com.texfi.w0y.ui.theme.isHair) Modifier else Modifier.border(2.dp, colors.border, CircleShape)),
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -288,6 +293,10 @@ fun PixelSegmented(
     modifier: Modifier = Modifier,
     onSelect: (Int) -> Unit,
 ) {
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairSegmented(options, selectedIndex, modifier, onSelect)
+        return
+    }
     val colors = LocalW0yColors.current
     val tap = rememberTapHaptic()
     val smooth = isSmooth
