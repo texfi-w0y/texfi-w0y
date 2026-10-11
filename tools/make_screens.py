@@ -8,28 +8,25 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "docs/screenshots/raw"
 OUT = ROOT / "docs/screenshots"
-LABEL = "w0y v0.0.1 beta-1"
+LABEL = "W0Y  ·  V0.0.3 BETA-1  ·  HAIRLINE"
 
 BG = (10, 9, 12)
 BLUE = (74, 124, 251)
 SAND = (224, 168, 96)
-DOT = (28, 27, 33)
+LINE = (30, 31, 40)
+OUTLINE = (92, 96, 116)
+MUTED = (150, 152, 166)
 H = 1280          # высота каждого скриншота
 GAP = 56          # просвет между рамками
 PAD = 96          # поля картинки
-R = 36            # радиус рамки
-SHADOW = 16       # смещение жёсткой тени
-BORDER = 6
+R = 30            # радиус рамки
+SHADOW = 0        # Hairline: без теней
+BORDER = 2
 
 
 def font(size):
-    for f in ("/usr/share/fonts/TTF/PressStart2P-Regular.ttf",
-              "/usr/share/fonts/truetype/press-start-2p/PressStart2P-Regular.ttf",
-              str(ROOT / "app/src/main/res/font/press_start_2p.ttf"),
-              "/usr/share/fonts/TTF/DejaVuSansMono-Bold.ttf"):
-        if Path(f).exists():
-            return ImageFont.truetype(f, size)
-    return ImageFont.load_default()
+    f = ROOT / "app/src/main/res/font/jetbrains_mono_medium.ttf"
+    return ImageFont.truetype(str(f), size) if f.exists() else ImageFont.load_default()
 
 
 def rounded(img, radius):
@@ -61,18 +58,17 @@ def main():
     height = PAD + head + len(rows) * H + (len(rows) - 1) * GAP + PAD + SHADOW
     canvas = Image.new("RGBA", (width, height), BG + (255,))
     d = ImageDraw.Draw(canvas)
-    for x in range(24, width, 48):
-        for y in range(24, height, 48):
-            d.rectangle((x, y, x + 3, y + 3), fill=DOT)
-    d.text((PAD, PAD // 2 + 10), LABEL, font=font(34), fill=SAND)
+    for x in range(0, width, 48):
+        d.line((x, 0, x, height), fill=LINE, width=1)
+    for y in range(0, height, 48):
+        d.line((0, y, width, y), fill=LINE, width=1)
+    d.text((PAD, PAD // 2 + 10), LABEL, font=font(30), fill=MUTED)
     y = PAD + head
     for r, rw in zip(rows, row_w):
         x = PAD + (width - PAD * 2 - SHADOW - rw) // 2
         for s in r:
-            d.rounded_rectangle((x + SHADOW, y + SHADOW, x + s.width + SHADOW, y + H + SHADOW), R, fill=SAND)
-            d.rounded_rectangle((x + SHADOW // 2, y + SHADOW // 2, x + s.width + SHADOW // 2, y + H + SHADOW // 2), R, fill=BLUE)
             canvas.alpha_composite(rounded(s, R - BORDER), (x, y))
-            d.rounded_rectangle((x, y, x + s.width, y + H), R, outline=BLUE, width=BORDER)
+            d.rounded_rectangle((x, y, x + s.width, y + H), R, outline=OUTLINE, width=BORDER)
             x += s.width + GAP
         y += H + GAP
     big = canvas.convert("RGB")
