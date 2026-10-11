@@ -236,6 +236,7 @@ fun PlayerScreen(
         // а если видео не окажется — переключатель честно скажет об этом.
         isVideoTrack = true
     }
+    val videoFailed = androidx.compose.ui.res.stringResource(R.string.hl_video_failed)
     LaunchedEffect(videoOn, song.id) {
         if (videoOn && video == null) {
             videoLoading = true
@@ -243,7 +244,7 @@ fun PlayerScreen(
             videoLoading = false
             if (video == null) {
                 videoOn = false
-                android.widget.Toast.makeText(context, context.getString(R.string.hl_video_failed), android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, videoFailed, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -255,6 +255,7 @@ class SchemeSwitchDataSource(
 }
 
 /** Схема `file` — прямо с диска, всё остальное — в [rest] (кэши и сеть). */
+@OptIn(UnstableApi::class)
 class FileFirstDataSource(
     private val file: DataSource,
     private val rest: DataSource,
