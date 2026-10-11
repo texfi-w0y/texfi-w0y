@@ -134,14 +134,33 @@ fun LyricsView(
             )
             val style =
                 TextStyle(
-                    fontSize = if (isActive) base * (if (hair) 1.2f else 1.12f) else base,
+                    fontSize = if (isActive && !big) base * (if (hair) 1.2f else 1.12f) else base,
                     lineHeight = base * 1.35f,
                     fontWeight = if (big) FontWeight.ExtraBold else if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                     textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                 )
+            // Крупная страница: размер не меняется скачком (перенос строк не прыгает),
+            // звучащая строка плавно «подъезжает» масштабом от левого края.
+            val scale by androidx.compose.animation.core.animateFloatAsState(
+                if (big && isActive) BIG_ACTIVE_SCALE else 1f,
+                androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 260f),
+                label = "lyricScale",
+            )
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .then(if (big) Modifier.hairStagger(index) else Modifier)
+                    .then(
+                        if (big) {
+                            Modifier.padding(end = 28.dp).graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                            }
+                        } else {
+                            Modifier
+                        },
+                    )
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSeek(line.timeMs) }
                     .padding(vertical = 8.dp),
             ) {
@@ -205,3 +224,4 @@ fun LyricsTicker(
 private const val TICK_MS = 120L
 private const val USER_PAUSE_MS = 3_500L
 private const val FADE = 0.12f
+private const val BIG_ACTIVE_SCALE = 1.1f

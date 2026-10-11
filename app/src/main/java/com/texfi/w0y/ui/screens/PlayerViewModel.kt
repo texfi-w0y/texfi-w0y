@@ -188,6 +188,27 @@ class PlayerViewModel @Inject constructor(
 
     private var lyricsForId: String? = null
 
+    private val _details = MutableStateFlow<SongItem?>(null)
+
+    /** Исполнители и альбом текущего трека, догруженные, если YouTube не дал их сразу. */
+    val details: StateFlow<SongItem?> = _details.asStateFlow()
+
+    private var detailsForId: String? = null
+
+    fun ensureDetails(song: SongItem?) {
+        if (song == null) return
+        if (song.id != detailsForId) {
+            detailsForId = song.id
+            _details.value = null
+        }
+        if (song.artistLinks().isNotEmpty() && song.albumId != null) return
+        if (_details.value?.id == song.id) return
+        viewModelScope.launch {
+            val found = runCatching { youtube.songDetails(song.id) }.getOrNull()
+            if (found != null && detailsForId == song.id) _details.value = found
+        }
+    }
+
     /** Лирика тянется один раз на трек и только если она включена. */
     fun ensureLyrics(song: SongItem?) {
         if (song == null || song.id == lyricsForId) return

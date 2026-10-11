@@ -143,6 +143,26 @@ class YouTubeRepository @Inject constructor(
     }
 
     /**
+     * Исполнители и альбом трека, у которого их нет: при первом запуске из
+     * поиска или ссылки YouTube отдаёт только название. Берём ту же строку
+     * из панели «следующих» — там ссылки на каналы и альбом есть всегда.
+     */
+    suspend fun songDetails(videoId: String): SongItem? = withContext(Dispatchers.IO) {
+        val response =
+            innerTube
+                .next(
+                    client = YouTubeClient.WEB_REMIX,
+                    videoId = videoId,
+                    playlistId = null,
+                    playlistSetVideoId = null,
+                    index = null,
+                    params = null,
+                    continuation = null,
+                ).body<JsonObject>()
+        YtJson.queueSongs(response).firstOrNull { it.id == videoId }
+    }
+
+    /**
      * Чистая версия трека, если она вообще выложена.
      *
      * Вырезать слова из записи нельзя, но у половины таких треков есть

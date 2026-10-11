@@ -174,7 +174,18 @@ fun PlayerScreen(
     val sharing by viewModel.sharing.collectAsStateWithLifecycle()
     val edit by viewModel.edit.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val song = state.song ?: return
+    val current = state.song ?: return
+    val details by viewModel.details.collectAsStateWithLifecycle()
+    LaunchedEffect(current.id) { viewModel.ensureDetails(current) }
+    val song =
+        details?.takeIf { it.id == current.id }?.let { d ->
+            current.copy(
+                artists = current.artists.ifEmpty { d.artists },
+                artistId = current.artistId ?: d.artistId,
+                albumId = current.albumId ?: d.albumId,
+                album = current.album ?: d.album,
+            )
+        } ?: current
 
     // Карточка уходит через системное окно выбора: куда именно её отправить,
     // решает человек, а не приложение.
@@ -928,17 +939,22 @@ fun PlayerScreen(
                 Spacer(Modifier.height(18.dp))
             }
 
-            stickyHeader {
-                // Полоса вкладок липнет к верху: список под ней едет, а
-                // переключиться можно не возвращаясь наверх.
-                Box(Modifier.then(if (hair) Modifier.background(Brush.verticalGradient(listOf(colors.background.copy(alpha = 0.94f), colors.background.copy(alpha = 0.94f), Color.Transparent))) else Modifier.background(colors.background)).padding(bottom = 14.dp)) {
-                    // В Hairline текст живёт в диске, вкладок две.
-                    val tabs = if (hair) PlayerTab.entries.filter { it != PlayerTab.LYRICS } else PlayerTab.entries
-                    PixelSegmented(
-                        options = tabs.map { stringResource(it.label) },
-                        selectedIndex = tabs.indexOf(tab).coerceAtLeast(0),
-                        onSelect = { tab = tabs[it] },
-                    )
+            // Полоса вкладок. В Hairline — обычная строка без подложки: липкая
+            // полоса требовала фона, а он рисовался тёмным прямоугольником.
+            val tabsBar: @Composable () -> Unit = {
+                val tabs = if (hair) PlayerTab.entries.filter { it != PlayerTab.LYRICS } else PlayerTab.entries
+                PixelSegmented(
+                    options = tabs.map { stringResource(it.label) },
+                    selectedIndex = tabs.indexOf(tab).coerceAtLeast(0),
+                    onSelect = { tab = tabs[it] },
+                )
+            }
+            if (hair) {
+                item { Box(Modifier.padding(bottom = 10.dp)) { tabsBar() } }
+            } else {
+                stickyHeader {
+                    // Липнет к верху: список под ней едет, переключиться можно не возвращаясь наверх.
+                    Box(Modifier.background(colors.background).padding(bottom = 10.dp)) { tabsBar() }
                 }
             }
 
