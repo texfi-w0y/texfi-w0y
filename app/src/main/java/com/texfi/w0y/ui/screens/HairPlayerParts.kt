@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.unit.sp
 import com.texfi.w0y.ui.theme.HairTitleStyle
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -129,15 +130,17 @@ internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProf
                 color = colors.text,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.copyOnLongPress(song.title),
             )
         } else {
             Text(
                 text = song.title,
                 style = HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
+                // Долгое нажатие копирует название — чтобы найти трек где-то ещё.
+                modifier = Modifier.copyOnLongPress(song.title).basicMarquee(),
                 color = colors.text,
                 maxLines = 1,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,
-                modifier = Modifier.basicMarquee(),
             )
         }
         Spacer(Modifier.height(2.dp))
@@ -148,7 +151,7 @@ internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProf
                 color = colors.textMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = false).copyOnLongPress(song.artist),
             )
             own?.takeIf { !it.isPlain }?.let {
                 Spacer(Modifier.width(8.dp))
@@ -492,4 +495,27 @@ internal fun HairDials(
             onCommit = { onReverb(reverbs[(it * (reverbs.size - 1)).let(Math::round).coerceIn(0, reverbs.lastIndex)]) },
         )
     }
+}
+
+/** Долгое нажатие кладёт [text] в буфер обмена; до Android 13 ещё и говорит об этом сам. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+internal fun Modifier.copyOnLongPress(text: String): Modifier {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptic = com.texfi.w0y.ui.components.rememberSelectHaptic()
+    val copied = stringResource(R.string.hl_copied, text)
+    return combinedClickable(
+        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+        indication = null,
+        onClick = {},
+        onLongClick = {
+            haptic()
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("w0y", text))
+            // С Android 13 система сама показывает, что скопировано.
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                android.widget.Toast.makeText(context, copied, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        },
+    )
 }

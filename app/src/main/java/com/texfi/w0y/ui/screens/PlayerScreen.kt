@@ -215,6 +215,18 @@ fun PlayerScreen(
             position = viewModel.player.positionMs()
         }
     }
+    // Перемотка сразу двигает показанную позицию: на паузе опроса нет, и
+    // раньше экран оставался на старом месте — казалось, что перемотка
+    // на паузе не работает.
+    // Пока трек после запуска не подготовлен, плеер длительности не знает —
+    // берём её из данных трека, иначе ползунок мёртв до первого Play.
+    val knownDuration = state.durationMs.takeIf { it > 0 } ?: parseDurationMs(song.durationText)
+    val seekNow: (Long) -> Unit = { ms ->
+        val target = if (knownDuration > 0) ms.coerceIn(0L, knownDuration) else ms.coerceAtLeast(0L)
+        viewModel.player.seekTo(target)
+        position = target
+    }
+    val seekStep: (Long) -> Unit = { delta -> seekNow(position + delta) }
 
     // Текст во весь экран: тот же компонент, крупнее и по центру.
     val syncedLyrics = lyrics?.synced.orEmpty()
@@ -233,7 +245,7 @@ fun PlayerScreen(
                 positionProvider = viewModel.player::positionMs,
                 playing = state.isPlaying,
                 size = settings.lyricsSize,
-                onSeek = viewModel.player::seekTo,
+                onSeek = seekNow,
                 centered = true,
                 modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             )
@@ -389,7 +401,7 @@ fun PlayerScreen(
                                 onNext = { viewModel.player.skipNext() },
                                 onPrevious = { viewModel.player.skipPrevious() },
                                 onTap = toggleArt,
-                                onSeek = viewModel.player::seekTo,
+                                onSeek = seekNow,
                                 content = visualizer,
                             )
                         }
@@ -407,7 +419,7 @@ fun PlayerScreen(
                                 onNext = { viewModel.player.skipNext() },
                                 onPrevious = { viewModel.player.skipPrevious() },
                                 onTap = toggleArt,
-                                onSeek = viewModel.player::seekTo,
+                                onSeek = seekNow,
                                 content = visualizer,
                             )
                             Spacer(Modifier.width(14.dp))
@@ -636,23 +648,23 @@ fun PlayerScreen(
             }
 
             if (hair) item {
-                if (layout != com.texfi.w0y.data.PlayerLayout.RING) {
+                run {
                     HairSeekLine(
                         positionMs = dragPosition ?: position,
-                        durationMs = state.durationMs,
+                        durationMs = knownDuration,
                         onDrag = { dragPosition = it },
                         onDragEnd = {
-                            dragPosition?.let(viewModel.player::seekTo)
+                            dragPosition?.let(seekNow)
                             dragPosition = null
                         },
                     )
                 }
                 HairTimeRow(
                     positionMs = dragPosition ?: position,
-                    durationMs = state.durationMs,
+                    durationMs = knownDuration,
                     stepSec = settings.seekStepSec,
-                    onBack = { viewModel.seekBy(-settings.seekStepSec * 1000L) },
-                    onForward = { viewModel.seekBy(settings.seekStepSec * 1000L) },
+                    onBack = { seekStep(-settings.seekStepSec * 1000L) },
+                    onForward = { seekStep(settings.seekStepSec * 1000L) },
                 )
                 Spacer(Modifier.height(8.dp))
             } else item {
@@ -661,7 +673,7 @@ fun PlayerScreen(
                     durationMs = state.durationMs,
                     onDrag = { dragPosition = it },
                     onDragEnd = {
-                        dragPosition?.let(viewModel.player::seekTo)
+                        dragPosition?.let(seekNow)
                         dragPosition = null
                     },
                 )
@@ -679,12 +691,12 @@ fun PlayerScreen(
                     // трека на две минуты удобный шаг разный.
                     StepButton(
                         text = stringResource(R.string.player_seek_back, settings.seekStepSec),
-                        onClick = { viewModel.seekBy(-settings.seekStepSec * 1000L) },
+                        onClick = { seekStep(-settings.seekStepSec * 1000L) },
                     )
                     Spacer(Modifier.width(8.dp))
                     StepButton(
                         text = stringResource(R.string.player_seek_forward, settings.seekStepSec),
-                        onClick = { viewModel.seekBy(settings.seekStepSec * 1000L) },
+                        onClick = { seekStep(settings.seekStepSec * 1000L) },
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
@@ -917,7 +929,7 @@ fun PlayerScreen(
                                         positionProvider = viewModel.player::positionMs,
                                         playing = state.isPlaying,
                                         size = settings.lyricsSize,
-                                        onSeek = viewModel.player::seekTo,
+                                        onSeek = seekNow,
                                         modifier = Modifier.fillMaxWidth().height(LYRICS_HEIGHT),
                                     )
                                 }
@@ -1416,4 +1428,11 @@ private fun LyricsLangRow(selected: String, failed: Boolean, onSelect: (String) 
             }
         }
     }
+}
+
+/** «3:15» или «1:02:03» в миллисекундах; непонятное — ноль. */
+private fun parseDurationMs(text: String?): Long {
+    val parts = text?.trim()?.split(':')?.map { it.toLongOrNull() ?: return 0L } ?: return 0L
+    if (parts.isEmpty() || parts.size > 3) return 0L
+    return parts.fold(0L) { acc, v -> acc * 60 + v } * 1000L
 }

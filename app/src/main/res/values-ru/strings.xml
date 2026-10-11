@@ -681,4 +681,5 @@
     <string name="hl_preview_title">Пример трека</string>
     <string name="hl_preview_sub">Пример артиста</string>
     <string name="hl_preview_button">Играть</string>
+    <string name="hl_copied">Скопировано: %1$s</string>
 </resources>

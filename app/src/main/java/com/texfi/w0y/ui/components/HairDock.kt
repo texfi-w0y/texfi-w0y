@@ -100,10 +100,10 @@ fun HairDock(
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.isPlaying, song?.id) {
-        position = positionProvider()
-        while (state.isPlaying) {
-            delay(PROGRESS_POLL_MS)
+        // На паузе тоже опрашиваем, но редко: перемотка на паузе должна сдвинуть контур.
+        while (true) {
             position = positionProvider()
+            delay(if (state.isPlaying) PROGRESS_POLL_MS else PAUSED_POLL_MS)
         }
     }
     val duration = state.durationMs
@@ -327,5 +327,6 @@ private val TAG_WIDTH = 76.dp
 private val TAG_HEIGHT = 19.dp
 private val TAG_BOTTOM = 4.dp
 private const val PROGRESS_POLL_MS = 400L
+private const val PAUSED_POLL_MS = 1_000L
 private const val GLOW_ALPHA = 0.34f
 private val GLOW_REACH = 90.dp
