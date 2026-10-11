@@ -96,6 +96,7 @@ fun LyricsView(
     }
 
     val base = size.sp.sp
+    val hair = com.texfi.w0y.ui.theme.isHair
     LazyColumn(
         state = list,
         modifier =
@@ -130,7 +131,7 @@ fun LyricsView(
             )
             val style =
                 TextStyle(
-                    fontSize = if (isActive) base * 1.12f else base,
+                    fontSize = if (isActive) base * (if (hair) 1.2f else 1.12f) else base,
                     lineHeight = base * 1.35f,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                     textAlign = if (centered) TextAlign.Center else TextAlign.Start,

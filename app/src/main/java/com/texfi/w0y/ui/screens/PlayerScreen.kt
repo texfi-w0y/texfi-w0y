@@ -1064,18 +1064,33 @@ private fun QueueRow(
     onDragEnd: () -> Unit,
 ) {
     val colors = LocalW0yColors.current
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+    Column(Modifier.fillMaxWidth().graphicsLayer { translationY = liftOffset() }) {
     Row(
         Modifier
             .fillMaxWidth()
             .onSizeChanged { onMeasured(it.height.toFloat()) }
             // Поднятая строка едет за пальцем и заметно светлее соседей.
-            .graphicsLayer { translationY = liftOffset() }
             .background(if (lifted) colors.surfaceHigh else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 7.dp),
+            .padding(vertical = if (hair) com.texfi.w0y.ui.theme.hairLook.rowPad else 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
+        if (hair) {
+            // Номер — моно; у играющего вместо него качаются четыре линии.
+            Box(Modifier.width(36.dp).height(24.dp), contentAlignment = Alignment.CenterStart) {
+                if (active) {
+                    com.texfi.w0y.ui.components.HairPlayingMark(Modifier.size(24.dp), rect = true)
+                } else {
+                    Text(
+                        text = (index + 1).toString().padStart(2, '0'),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textMuted,
+                    )
+                }
+            }
+        } else Text(
             text = "${index + 1}",
             style = MaterialTheme.typography.bodySmall,
             color = if (active) colors.accent else colors.textMuted,
@@ -1086,7 +1101,7 @@ private fun QueueRow(
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (active) colors.accent else colors.text,
+                    color = if (active) (if (hair) tone else colors.accent) else colors.text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -1115,6 +1130,10 @@ private fun QueueRow(
             SpriteButton(Sprites.close, onClick = it, size = 16)
         }
     }
+    if (hair) {
+        Box(Modifier.fillMaxWidth().height(com.texfi.w0y.ui.theme.hairLook.line).background(colors.border.copy(alpha = 0.6f)))
+    }
+    }
 }
 
 /** Ручка перетаскивания: два ряда квадратов, область нажатия шире рисунка. */
@@ -1140,7 +1159,9 @@ private fun DragGrip(onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> 
             },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.size(14.dp, 12.dp)) {
+        if (com.texfi.w0y.ui.theme.isHair) {
+            com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.GRIP, colors.textMuted, Modifier.size(18.dp))
+        } else Canvas(Modifier.size(14.dp, 12.dp)) {
             val cell = 4.dp.toPx()
             val gap = 2.dp.toPx()
             for (row in 0 until 3) {
