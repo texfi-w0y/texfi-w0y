@@ -9,6 +9,7 @@ import com.texfi.w0y.data.Lyrics
 import com.texfi.w0y.data.LyricsRepository
 import com.texfi.w0y.data.SettingsRepository
 import com.texfi.w0y.data.SoundPreset
+import com.texfi.w0y.data.Reverb
 import com.texfi.w0y.data.SoundProfile
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.W0ySettings
@@ -233,6 +234,23 @@ class PlayerViewModel @Inject constructor(
         val now = effectiveSound.value
         viewModelScope.launch { library.setSound(song, SoundProfile(speed, now.pitch, now.reverb)) }
     }
+
+    /** Свой тон трека: скорость и эхо остаются как звучат сейчас. */
+    fun setTrackPitch(pitch: Float) {
+        val song = player.state.value.song ?: return
+        val now = effectiveSound.value
+        viewModelScope.launch { library.setSound(song, SoundProfile(now.speed, pitch, now.reverb)) }
+    }
+
+    /** Своё эхо трека: скорость и тон остаются как звучат сейчас. */
+    fun setTrackReverb(reverb: Reverb) {
+        val song = player.state.value.song ?: return
+        val now = effectiveSound.value
+        viewModelScope.launch { library.setSound(song, SoundProfile(now.speed, now.pitch, reverb)) }
+    }
+
+    /** Подсказка жестов показана — больше не повторяем. */
+    fun markGestureHintSeen() = viewModelScope.launch { settingsRepository.setGestureHintSeen(true) }
 
     fun toggleLike(song: SongItem) {
         viewModelScope.launch {

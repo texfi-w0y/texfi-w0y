@@ -262,7 +262,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 .padding(bottom = if (glassBars) 0.dp else barsHeight),
         ) {
             Box(Modifier.weight(1f)) {
-            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBarsInset provides if (glassBars) barsHeight else 0.dp) {
+            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (glassBars) barsHeight else 0.dp) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
                 Box(Modifier.fillMaxSize().softEnter(tab)) {
@@ -270,6 +270,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     Tab.HOME ->
                         HomeScreen(
                             onOpenSettings = { settingsOpen = true },
+                            onOpenPlayer = { playerExpanded = true },
                             onOpenLocalPlaylist = { id ->
                                 libraryViewModel.open(LibraryRoute.Local(id))
                                 tab = Tab.LIBRARY

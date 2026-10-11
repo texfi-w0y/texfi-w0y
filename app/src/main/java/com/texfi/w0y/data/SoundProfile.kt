@@ -21,7 +21,7 @@ data class SoundProfile(
     val isPlain: Boolean get() = speed == 1f && pitch == 1f && reverb == Reverb.OFF
 
     /** Короткая подпись для метки в списке: «0.85×», «1.25×». */
-    val label: String get() = "${speed}\u00d7".replace(".0\u00d7", "\u00d7")
+    val label: String get() = NumberText.speed(speed)
 
     companion object {
         val Plain = SoundProfile(1f, 1f, Reverb.OFF)

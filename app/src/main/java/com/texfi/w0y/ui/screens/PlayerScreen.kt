@@ -246,6 +246,8 @@ fun PlayerScreen(
         return
     }
 
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val layout = com.texfi.w0y.ui.theme.hairLook.layout
     val tint by rememberCoverTint(song.thumbnailUrl, colors.accent)
     val glow by animateColorAsState(
         targetValue = if (settings.playerCoverGlow) tint else Color.Transparent,
@@ -262,10 +264,19 @@ fun PlayerScreen(
             // чужой эффект, а плоский градиент — как её же фон.
             .drawBehind {
                 drawRect(
-                    Brush.verticalGradient(
-                        0f to glow.asGlow(GLOW_ALPHA),
-                        GLOW_STOP to Color.Transparent,
-                    ),
+                    if (hair) {
+                        // Hairline: один плавный спуск цвета обложки в фон, без шва.
+                        Brush.verticalGradient(
+                            0f to glow.asGlow(GLOW_ALPHA),
+                            0.5f to glow.asGlow(GLOW_ALPHA * 0.3f),
+                            1f to Color.Transparent,
+                        )
+                    } else {
+                        Brush.verticalGradient(
+                            0f to glow.asGlow(GLOW_ALPHA),
+                            GLOW_STOP to Color.Transparent,
+                        )
+                    },
                 )
             },
     ) {
@@ -276,7 +287,22 @@ fun PlayerScreen(
                 .navigationBarsPadding(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
         ) {
-            item {
+            if (hair) item {
+                HairPlayerHeader(
+                    onCollapse = onCollapse,
+                    position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
+                    visualizerOn = art == PlayerArt.VISUALIZER,
+                    onToggleArt = toggleArt,
+                    onStand = onStand,
+                )
+                if (findingClean) {
+                    Text(
+                        text = stringResource(R.string.player_finding_clean),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.accent,
+                    )
+                }
+            } else item {
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -331,7 +357,79 @@ fun PlayerScreen(
                 }
             }
 
-            item {
+            if (hair) item {
+                val progressNow = { if (state.durationMs > 0) ((dragPosition ?: position).toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f }
+                val visualizer: (@Composable () -> Unit)? =
+                    if (art == PlayerArt.VISUALIZER) {
+                        {
+                            Visualizer(
+                                bus = viewModel.spectrum,
+                                style = settings.visualizerStyle.forUi(settings.uiStyle),
+                                playing = state.isPlaying,
+                                sensitivity = settings.visualizerSensitivity,
+                                fps = settings.visualizerFps,
+                                backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
+                                modifier = Modifier.fillMaxSize().background(colors.surface),
+                            )
+                        }
+                    } else {
+                        null
+                    }
+                when (layout) {
+                    com.texfi.w0y.data.PlayerLayout.RING ->
+                        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 14.dp), contentAlignment = Alignment.Center) {
+                            com.texfi.w0y.ui.components.HairDisc(
+                                coverUrl = song.thumbnailUrl,
+                                songId = song.id,
+                                progress = progressNow,
+                                durationMs = state.durationMs,
+                                speed = effectiveSound.speed,
+                                size = minOf(maxWidth * com.texfi.w0y.ui.theme.HairTokens.DISC_SHARE, 340.dp),
+                                onToggle = viewModel.player::togglePlayPause,
+                                onNext = { viewModel.player.skipNext() },
+                                onPrevious = { viewModel.player.skipPrevious() },
+                                onTap = toggleArt,
+                                onSeek = viewModel.player::seekTo,
+                                content = visualizer,
+                            )
+                        }
+
+                    com.texfi.w0y.data.PlayerLayout.COMPACT ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            com.texfi.w0y.ui.components.HairDisc(
+                                coverUrl = song.thumbnailUrl,
+                                songId = song.id,
+                                progress = progressNow,
+                                durationMs = state.durationMs,
+                                speed = effectiveSound.speed,
+                                size = 148.dp,
+                                onToggle = viewModel.player::togglePlayPause,
+                                onNext = { viewModel.player.skipNext() },
+                                onPrevious = { viewModel.player.skipPrevious() },
+                                onTap = toggleArt,
+                                onSeek = viewModel.player::seekTo,
+                                content = visualizer,
+                            )
+                            Spacer(Modifier.width(14.dp))
+                            HairTitleBlock(song, layout, trackSound, Modifier.weight(1f))
+                        }
+
+                    com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
+                }
+                if (!settings.gestureHintSeen && layout != com.texfi.w0y.data.PlayerLayout.MINIMAL) {
+                    LaunchedEffect(Unit) {
+                        delay(HINT_MS)
+                        viewModel.markGestureHintSeen()
+                    }
+                    Text(
+                        text = stringResource(R.string.hl_hint_gestures),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textMuted,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    )
+                }
+            } else item {
                 // Обложка «дышит»: на паузе чуть сжимается, при смене трека
                 // подпрыгивает пружиной. Оба движения читаются только в слое.
                 val pop = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -411,7 +509,25 @@ fun PlayerScreen(
             }
 
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                if (hair) {
+                    if (layout != com.texfi.w0y.data.PlayerLayout.COMPACT) {
+                        HairTitleBlock(song, layout, trackSound)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    HairActionsRow(
+                        song = song,
+                        liked = liked,
+                        pinned = pinned,
+                        sharing = sharing,
+                        sleepLeftMs = sleepLeft,
+                        onLike = { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) },
+                        onPin = { viewModel.togglePin(song) },
+                        onAdd = { showPlaylists = true },
+                        onDownload = { viewModel.download(song) },
+                        onShare = viewModel::shareCard,
+                        onSleep = { if (sleepLeft == null) viewModel.startSleepTimer() else viewModel.cancelSleepTimer() },
+                    )
+                } else Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         if (song.explicit) {
                             ExplicitBadge()
@@ -489,7 +605,27 @@ fun PlayerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            item {
+            if (hair) item {
+                if (layout != com.texfi.w0y.data.PlayerLayout.RING) {
+                    HairSeekLine(
+                        positionMs = dragPosition ?: position,
+                        durationMs = state.durationMs,
+                        onDrag = { dragPosition = it },
+                        onDragEnd = {
+                            dragPosition?.let(viewModel.player::seekTo)
+                            dragPosition = null
+                        },
+                    )
+                }
+                HairTimeRow(
+                    positionMs = dragPosition ?: position,
+                    durationMs = state.durationMs,
+                    stepSec = settings.seekStepSec,
+                    onBack = { viewModel.seekBy(-settings.seekStepSec * 1000L) },
+                    onForward = { viewModel.seekBy(settings.seekStepSec * 1000L) },
+                )
+                Spacer(Modifier.height(8.dp))
+            } else item {
                 Seekbar(
                     positionMs = dragPosition ?: position,
                     durationMs = state.durationMs,
@@ -530,7 +666,19 @@ fun PlayerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            item {
+            if (hair) item {
+                HairTransport(
+                    playing = state.isPlaying,
+                    shuffle = state.shuffle,
+                    repeatActive = state.repeatMode != Player.REPEAT_MODE_OFF,
+                    repeatOne = state.repeatMode == Player.REPEAT_MODE_ONE,
+                    onShuffle = viewModel.player::toggleShuffle,
+                    onPrevious = viewModel.player::skipPrevious,
+                    onToggle = viewModel.player::togglePlayPause,
+                    onNext = { viewModel.player.skipNext() },
+                    onRepeat = viewModel.player::cycleRepeat,
+                )
+            } else item {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -786,17 +934,28 @@ fun PlayerScreen(
                             onSelect = { viewModel.setSoundPreset(SoundPreset.entries[it]) },
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = stringResource(R.string.player_speed_custom) + "  " + "%.2f×".format(effectiveSound.speed),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                        )
-                        PixelSlider(
-                            value = effectiveSound.speed,
-                            range = 0.2f..2.0f,
-                            step = 0.05f,
-                            onValueChange = viewModel::setTrackSpeed,
-                        )
+                        if (hair) {
+                            val reverbNames = Reverb.entries.associateWith { stringResource(it.label) }
+                            HairDials(
+                                sound = effectiveSound,
+                                reverbLabel = { reverbNames.getValue(it) },
+                                onSpeed = viewModel::setTrackSpeed,
+                                onPitch = viewModel::setTrackPitch,
+                                onReverb = viewModel::setTrackReverb,
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.player_speed_custom) + "  " + com.texfi.w0y.data.NumberText.speed(effectiveSound.speed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted,
+                            )
+                            PixelSlider(
+                                value = effectiveSound.speed,
+                                range = 0.2f..2.0f,
+                                step = 0.05f,
+                                onValueChange = viewModel::setTrackSpeed,
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -805,7 +964,7 @@ fun PlayerScreen(
                                         append(
                                             stringResource(
                                                 R.string.player_sound_speed,
-                                                effectiveSound.speed.toString(),
+                                                com.texfi.w0y.data.NumberText.speed(effectiveSound.speed).removeSuffix("\u00d7"),
                                             ),
                                         )
                                         if (effectiveSound.pitch != 1f) {
@@ -1107,6 +1266,9 @@ private fun formatTime(ms: Long): String {
 
 /** Пока играет — четыре раза в секунду; на паузе опроса нет вовсе. */
 private const val POSITION_POLL_MS = 250L
+
+/** Подсказка жестов висит, пока её не прочтут, но не дольше. */
+private const val HINT_MS = 9_000L
 private val LYRICS_HEIGHT = 440.dp
 
 /** Смахивание короче этого — случайное движение, а не переключение трека. */

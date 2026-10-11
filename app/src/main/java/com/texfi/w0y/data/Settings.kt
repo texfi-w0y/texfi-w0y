@@ -392,7 +392,7 @@ data class W0ySettings(
     // ── Hairline ─────────────────────────────────────────────────────────
     val lineWeight: LineWeight = LineWeight.THIN,
     val corners: CornerStyle = CornerStyle.SOFT,
-    val coverShape: CoverShape = CoverShape.DISC,
+    val coverShape: CoverShape = CoverShape.ROUNDED,
     val playerLayout: PlayerLayout = PlayerLayout.RING,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
     val density: Density = Density.COMFORTABLE,
@@ -496,7 +496,7 @@ class SettingsRepository @Inject constructor(
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: true,
                     lineWeight = prefs.enum(Keys.HL_WEIGHT, LineWeight.THIN),
                     corners = prefs.enum(Keys.HL_CORNERS, CornerStyle.SOFT),
-                    coverShape = prefs.enum(Keys.HL_COVER, CoverShape.DISC),
+                    coverShape = prefs.enum(Keys.HL_COVER, CoverShape.ROUNDED),
                     playerLayout = prefs.enum(Keys.HL_LAYOUT, PlayerLayout.RING),
                     caps = prefs.enum(Keys.HL_CAPS, CapsMode.TITLES_LABELS),
                     density = prefs.enum(Keys.HL_DENSITY, Density.COMFORTABLE),

@@ -41,6 +41,16 @@ fun DownloadButton(
 ) {
     val colors = LocalW0yColors.current
     val progress = LocalDownloadProgress.current[songId]
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairDownloadButton(
+            onDownload = onDownload,
+            done = downloaded || progress?.state == DownloadState.DONE,
+            waiting = progress?.state == DownloadState.WAITING || progress?.state == DownloadState.PAUSED,
+            running = progress?.state == DownloadState.RUNNING,
+            fraction = { ((progress?.percent ?: 0f) / 100f).coerceIn(0f, 1f) },
+        )
+        return
+    }
     when {
         downloaded || progress?.state == DownloadState.DONE ->
             SpriteButton(Sprites.check, onClick = {}, active = true)
@@ -65,6 +75,46 @@ fun DownloadButton(
                 )
             }
         }
+
+        else -> SpriteButton(Sprites.download, onClick = onDownload)
+    }
+}
+
+
+/**
+ * Загрузка в Hairline: стрелка → кольцо прогресса → галочка, нарисованная
+ * линией. Кольцо — тонкая синяя дуга по дорожке-разделителю.
+ */
+@Composable
+private fun HairDownloadButton(
+    onDownload: () -> Unit,
+    done: Boolean,
+    waiting: Boolean,
+    running: Boolean,
+    fraction: () -> Float,
+) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+    when {
+        done -> {
+            val draw = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (look.motion.draws) 0f else 1f) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (draw.value < 1f) draw.animateTo(1f, androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut))
+            }
+            com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHECK, tone, Modifier.size(20.dp), reveal = { draw.value })
+        }
+
+        waiting -> SpriteButton(Sprites.timer, onClick = {}, active = true)
+
+        running ->
+            androidx.compose.foundation.Canvas(Modifier.size(20.dp)) {
+                val w = look.line.toPx()
+                val inset = w / 2f + 1.dp.toPx()
+                val rect = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
+                drawArc(colors.border, 0f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), rect, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+                drawArc(colors.progress, -90f, 360f * fraction(), false, androidx.compose.ui.geometry.Offset(inset, inset), rect, style = androidx.compose.ui.graphics.drawscope.Stroke(w * 1.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
 
         else -> SpriteButton(Sprites.download, onClick = onDownload)
     }

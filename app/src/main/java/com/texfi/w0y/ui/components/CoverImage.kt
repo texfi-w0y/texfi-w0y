@@ -49,7 +49,7 @@ fun CoverImage(
                 else ->
                     when (look.coverShape) {
                         com.texfi.w0y.data.CoverShape.DISC -> androidx.compose.foundation.shape.CircleShape
-                        com.texfi.w0y.data.CoverShape.ROUNDED -> RoundedCornerShape(percent = 14)
+                        com.texfi.w0y.data.CoverShape.ROUNDED -> RoundedCornerShape(percent = com.texfi.w0y.ui.theme.HairTokens.COVER_ROUND_PERCENT)
                         com.texfi.w0y.data.CoverShape.SQUARE -> androidx.compose.ui.graphics.RectangleShape
                     }
             }

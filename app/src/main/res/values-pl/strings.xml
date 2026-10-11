@@ -635,4 +635,17 @@
     <string name="hl_mini_stopped">ZATRZYMANO</string>
     <string name="hl_undo">COFNIJ</string>
     <string name="hl_hint_gestures">Dwa stuknięcia w dysk — pauza · przesunięcie — zmiana utworu · przytrzymanie i ruch po pierścieniu — przewijanie</string>
+    <string name="player_collapse">Zwiń odtwarzacz</string>
+    <string name="player_visualizer">Wizualizator</string>
+    <string name="player_stand">Tryb podstawki</string>
+    <string name="player_cd_like">Lubię</string>
+    <string name="player_cd_pin">Przypnij do szybkiego wybierania</string>
+    <string name="player_cd_playlist">Do playlisty</string>
+    <string name="player_cd_share">Udostępnij</string>
+    <string name="player_cd_sleep">Wyłącznik czasowy</string>
+    <string name="player_cd_shuffle">Losowo</string>
+    <string name="player_cd_repeat">Powtarzaj</string>
+    <string name="hl_dial_speed">Prędkość</string>
+    <string name="hl_dial_pitch">Ton</string>
+    <string name="hl_dial_reverb">Pogłos</string>
 </resources>

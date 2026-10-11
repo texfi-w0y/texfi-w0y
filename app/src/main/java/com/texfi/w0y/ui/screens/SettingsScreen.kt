@@ -243,7 +243,7 @@ fun SettingsScreen(
 
         // Под стеклянными панелями список уходит под них, а отступ снизу
         // докручивает последний пункт над ними; без стекла — над жестами.
-        val barsInset = com.texfi.w0y.ui.components.LocalBarsInset.current
+        val barsInset = com.texfi.w0y.ui.components.LocalBottomInset.current
         LazyColumn(
             Modifier
                 .fillMaxWidth()
@@ -801,7 +801,7 @@ private fun settingsRows(
                     SettingControl.Choice(
                         options = listOf(0.75f, 0.85f, 1f, 1.25f, 1.5f),
                         selected = settings.speed,
-                        label = { "${it}×".replace(".0×", "×") },
+                        label = { com.texfi.w0y.data.NumberText.speed(it) },
                         onSelect = viewModel::setSpeed,
                     ),
             ),
@@ -944,7 +944,7 @@ private fun settingsRows(
                 section = SettingsSection.PLAYER,
                 title = stringResource(R.string.viz_sensitivity_title),
                 description = stringResource(R.string.viz_sensitivity_desc),
-                control = SettingControl.Choice(listOf(0.5f, 1f, 1.5f, 2f), settings.visualizerSensitivity, { "×" + it.toString().removeSuffix(".0") }, viewModel::setVisualizerSensitivity),
+                control = SettingControl.Choice(listOf(0.5f, 1f, 1.5f, 2f), settings.visualizerSensitivity, { com.texfi.w0y.data.NumberText.speed(it) }, viewModel::setVisualizerSensitivity),
             ),
         )
         add(

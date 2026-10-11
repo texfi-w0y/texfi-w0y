@@ -64,6 +64,21 @@ object HairMath {
             else -> raw
         }.coerceIn(0f, 1f)
 
+    /**
+     * Доля шкалы круглого регулятора по точке касания. Шкала — 270°: от
+     * левого нижнего угла по часовой до правого нижнего; нижние 90° пусты.
+     * Касание в пустом секторе прилипает к ближайшему краю.
+     */
+    fun dialFraction(dx: Float, dy: Float): Float {
+        val deg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() // 0 вправо, + по часовой
+        val rel = ((deg - 135f) % 360f + 360f) % 360f
+        return when {
+            rel <= 270f -> rel / 270f
+            rel < 315f -> 1f
+            else -> 0f
+        }
+    }
+
     /** «1:05» или «1:02:03». */
     fun formatTime(ms: Long): String {
         if (ms <= 0) return "0:00"
@@ -75,5 +90,5 @@ object HairMath {
     }
 
     /** Скорость одинаково везде и независимо от локали: «1.00×». */
-    fun speedText(speed: Float): String = "%.2f×".format(java.util.Locale.ROOT, speed)
+    fun speedText(speed: Float): String = com.texfi.w0y.data.NumberText.speed(speed)
 }

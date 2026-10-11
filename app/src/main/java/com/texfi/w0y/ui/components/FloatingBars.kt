@@ -384,7 +384,7 @@ private const val NAV_STEPS = 5
  * в отступ снизу: экран виден сквозь стекло, но последний трек всё равно
  * докручивается до места над панелями. Без стекла — ноль.
  */
-val LocalBarsInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+val LocalBottomInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
 
 
 /**

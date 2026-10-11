@@ -133,6 +133,8 @@ fun HairIcon(
     description: String? = null,
     /** Заливка замкнутых контуров 0..1: сердце и закрепление заполняются, когда включены. */
     fill: () -> Float = { 0f },
+    /** Если задан — контуры «рисуются» от нуля до целого (галочка загрузки); читается при рисовании. */
+    reveal: (() -> Float)? = null,
 ) {
     val look = hairLook
     val style = look.iconStyle
@@ -154,6 +156,8 @@ fun HairIcon(
                     )
                 val dx = (size.width - GRID * k) / 2f
                 val dy = (size.height - GRID * k) / 2f
+                val measures = if (reveal != null) parts.map { p -> androidx.compose.ui.graphics.PathMeasure().also { it.setPath(p, false) } } else null
+                val seg = Path()
                 onDrawBehind {
                     translate(dx, dy) {
                         scale(k, k, pivot = androidx.compose.ui.geometry.Offset.Zero) {
@@ -161,7 +165,14 @@ fun HairIcon(
                                 val f = fill()
                                 val base = if (style == IconStyle.FILLED_OUTLINE) FILL_ALPHA else 0f
                                 if (closed[i] && (base > 0f || f > 0f)) drawPath(p, color.copy(alpha = maxOf(base, f)), style = Fill)
-                                drawPath(p, color, style = stroke)
+                                val r = reveal?.invoke() ?: 1f
+                                if (measures != null && r < 1f) {
+                                    seg.rewind()
+                                    measures[i].getSegment(0f, measures[i].length * r, seg, true)
+                                    drawPath(seg, color, style = stroke)
+                                } else {
+                                    drawPath(p, color, style = stroke)
+                                }
                             }
                         }
                     }

@@ -247,7 +247,7 @@ fun HairDisc(
     val seek by rememberUpdatedState(onSeek)
     val cornerShare = when (look.coverShape) {
         CoverShape.DISC -> 0.5f
-        CoverShape.ROUNDED -> 0.16f
+        CoverShape.ROUNDED -> com.texfi.w0y.ui.theme.HairTokens.COVER_ROUND_SHARE
         CoverShape.SQUARE -> 0f
     }
 
@@ -471,7 +471,7 @@ private fun HairMiniDisc(url: String?, progress: () -> Float, onClick: () -> Uni
                 val rect = Rect(stroke, stroke, size.width - stroke, size.height - stroke)
                 val radius = when (look.coverShape) {
                     CoverShape.DISC -> min(rect.width, rect.height) / 2f
-                    CoverShape.ROUNDED -> rect.width * 0.16f
+                    CoverShape.ROUNDED -> rect.width * com.texfi.w0y.ui.theme.HairTokens.COVER_ROUND_SHARE
                     CoverShape.SQUARE -> 0f
                 }
                 val frame = framePath(rect, radius)
@@ -645,5 +645,72 @@ fun HairIconButton(
         contentAlignment = Alignment.Center,
     ) {
         HairIcon(glyph, tint, Modifier.size(size), fill = fill)
+    }
+}
+
+
+/**
+ * Герой главной: то, что играет, диском с кольцом прогресса. Тап по диску
+ * открывает плеер; пауза, смена трека и перемотка — теми же жестами, что в
+ * самом плеере.
+ */
+@Composable
+fun HairNowHero(
+    state: PlayerUiState,
+    positionProvider: () -> Long,
+    onToggle: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val song = state.song ?: return
+    val colors = LocalW0yColors.current
+    var position by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(state.isPlaying, song.id) {
+        position = positionProvider()
+        while (state.isPlaying) {
+            delay(500)
+            position = positionProvider()
+        }
+    }
+    val progress = { if (state.durationMs > 0) position.toFloat() / state.durationMs else 0f }
+    Column(modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        HairDisc(
+            coverUrl = song.thumbnailUrl,
+            songId = song.id,
+            progress = progress,
+            durationMs = state.durationMs,
+            speed = 1f,
+            size = 232.dp,
+            onToggle = onToggle,
+            onNext = onNext,
+            onPrevious = onPrevious,
+            onTap = onOpen,
+            onSeek = onSeek,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+            color = colors.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+        Text(
+            text = song.artist,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            HairIconButton(HairGlyph.PREVIOUS, stringResource(R.string.hl_cd_prev), onPrevious, tint = colors.text)
+            HairPlayButton(playing = state.isPlaying, onClick = onToggle, size = 60.dp)
+            HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text)
+        }
     }
 }

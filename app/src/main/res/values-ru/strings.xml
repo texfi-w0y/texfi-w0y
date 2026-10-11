@@ -635,4 +635,17 @@
     <string name="hl_mini_stopped">ОСТАНОВЛЕНО</string>
     <string name="hl_undo">ОТМЕНИТЬ</string>
     <string name="hl_hint_gestures">Двойной тап по диску — пауза · свайп — смена трека · удержание и движение по кольцу — перемотка</string>
+    <string name="player_collapse">Свернуть плеер</string>
+    <string name="player_visualizer">Визуализатор</string>
+    <string name="player_stand">Режим подставки</string>
+    <string name="player_cd_like">Нравится</string>
+    <string name="player_cd_pin">Закрепить в быстром наборе</string>
+    <string name="player_cd_playlist">В плейлист</string>
+    <string name="player_cd_share">Поделиться</string>
+    <string name="player_cd_sleep">Таймер сна</string>
+    <string name="player_cd_shuffle">Перемешать</string>
+    <string name="player_cd_repeat">Повтор</string>
+    <string name="hl_dial_speed">Скорость</string>
+    <string name="hl_dial_pitch">Тон</string>
+    <string name="hl_dial_reverb">Эхо</string>
 </resources>

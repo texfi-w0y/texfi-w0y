@@ -1,10 +1,16 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.texfi.w0y.ui.theme.styledSurface
 import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,15 +77,20 @@ private const val DIAL_COLUMNS = 3
 private const val DIAL_ROWS = 3
 private const val DIAL_PAGE = DIAL_COLUMNS * DIAL_ROWS
 private val TILE_GAP = 10.dp
+private const val HAIR_COLUMNS = 2
+private const val HAIR_ROWS = 3
 
 @Composable
 fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenLocalPlaylist: (Long) -> Unit,
+    onOpenPlayer: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
     home: HomeViewModel = hiltViewModel(),
 ) {
     val colors = LocalW0yColors.current
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val playing by viewModel.player.state.collectAsStateWithLifecycle()
     val navigator = LocalBrowseNavigator.current
     val dial by viewModel.speedDial.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
@@ -101,6 +112,22 @@ fun HomeScreen(
         }
     }
 
+    val openDial: (DialItem) -> Unit = { item ->
+        when (item.kind) {
+            PinEntity.KIND_ARTIST ->
+                navigator.open(BrowseRoute.Artist(item.id, item.title, item.thumbnailUrl))
+
+            // Свой плейлист живёт в базе, а не на YouTube:
+            // его открывает библиотека, а не страница альбома.
+            PinEntity.KIND_PLAYLIST if item.localPlaylistId != null ->
+                onOpenLocalPlaylist(item.localPlaylistId)
+
+            PinEntity.KIND_ALBUM, PinEntity.KIND_PLAYLIST ->
+                navigator.open(BrowseRoute.Album(item.id, item.title, item.thumbnailUrl))
+
+            else -> viewModel.playDial(item)
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     PixelPullRefresh(
         refreshing = loadingShelves || syncing,
@@ -112,16 +139,32 @@ fun HomeScreen(
         },
         modifier = Modifier.fillMaxSize(),
     ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBarsInset.current)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current)) {
         item {
             ScreenTitle(
-                title = stringResource(R.string.app_name),
+                title = stringResource(if (hair) R.string.tab_home else R.string.app_name),
                 // Замер старта стоит рядом с названием: обещание «быстро»
                 // проверяется на этом же экране, а не на слово. Номер сборки
                 // отсюда ушёл — он для отладки и живёт в «О приложении».
-                subtitle = startupAverage?.let { stringResource(R.string.home_meta, it.toInt()) },
+                // В Hairline шапка чистая: замер живёт в «О приложении».
+                subtitle = if (hair) null else startupAverage?.let { stringResource(R.string.home_meta, it.toInt()) },
                 actions = { SpriteButton(Sprites.gear, onClick = onOpenSettings, size = 22) },
             )
+        }
+
+        // Герой Hairline: что играет сейчас — диском с кольцом прогресса.
+        if (hair && playing.song != null) {
+            item(key = "hero") {
+                com.texfi.w0y.ui.components.HairNowHero(
+                    state = playing,
+                    positionProvider = viewModel.player::positionMs,
+                    onToggle = viewModel.player::togglePlayPause,
+                    onNext = { viewModel.player.skipNext() },
+                    onPrevious = { viewModel.player.skipPrevious() },
+                    onSeek = viewModel.player::seekTo,
+                    onOpen = onOpenPlayer,
+                )
+            }
         }
 
         item {
@@ -139,7 +182,7 @@ fun HomeScreen(
             item {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-                        repeat(DIAL_COLUMNS) { GhostTile(Modifier.weight(1f)) }
+                        repeat(if (hair) HAIR_COLUMNS else DIAL_COLUMNS) { GhostTile(Modifier.weight(1f)) }
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
@@ -152,24 +195,9 @@ fun HomeScreen(
             }
         } else {
             item {
-                SpeedDialPager(
+                if (hair) HairDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem) else SpeedDialPager(
                     items = dial,
-                    onOpen = { item ->
-                        when (item.kind) {
-                            PinEntity.KIND_ARTIST ->
-                                navigator.open(BrowseRoute.Artist(item.id, item.title, item.thumbnailUrl))
-
-                            // Свой плейлист живёт в базе, а не на YouTube:
-                            // его открывает библиотека, а не страница альбома.
-                            PinEntity.KIND_PLAYLIST if item.localPlaylistId != null ->
-                                onOpenLocalPlaylist(item.localPlaylistId)
-
-                            PinEntity.KIND_ALBUM, PinEntity.KIND_PLAYLIST ->
-                                navigator.open(BrowseRoute.Album(item.id, item.title, item.thumbnailUrl))
-
-                            else -> viewModel.playDial(item)
-                        }
-                    },
+                    onOpen = { item -> openDial(item) },
                     onLongPress = { menuItem = it },
                 )
             }
@@ -369,8 +397,12 @@ private const val UNDO_MS = 5_000L
  * клетки сразу показывают, сколько их будет и что с ними делать.
  */
 @Composable
-private fun GhostTile(modifier: Modifier = Modifier) {
+private fun GhostTile(modifier: Modifier = Modifier, square: Boolean = true) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        HairGhostTile(modifier, square)
+        return
+    }
     Box(
         modifier
             .aspectRatio(1f)
@@ -458,6 +490,124 @@ private fun SpeedDialPager(
                                 .padding(horizontal = 3.dp)
                                 .size(if (index == state.currentPage) 8.dp else 6.dp)
                                 .background(if (index == state.currentPage) colors.accent else colors.border),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * Пустой слот быстрого набора в Hairline: пунктирный контур с плюсом,
+ * который медленно «дышит» прозрачностью — зовёт закрепить что-нибудь.
+ */
+@Composable
+private fun HairGhostTile(modifier: Modifier = Modifier, square: Boolean = true) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val phase = com.texfi.w0y.ui.components.rememberAnimationPhase(3_600, 12, enabled = look.motion.moves)
+    val shape = com.texfi.w0y.ui.theme.styleTokens.card
+    androidx.compose.foundation.Canvas(if (square) modifier.aspectRatio(1f) else modifier) {
+        val w = look.line.toPx()
+        val breath = if (look.motion.moves) 0.55f + 0.45f * (0.5f + 0.5f * kotlin.math.sin(phase.floatValue)) else 1f
+        val outline = shape.createOutline(androidx.compose.ui.geometry.Size(size.width - w, size.height - w), layoutDirection, this)
+        val path = androidx.compose.ui.graphics.Path().apply { addOutline(outline) }
+        translate(w / 2f, w / 2f) {
+            drawPath(
+                path,
+                colors.outline.copy(alpha = breath),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    w,
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 6.dp.toPx())),
+                ),
+            )
+        }
+        val c = center
+        val r = 8.dp.toPx()
+        drawLine(colors.textMuted.copy(alpha = breath), androidx.compose.ui.geometry.Offset(c.x - r, c.y), androidx.compose.ui.geometry.Offset(c.x + r, c.y), w, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(colors.textMuted.copy(alpha = breath), androidx.compose.ui.geometry.Offset(c.x, c.y - r), androidx.compose.ui.geometry.Offset(c.x, c.y + r), w, androidx.compose.ui.graphics.StrokeCap.Round)
+    }
+}
+
+/**
+ * Быстрый набор Hairline: сетка контур-плиток 2 в ряд, по три ряда на
+ * страницу; листается вбок. Плитка, на которую открыто меню, поднята —
+ * выше и с акцентным контуром.
+ */
+@Composable
+private fun HairDialGrid(
+    items: List<DialItem>,
+    onOpen: (DialItem) -> Unit,
+    onLongPress: (DialItem) -> Unit,
+    menuItem: DialItem?,
+) {
+    val colors = LocalW0yColors.current
+    val perPage = HAIR_COLUMNS * HAIR_ROWS
+    val pages = items.chunked(perPage).map { page -> page + List(perPage - page.size) { null } }
+    val state = rememberPagerState(pageCount = { pages.size })
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val tile = (maxWidth - Gutter * 2 - TILE_GAP * (HAIR_COLUMNS - 1)) / HAIR_COLUMNS
+        // Квадратная обложка + подпись в две строки + поля плитки.
+        val tileHeight = tile - 20.dp + 8.dp + 40.dp + 20.dp
+        val pageHeight = tileHeight * HAIR_ROWS + TILE_GAP * (HAIR_ROWS - 1)
+        Column {
+            HorizontalPager(
+                state = state,
+                pageSpacing = Gutter * 2,
+                contentPadding = PaddingValues(horizontal = Gutter),
+                modifier = Modifier.height(pageHeight),
+            ) { page ->
+                Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+                    pages[page].chunked(HAIR_COLUMNS).forEach { row ->
+                        Row(Modifier.height(tileHeight), horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+                            row.forEach { item ->
+                                if (item == null) {
+                                    GhostTile(Modifier.weight(1f).fillMaxHeight(), square = false)
+                                    return@forEach
+                                }
+                                val lifted = menuItem == item
+                                SpeedDialTile(
+                                    title = item.title,
+                                    subtitle = item.subtitle,
+                                    thumbnailUrl = item.thumbnailUrl,
+                                    pinned = item.pinned,
+                                    kindSprite =
+                                        when (item.kind) {
+                                            PinEntity.KIND_ARTIST -> Sprites.artist
+                                            PinEntity.KIND_ALBUM, PinEntity.KIND_PLAYLIST -> Sprites.release
+                                            else -> null
+                                        },
+                                    round = item.kind == PinEntity.KIND_ARTIST,
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .graphicsLayer {
+                                                val k = if (lifted) 1.05f else 1f
+                                                scaleX = k
+                                                scaleY = k
+                                            },
+                                    onClick = { onOpen(item) },
+                                    onLongClick = { onLongPress(item) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            if (pages.size > 1) {
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    repeat(pages.size) { index ->
+                        val on = index == state.currentPage
+                        Box(
+                            Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(if (on) 7.dp else 5.dp)
+                                .border(com.texfi.w0y.ui.theme.hairLook.line, if (on) colors.accentText else colors.outline, CircleShape)
+                                .background(if (on) colors.accentText else Color.Transparent, CircleShape),
                         )
                     }
                 }

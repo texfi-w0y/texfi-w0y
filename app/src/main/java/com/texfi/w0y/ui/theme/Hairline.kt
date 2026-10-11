@@ -58,6 +58,10 @@ object HairTokens {
     /** Диск плеера: доля ширины экрана. */
     const val DISC_SHARE = 0.78f
 
+    /** Скруглённый квадрат обложки трека: чуть-чуть, процент от стороны. */
+    const val COVER_ROUND_PERCENT = 10
+    const val COVER_ROUND_SHARE = COVER_ROUND_PERCENT / 100f
+
     /** Минимальная цель касания. */
     val TOUCH: Dp = 48.dp
 }
@@ -84,7 +88,7 @@ enum class MotionLevel {
 data class HairlineLook(
     val weight: LineWeight = LineWeight.THIN,
     val corners: CornerStyle = CornerStyle.SOFT,
-    val coverShape: CoverShape = CoverShape.DISC,
+    val coverShape: CoverShape = CoverShape.ROUNDED,
     val layout: PlayerLayout = PlayerLayout.RING,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
     val density: Density = Density.COMFORTABLE,
@@ -186,7 +190,7 @@ fun hairTitleCase(text: String, caps: CapsMode): String = if (caps == CapsMode.T
 fun hairCoverShape(look: HairlineLook): androidx.compose.ui.graphics.Shape =
     when (look.coverShape) {
         CoverShape.DISC -> androidx.compose.foundation.shape.CircleShape
-        CoverShape.ROUNDED -> androidx.compose.foundation.shape.RoundedCornerShape(percent = 14)
+        CoverShape.ROUNDED -> androidx.compose.foundation.shape.RoundedCornerShape(percent = HairTokens.COVER_ROUND_PERCENT)
         CoverShape.SQUARE -> androidx.compose.ui.graphics.RectangleShape
     }
 

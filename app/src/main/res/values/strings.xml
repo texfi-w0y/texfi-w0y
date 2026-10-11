@@ -635,4 +635,17 @@
     <string name="hl_mini_stopped">STOPPED</string>
     <string name="hl_undo">UNDO</string>
     <string name="hl_hint_gestures">Double tap the disc to pause · swipe it to change track · hold and move around the ring to seek</string>
+    <string name="player_collapse">Collapse player</string>
+    <string name="player_visualizer">Visualizer</string>
+    <string name="player_stand">Stand mode</string>
+    <string name="player_cd_like">Like</string>
+    <string name="player_cd_pin">Pin to speed dial</string>
+    <string name="player_cd_playlist">Add to playlist</string>
+    <string name="player_cd_share">Share</string>
+    <string name="player_cd_sleep">Sleep timer</string>
+    <string name="player_cd_shuffle">Shuffle</string>
+    <string name="player_cd_repeat">Repeat</string>
+    <string name="hl_dial_speed">Speed</string>
+    <string name="hl_dial_pitch">Pitch</string>
+    <string name="hl_dial_reverb">Reverb</string>
 </resources>

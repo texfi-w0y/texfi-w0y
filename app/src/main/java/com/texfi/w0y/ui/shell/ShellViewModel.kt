@@ -21,7 +21,7 @@ import javax.inject.Inject
 data class LookState(
     val weight: com.texfi.w0y.data.LineWeight = com.texfi.w0y.data.LineWeight.THIN,
     val corners: com.texfi.w0y.data.CornerStyle = com.texfi.w0y.data.CornerStyle.SOFT,
-    val cover: com.texfi.w0y.data.CoverShape = com.texfi.w0y.data.CoverShape.DISC,
+    val cover: com.texfi.w0y.data.CoverShape = com.texfi.w0y.data.CoverShape.ROUNDED,
     val layout: com.texfi.w0y.data.PlayerLayout = com.texfi.w0y.data.PlayerLayout.RING,
     val caps: com.texfi.w0y.data.CapsMode = com.texfi.w0y.data.CapsMode.TITLES_LABELS,
     val density: com.texfi.w0y.data.Density = com.texfi.w0y.data.Density.COMFORTABLE,
