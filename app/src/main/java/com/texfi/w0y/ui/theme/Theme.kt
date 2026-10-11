@@ -272,7 +272,14 @@ fun resolveColors(mode: ThemeMode, accent: Accent, customAccent: Int, style: UiS
         text = Contrast.ensure(tinted.text, ground),
         textMuted = Contrast.ensure(tinted.textMuted, if (tinted.glass) GlassOpaqueSurface else tinted.surface),
         onAccent = Contrast.on(tinted.accent),
-        accentText = Contrast.ensure(tinted.accent, ground),
+        // Hairline: текст акцентом лежит и на карточках, и на «приподнятых»
+        // поверхностях — читаться он должен на самой неудобной из них.
+        accentText =
+            if (hair) {
+                listOf(ground, tinted.surface, tinted.surfaceHigh).fold(tinted.accent) { c, g -> Contrast.ensure(c, g) }
+            } else {
+                Contrast.ensure(tinted.accent, ground)
+            },
         // Прогресс — синий; на светлой теме берём тот, что держит контраст линии 3:1.
         progress = Contrast.ensure(TexFiBlue, ground, if (hair) 3f else Contrast.TEXT),
     )
