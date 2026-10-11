@@ -1,6 +1,8 @@
 package com.texfi.w0y.ui.theme
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -22,7 +24,10 @@ fun Modifier.screenBackground(): Modifier {
     val colors = LocalW0yColors.current
     if (isHair) {
         // Hairline: тот же «чертёжный лист», что под всем приложением — холодный отсвет и сетка.
+        // Оверлеи лежат под строкой состояния: заливку продлеваем вверх, чтобы не было шва.
+        val statusTop = WindowInsets.statusBars.getTop(androidx.compose.ui.platform.LocalDensity.current).toFloat()
         return background(colors.background).drawBehind {
+            drawRect(colors.background, Offset(0f, -statusTop), androidx.compose.ui.geometry.Size(size.width, statusTop))
             drawRect(Brush.verticalGradient(0f to colors.progress.copy(alpha = 0.10f), 0.5f to Color.Transparent))
             val step = 48.dp.toPx()
             val grid = androidx.compose.ui.graphics.Path()

@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.verticalScroll
 import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
@@ -319,7 +320,70 @@ fun PlayerScreen(
                 )
             },
     ) {
-        LazyColumn(
+        androidx.compose.animation.AnimatedContent(
+            targetState = hair && lyricsOn,
+            transitionSpec = {
+                val spec = com.texfi.w0y.ui.theme.HairTokens.EaseOut
+                (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec)) +
+                    androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec)) { it / 12 } +
+                    androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec), initialScale = 0.96f))
+                    .togetherWith(
+                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS)) +
+                            androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS), targetScale = 1.04f),
+                    )
+            },
+            label = "lyricsPage",
+        ) { lyricsPage ->
+            if (lyricsPage) {
+                HairLyricsPage(
+                    song = song,
+                    lyrics = lyrics,
+                    translation = translation,
+                    positionProvider = viewModel.player::positionMs,
+                    playing = state.isPlaying,
+                    onSeekLine = seekNow,
+                    onClose = { lyricsOn = false },
+                    translate = {
+                        if (lyrics != null) {
+                            LyricsLangRow(
+                                selected = lyricsLang,
+                                failed = lyricsLang.isNotBlank() && translation == null && !translating,
+                                onSelect = viewModel::setLyricsLang,
+                            )
+                        }
+                    },
+                    controls = {
+                        HairSeekLine(
+                            positionMs = dragPosition ?: position,
+                            durationMs = knownDuration,
+                            onDrag = { dragPosition = it },
+                            onDragEnd = {
+                                dragPosition?.let(seekNow)
+                                dragPosition = null
+                            },
+                        )
+                        HairTimeRow(
+                            positionMs = dragPosition ?: position,
+                            durationMs = knownDuration,
+                            stepSec = settings.seekStepSec,
+                            onBack = { seekStep(-settings.seekStepSec * 1000L) },
+                            onForward = { seekStep(settings.seekStepSec * 1000L) },
+                        )
+                        HairTransport(
+                            playing = state.isPlaying,
+                            shuffle = state.shuffle,
+                            repeatActive = state.repeatMode != Player.REPEAT_MODE_OFF,
+                            repeatOne = state.repeatMode == Player.REPEAT_MODE_ONE,
+                            onShuffle = viewModel.player::toggleShuffle,
+                            onPrevious = viewModel.player::skipPrevious,
+                            onToggle = viewModel.player::togglePlayPause,
+                            onNext = { viewModel.player.skipNext() },
+                            onRepeat = viewModel.player::cycleRepeat,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    },
+                )
+            } else LazyColumn(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
@@ -867,7 +931,7 @@ fun PlayerScreen(
             stickyHeader {
                 // Полоса вкладок липнет к верху: список под ней едет, а
                 // переключиться можно не возвращаясь наверх.
-                Box(Modifier.background(if (hair) colors.background.copy(alpha = 0.78f) else colors.background).padding(bottom = 10.dp)) {
+                Box(Modifier.then(if (hair) Modifier.background(Brush.verticalGradient(listOf(colors.background.copy(alpha = 0.94f), colors.background.copy(alpha = 0.94f), Color.Transparent))) else Modifier.background(colors.background)).padding(bottom = 14.dp)) {
                     // В Hairline текст живёт в диске, вкладок две.
                     val tabs = if (hair) PlayerTab.entries.filter { it != PlayerTab.LYRICS } else PlayerTab.entries
                     PixelSegmented(
@@ -1154,6 +1218,7 @@ fun PlayerScreen(
                     }
             }
             item { Spacer(Modifier.height(30.dp)) }
+        }
         }
 
         if (showPlaylists) {

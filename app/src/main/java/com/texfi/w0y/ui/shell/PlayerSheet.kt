@@ -32,6 +32,10 @@ import kotlinx.coroutines.launch
 private val OpenSpring = tween<Float>(W0yMotion.SLOW_MS, easing = W0yMotion.StepWideBack)
 private val CloseSpring = tween<Float>(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)
 
+/** Hairline: плавная пружина вместо ступеней — шторка тянется за пальцем и мягко садится. */
+private val HairOpen = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.82f, stiffness = 260f)
+private val HairClose = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.92f, stiffness = 340f)
+
 /**
  * Полноэкранный плеер как шторка над мини-плеером.
  *
@@ -48,6 +52,8 @@ fun PlayerSheet(
     content: @Composable () -> Unit,
 ) {
     val haptic = rememberHaptics()
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val moves = com.texfi.w0y.ui.theme.hairLook.motion.moves
     val scope = rememberCoroutineScope()
     var openness by remember { mutableFloatStateOf(if (expanded) 1f else 0f) }
     var job by remember { mutableStateOf<Job?>(null) }
@@ -59,7 +65,7 @@ fun PlayerSheet(
         job?.cancel()
         job =
             scope.launch {
-                animate(openness, target, animationSpec = if (target > 0.5f) OpenSpring else CloseSpring) { value, _ ->
+                animate(openness, target, animationSpec = if (hair && moves) { if (target > 0.5f) HairOpen else HairClose } else if (target > 0.5f) OpenSpring else CloseSpring) { value, _ ->
                     openness = value
                 }
             }
@@ -120,13 +126,14 @@ fun PlayerSheet(
                 travelHolder[0] = travel
                 val closed = 1f - openness
                 translationY = closed * travel
-                val scale = 1f - 0.1f * closed.coerceIn(0f, 1f)
+                // Hairline: при тяге плеер сжимается к мини-плееру и скругляется, а не просто едет вниз.
+                val scale = 1f - (if (hair) 0.16f else 0.1f) * closed.coerceIn(0f, 1f)
                 scaleX = scale
                 scaleY = scale
                 transformOrigin = TransformOrigin(0.5f, 1f)
-                alpha = (openness * 2.4f).coerceIn(0f, 1f)
+                alpha = if (hair) (1f - closed * 0.9f).coerceIn(0f, 1f).let { if (closed < 0.3f) 1f else it } else (openness * 2.4f).coerceIn(0f, 1f)
                 clip = true
-                shape = RoundedCornerShape(closed.coerceIn(0f, 1f) * 20.dp.toPx())
+                shape = RoundedCornerShape(closed.coerceIn(0f, 1f) * (if (hair) 36.dp else 20.dp).toPx())
             },
     ) {
         content()

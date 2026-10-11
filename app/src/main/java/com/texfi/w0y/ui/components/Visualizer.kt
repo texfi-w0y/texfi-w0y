@@ -322,7 +322,7 @@ private fun DrawScope.hairLines(levels: FloatArray, peaks: FloatArray, line: Col
 /** Hairline: «орбита» — три кольца дышат от баса, по окружности лучи спектра и медленно бегущая метка. */
 private fun DrawScope.hairOrbit(levels: FloatArray, bass: Float, frame: Long, line: Color, accent: Color, progress: Color, grid: Color, w: Float) {
     val c = center
-    val base = min(size.width, size.height) * 0.20f
+    val base = min(size.width, size.height) * 0.17f
     val pulse = bass.coerceIn(0f, 1f)
     for (k in 0..2) {
         val r = base * (1f + 0.34f * k) + pulse * base * (0.10f + 0.07f * k)
@@ -331,7 +331,7 @@ private fun DrawScope.hairOrbit(levels: FloatArray, bass: Float, frame: Long, li
     val n = levels.size * 2
     val spin = frame * 0.004f
     val r0 = base * 1.75f
-    val reach = min(size.width, size.height) * 0.20f
+    val reach = min(size.width, size.height) * 0.15f
     for (i in 0 until n) {
         val v = levels[if (i < levels.size) i else n - 1 - i]
         val a = (i.toFloat() / n) * 2f * PI.toFloat() - PI.toFloat() / 2f + spin

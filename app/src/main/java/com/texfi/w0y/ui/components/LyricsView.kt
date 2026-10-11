@@ -65,6 +65,8 @@ fun LyricsView(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
     centered: Boolean = false,
+    /** Hairline-страница текста: строки крупнее и жирнее. */
+    big: Boolean = false,
 ) {
     val colors = LocalW0yColors.current
     val list = rememberLazyListState()
@@ -95,7 +97,7 @@ fun LyricsView(
         auto[0] = false
     }
 
-    val base = size.sp.sp
+    val base = size.sp.sp * (if (big) 1.2f else 1f)
     val hair = com.texfi.w0y.ui.theme.isHair
     LazyColumn(
         state = list,
@@ -123,6 +125,7 @@ fun LyricsView(
             val color by animateColorAsState(
                 when {
                     isActive -> colors.text
+                    big -> colors.text.copy(alpha = if (distance == 1) 0.42f else 0.26f)
                     distance == 1 -> colors.textMuted
                     else -> colors.textMuted.copy(alpha = 0.45f)
                 },
@@ -133,7 +136,7 @@ fun LyricsView(
                 TextStyle(
                     fontSize = if (isActive) base * (if (hair) 1.2f else 1.12f) else base,
                     lineHeight = base * 1.35f,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+                    fontWeight = if (big) FontWeight.ExtraBold else if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                     textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                 )
             Column(
