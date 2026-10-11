@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import com.texfi.w0y.ui.theme.asTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -261,6 +262,9 @@ fun SettingsScreen(
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
                     }
+                    if (current == SettingsSection.HAIR) {
+                        item { HairLookPreview(currentSettings) }
+                    }
                     // Весь раздел — одна группа, строки через черту.
                     item {
                         GlassGroup {
@@ -350,6 +354,7 @@ private enum class SettingsSection(
     ACCOUNT(R.string.settings_section_account, R.string.settings_section_account_sum, Sprites.sync),
     CLEAN(R.string.settings_section_clean, R.string.settings_section_clean_sum, Sprites.shield),
     LOOK(R.string.settings_section_look, R.string.settings_section_look_sum, Sprites.palette),
+    HAIR(R.string.hl_sec_title, R.string.hl_sec_sum, Sprites.sliders),
     DEVICES(R.string.settings_section_devices, R.string.settings_section_devices_sum, Sprites.headphones),
     DATA(R.string.settings_section_data, R.string.settings_section_data_sum, Sprites.license),
 }
@@ -393,7 +398,7 @@ private enum class SectionGroup(@StringRes val title: Int, val sections: List<Se
     SOUND(R.string.settings_group_sound, listOf(SettingsSection.SOUND, SettingsSection.TONE, SettingsSection.PLAYER)),
     SPEED(R.string.settings_group_speed, listOf(SettingsSection.SPEED, SettingsSection.STORAGE, SettingsSection.DOWNLOADS)),
     MUSIC(R.string.settings_group_music, listOf(SettingsSection.SEARCH, SettingsSection.ACCOUNT, SettingsSection.CLEAN)),
-    APP(R.string.settings_group_app, listOf(SettingsSection.LOOK, SettingsSection.DEVICES, SettingsSection.DATA)),
+    APP(R.string.settings_group_app, listOf(SettingsSection.LOOK, SettingsSection.HAIR, SettingsSection.DEVICES, SettingsSection.DATA)),
 }
 
 /**
@@ -404,6 +409,21 @@ private enum class SectionGroup(@StringRes val title: Int, val sections: List<Se
 @Composable
 private fun GlassGroup(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        // Hairline: одна поверхность и контур в одну линию, без стекла и теней.
+        val look = com.texfi.w0y.ui.theme.hairLook
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(colors.surface)
+                .border(look.line, colors.border, shape)
+                .padding(vertical = 2.dp),
+            content = content,
+        )
+        return
+    }
     if (!com.texfi.w0y.ui.theme.isSmooth) {
         Box(Modifier.fillMaxWidth().padding(end = 4.dp, bottom = 4.dp)) {
             Box(
@@ -441,12 +461,13 @@ private fun GlassGroup(content: @Composable androidx.compose.foundation.layout.C
 private fun GroupDivider(start: androidx.compose.ui.unit.Dp) {
     val colors = LocalW0yColors.current
     val smooth = com.texfi.w0y.ui.theme.isSmooth
+    val hair = com.texfi.w0y.ui.theme.isHair
     Box(
         Modifier
             .padding(start = start)
             .fillMaxWidth()
-            .height(if (smooth) 0.5.dp else 2.dp)
-            .background(if (smooth) colors.text.copy(alpha = 0.1f) else colors.border),
+            .height(if (hair) com.texfi.w0y.ui.theme.hairLook.line else if (smooth) 0.5.dp else 2.dp)
+            .background(if (hair) colors.border else if (smooth) colors.text.copy(alpha = 0.1f) else colors.border),
     )
 }
 
@@ -454,6 +475,15 @@ private fun GroupDivider(start: androidx.compose.ui.unit.Dp) {
 @Composable
 private fun GroupCaption(text: String) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        Text(
+            text = "❯ ${text.uppercase()}",
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.textMuted,
+            modifier = Modifier.padding(start = 2.dp, top = 24.dp, bottom = 10.dp),
+        )
+        return
+    }
     if (!com.texfi.w0y.ui.theme.isSmooth) {
         Text(
             text = "❯ ${text.uppercase()}",
@@ -1428,6 +1458,9 @@ private fun settingsRows(
             ),
         )
 
+        // HAIRLINE
+        addHairRows(viewModel, settings, context)
+
         // ВИД
         add(
             SettingRow(
@@ -1636,3 +1669,186 @@ private fun themeLabel(mode: ThemeMode): String =
         ThemeMode.GLASS -> stringResource(R.string.theme_glass)
         ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
     }
+
+/** Пункты раздела Hairline: у каждого свои подпись и описание, выбор из списка применяется сразу. */
+private fun MutableList<SettingRow>.addHairRows(
+    viewModel: SettingsViewModel,
+    settings: com.texfi.w0y.data.W0ySettings,
+    context: android.content.Context,
+) {
+    fun <T> choice(
+        title: Int,
+        desc: Int,
+        options: List<T>,
+        selected: T,
+        label: @Composable (T) -> String,
+        onSelect: (T) -> Unit,
+        keywords: String = "",
+    ) = add(
+        SettingRow(
+            section = SettingsSection.HAIR,
+            title = context.getString(title),
+            description = context.getString(desc),
+            keywords = keywords,
+            control = SettingControl.Choice(options, selected, label, onSelect),
+        ),
+    )
+    choice(R.string.hl_set_weight, R.string.hl_set_weight_d, com.texfi.w0y.data.LineWeight.entries, settings.lineWeight, { stringResource(it.label) }, viewModel::setLineWeight, "line thickness hairline")
+    choice(R.string.hl_set_corners, R.string.hl_set_corners_d, com.texfi.w0y.data.CornerStyle.entries, settings.corners, { stringResource(it.label) }, viewModel::setCorners, "radius round")
+    choice(R.string.hl_set_cover, R.string.hl_set_cover_d, com.texfi.w0y.data.CoverShape.entries, settings.coverShape, { stringResource(it.label) }, viewModel::setCoverShape, "disc square artwork")
+    choice(R.string.hl_set_layout, R.string.hl_set_layout_d, com.texfi.w0y.data.PlayerLayout.entries, settings.playerLayout, { stringResource(it.label) }, viewModel::setPlayerLayout, "player ring minimal compact")
+    choice(R.string.hl_set_caps, R.string.hl_set_caps_d, com.texfi.w0y.data.CapsMode.entries, settings.caps, { stringResource(it.label) }, viewModel::setCaps, "uppercase capitals")
+    choice(R.string.hl_set_density, R.string.hl_set_density_d, com.texfi.w0y.data.Density.entries, settings.density, { stringResource(it.label) }, viewModel::setDensity, "compact spacing")
+    choice(R.string.hl_set_motion, R.string.hl_set_motion_d, com.texfi.w0y.data.MotionMode.entries, settings.motion, { stringResource(it.label) }, viewModel::setMotion, "animation reduce")
+    choice(R.string.hl_set_haptics, R.string.hl_set_haptics_d, com.texfi.w0y.data.HapticLevel.entries, settings.hapticLevel, { stringResource(it.label) }, viewModel::setHapticLevel, "vibration")
+    choice(R.string.hl_set_iconstyle, R.string.hl_set_iconstyle_d, com.texfi.w0y.data.IconStyle.entries, settings.iconStyle, { stringResource(it.label) }, viewModel::setIconStyle, "icons line filled dots")
+    add(
+        SettingRow(
+            section = SettingsSection.HAIR,
+            title = context.getString(R.string.hl_set_swipe),
+            description = context.getString(R.string.hl_set_swipe_d),
+            keywords = "mini player dismiss gesture",
+            control = SettingControl.Toggle(settings.swipeDismiss, viewModel::setSwipeDismiss),
+        ),
+    )
+    add(
+        SettingRow(
+            section = SettingsSection.HAIR,
+            title = context.getString(R.string.hl_set_appicon),
+            description = context.getString(R.string.hl_set_appicon_d),
+            keywords = "launcher icon home screen",
+            control = SettingControl.Custom { AppIconPicker(settings.appIcon, viewModel::setAppIcon) },
+        ),
+    )
+    add(
+        SettingRow(
+            section = SettingsSection.HAIR,
+            title = context.getString(R.string.hl_set_reset),
+            description = context.getString(R.string.hl_set_reset_d),
+            control = SettingControl.Action(context.getString(R.string.hl_reset_btn), viewModel::resetLook),
+        ),
+    )
+}
+
+/** Образец вида: живая обложка, кнопка и переключатель в текущих настройках. */
+@Composable
+private fun HairLookPreview(settings: com.texfi.w0y.data.W0ySettings) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 14.dp)
+            .clip(shape)
+            .border(look.line, colors.border, shape)
+            .padding(14.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.hl_preview).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.textMuted,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(64.dp)
+                    .clip(com.texfi.w0y.ui.theme.hairCoverShape(look))
+                    .background(colors.surfaceHigh)
+                    .border(look.line, colors.outline, com.texfi.w0y.ui.theme.hairCoverShape(look)),
+                contentAlignment = Alignment.Center,
+            ) { PixelSprite(rows = Sprites.note, color = colors.textMuted, modifier = Modifier.size(24.dp)) }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.hl_preview_title).asTitle(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.text,
+                    maxLines = 1,
+                )
+                Text(
+                    text = stringResource(R.string.hl_preview_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(8.dp))
+                com.texfi.w0y.ui.components.PixelButton(text = stringResource(R.string.hl_preview_button), onClick = {})
+            }
+        }
+    }
+}
+
+/** Выбор значка на рабочем столе: три формы маски рядом, предупреждение перед сменой. */
+@Composable
+private fun AppIconPicker(selected: com.texfi.w0y.data.AppIcon, onPick: (com.texfi.w0y.data.AppIcon) -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    var pending by remember { mutableStateOf<com.texfi.w0y.data.AppIcon?>(null) }
+    Column {
+        Text(
+            text = stringResource(R.string.hl_icon_warn),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textMuted,
+            modifier = Modifier.padding(bottom = 10.dp),
+        )
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            com.texfi.w0y.data.AppIcon.entries.forEach { icon ->
+                val on = icon == selected
+                Column(
+                    Modifier
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(16.dp)))
+                        .border(
+                            look.line,
+                            if (on) colors.accentText else colors.border,
+                            androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(16.dp)),
+                        ).clickable { if (!on) pending = icon }
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            androidx.compose.foundation.shape.CircleShape,
+                            androidx.compose.foundation.shape.RoundedCornerShape(38),
+                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        ).forEach { mask ->
+                            Box(Modifier.size(34.dp).clip(mask).background(Color(ICON_BG))) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(icon.foreground),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(icon.label),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (on) colors.text else colors.textMuted,
+                    )
+                }
+            }
+        }
+    }
+    pending?.let { icon ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text(stringResource(R.string.hl_set_appicon)) },
+            text = { Text(stringResource(R.string.hl_icon_warn)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { onPick(icon); pending = null }) { Text(stringResource(R.string.hl_icon_apply)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pending = null }) { Text(stringResource(R.string.common_cancel)) }
+            },
+        )
+    }
+}
+
+/** Фон значка, как в ресурсе icon_bg: превью рисует маску поверх него. */
+private const val ICON_BG = 0xFF0A090CL

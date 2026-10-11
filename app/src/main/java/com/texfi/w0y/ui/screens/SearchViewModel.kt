@@ -13,6 +13,7 @@ import com.texfi.w0y.data.PlaylistCard
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.YouTubeRepository
 import com.texfi.w0y.data.db.PlaylistEntity
+import com.texfi.w0y.data.SearchHistoryLogic
 import com.texfi.w0y.data.SearchHistoryRepository
 import com.texfi.w0y.data.SettingsRepository
 import com.texfi.w0y.playback.DownloadsRepository
@@ -291,7 +292,7 @@ class SearchViewModel @Inject constructor(
 
     /** Искать немедленно — по нажатию «искать» или по выбору подсказки. */
     fun submit(value: String = _query.value) {
-        val clean = value.trim()
+        val clean = SearchHistoryLogic.pick(value)
         if (clean.isEmpty()) return
         _query.value = clean
         // История пишется только по явному подтверждению — Enter, подсказка

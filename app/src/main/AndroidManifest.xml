@@ -30,9 +30,9 @@
     <application
         android:name=".W0yApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/icon_w"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/icon_w"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.W0y.Splash">
@@ -42,12 +42,72 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.W0y.Splash">
+            android:theme="@style/Theme.W0y.Splash" />
+        <!--
+            Иконка приложения выбирается в настройках: по алиасу на вариант,
+            все ведут на одну MainActivity. Включён ровно один (по умолчанию
+            IconW), переключает его AppIconSwitcher. Имена — в AppIcon.alias.
+        -->
+        <activity-alias
+            android:name=".IconW"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/icon_w"
+            android:roundIcon="@mipmap/icon_w"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconLeaf"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/icon_leaf"
+            android:roundIcon="@mipmap/icon_leaf"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconBars"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/icon_bars"
+            android:roundIcon="@mipmap/icon_bars"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconRings"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/icon_rings"
+            android:roundIcon="@mipmap/icon_rings"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconLeafLine"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/icon_leaf_line"
+            android:roundIcon="@mipmap/icon_leaf_line"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <!--
             Карточка трека уходит в чужое приложение файлом, а файл из своей
             песочницы можно отдать только через провайдера. Наружу открыт

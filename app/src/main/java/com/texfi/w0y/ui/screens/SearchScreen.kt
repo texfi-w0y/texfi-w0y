@@ -164,7 +164,9 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                     if (recentQueries.isNotEmpty()) {
                         Spacer(Modifier.height(18.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
+                            if (com.texfi.w0y.ui.theme.isHair) {
+                                SectionHeader(label = stringResource(R.string.search_recent), modifier = Modifier.weight(1f))
+                            } else Text(
                                 stringResource(R.string.search_recent),
                                 style = PixelSectionLabel,
                                 color = colors.accent,
@@ -447,17 +449,49 @@ private fun SearchField(
     onFocusChange: (Boolean) -> Unit,
 ) {
     val colors = LocalW0yColors.current
+    val hair = com.texfi.w0y.ui.theme.isHair
+    // Текст держим вместе с курсором: когда запрос меняют снаружи (выбрали
+    // запись истории), строка заменяется целиком, курсор уходит в конец, а
+    // незавершённый ввод клавиатуры сбрасывается — иначе новый запрос
+    // приклеивался к недонабранному.
+    var field by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(value, androidx.compose.ui.text.TextRange(value.length))) }
+    if (field.text != value) {
+        field = androidx.compose.ui.text.input.TextFieldValue(value, androidx.compose.ui.text.TextRange(value.length))
+    }
+    // Hairline: поле вырастает из круга-лупы в полную ширину, один раз за вход на экран.
+    val growsIn = hair && com.texfi.w0y.ui.theme.hairLook.motion.draws
+    val grow = remember { androidx.compose.animation.core.Animatable(if (growsIn) 0f else 1f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (grow.value < 1f) grow.animateTo(1f, tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut))
+    }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val widthNow = if (hair) androidx.compose.ui.unit.lerp(HAIR_FIELD_MIN, maxWidth, grow.value) else maxWidth
     Row(
         Modifier
-            .fillMaxWidth()
-            .styledSurface(8)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .width(widthNow)
+            .then(
+                if (hair) {
+                    Modifier
+                        .clip(RoundedCornerShape(com.texfi.w0y.ui.theme.hairLook.pillRadius.coerceAtMost(28.dp)))
+                        .border(com.texfi.w0y.ui.theme.hairLook.line, colors.outline, RoundedCornerShape(com.texfi.w0y.ui.theme.hairLook.pillRadius.coerceAtMost(28.dp)))
+                        .padding(horizontal = 16.dp, vertical = 13.dp)
+                } else {
+                    Modifier.styledSurface(8).padding(horizontal = 14.dp, vertical = 12.dp)
+                },
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (hair) {
+            PixelSprite(rows = Sprites.search, color = colors.textMuted, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+        }
         Box(Modifier.weight(1f)) {
             BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
+                value = field,
+                onValueChange = {
+                    field = it
+                    if (it.text != value) onValueChange(it.text)
+                },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.text),
                 cursorBrush = SolidColor(colors.accent),
@@ -485,7 +519,11 @@ private fun SearchField(
             SpriteButton(Sprites.close, onClick = onClear, size = 16)
         }
     }
+    }
 }
+
+/** Ширина поля в начале роста: круг с лупой. */
+private val HAIR_FIELD_MIN = 48.dp
 
 @Composable
 private fun Hint(text: String) {

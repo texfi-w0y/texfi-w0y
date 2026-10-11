@@ -278,12 +278,12 @@ enum class IconStyle(@StringRes val label: Int) {
 }
 
 /** Иконка приложения на рабочем столе: по одному activity-alias на вариант. */
-enum class AppIcon(@StringRes val label: Int, val alias: String) {
-    W(R.string.hl_icon_w, ".IconW"),
-    LEAF(R.string.hl_icon_leaf, ".IconLeaf"),
-    BARS(R.string.hl_icon_bars, ".IconBars"),
-    RINGS(R.string.hl_icon_rings, ".IconRings"),
-    LEAF_LINE(R.string.hl_icon_leaf_line, ".IconLeafLine"),
+enum class AppIcon(@StringRes val label: Int, val alias: String, @androidx.annotation.DrawableRes val foreground: Int) {
+    W(R.string.hl_icon_w, ".IconW", R.drawable.ic_icon_w_fg),
+    LEAF(R.string.hl_icon_leaf, ".IconLeaf", R.drawable.ic_icon_leaf_fg),
+    BARS(R.string.hl_icon_bars, ".IconBars", R.drawable.ic_icon_bars_fg),
+    RINGS(R.string.hl_icon_rings, ".IconRings", R.drawable.ic_icon_rings_fg),
+    LEAF_LINE(R.string.hl_icon_leaf_line, ".IconLeafLine", R.drawable.ic_icon_leaf_line_fg),
 }
 
 /**

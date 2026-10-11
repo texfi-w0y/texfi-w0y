@@ -150,6 +150,35 @@ class SettingsViewModel @Inject constructor(
 
     fun setNormalize(value: Boolean) = update { repository.setNormalize(value) }
 
+    // Вид Hairline
+    fun setLineWeight(value: com.texfi.w0y.data.LineWeight) = update { repository.setLineWeight(value) }
+
+    fun setCorners(value: com.texfi.w0y.data.CornerStyle) = update { repository.setCorners(value) }
+
+    fun setCoverShape(value: com.texfi.w0y.data.CoverShape) = update { repository.setCoverShape(value) }
+
+    fun setPlayerLayout(value: com.texfi.w0y.data.PlayerLayout) = update { repository.setPlayerLayout(value) }
+
+    fun setCaps(value: com.texfi.w0y.data.CapsMode) = update { repository.setCaps(value) }
+
+    fun setDensity(value: com.texfi.w0y.data.Density) = update { repository.setDensity(value) }
+
+    fun setMotion(value: com.texfi.w0y.data.MotionMode) = update { repository.setMotion(value) }
+
+    fun setHapticLevel(value: com.texfi.w0y.data.HapticLevel) = update { repository.setHapticLevel(value) }
+
+    fun setIconStyle(value: com.texfi.w0y.data.IconStyle) = update { repository.setIconStyle(value) }
+
+    fun setSwipeDismiss(value: Boolean) = update { repository.setSwipeDismiss(value) }
+
+    fun resetLook() = update { repository.resetLook() }
+
+    /** Значок на рабочем столе: сначала переключаем алиас, потом запоминаем выбор. */
+    fun setAppIcon(value: com.texfi.w0y.data.AppIcon) {
+        com.texfi.w0y.data.AppIconSwitcher.apply(context, value)
+        update { repository.setAppIcon(value) }
+    }
+
     fun setSkipSilence(value: Boolean) = update { repository.setSkipSilence(value) }
 
     fun setPauseOnUnplug(value: Boolean) = update { repository.setPauseOnUnplug(value) }

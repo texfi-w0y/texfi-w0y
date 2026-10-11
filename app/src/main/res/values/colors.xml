@@ -2,6 +2,7 @@
 <resources>
     <!-- Фон и акценты дублируются в Kotlin (ui/theme/Color.kt): здесь они
          нужны системным окнам до старта Compose. Менять — в двух местах. -->
+    <color name="icon_bg">#FF0A090C</color>
     <color name="w0y_bg">#FF000000</color>
     <color name="w0y_accent">#FF4A7CFB</color>
 

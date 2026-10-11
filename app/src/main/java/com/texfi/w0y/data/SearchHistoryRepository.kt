@@ -29,18 +29,16 @@ class SearchHistoryRepository @Inject constructor(
 ) {
     val recent: Flow<List<String>> =
         context.searchStore.data.map { prefs ->
-            prefs[Keys.RECENT].orEmpty().split(SEPARATOR).filter { it.isNotBlank() }
+            SearchHistoryLogic.clean(prefs[Keys.RECENT].orEmpty().split(SEPARATOR))
         }
 
     suspend fun remember(query: String) {
         // Выключено — значит выключено: ничего не пишем, а не пишем «тихо».
         if (!settings.settings.first().saveSearchHistory) return
-        val trimmed = query.trim()
-        if (trimmed.length < MIN_LENGTH) return
-        val current = recent.first()
+        if (query.trim().length < MIN_LENGTH) return
         // Повтор поднимается наверх, а не задваивается: список коротких
         // запросов иначе мгновенно забивается одним и тем же словом.
-        val updated = (listOf(trimmed) + current.filterNot { it.equals(trimmed, ignoreCase = true) }).take(LIMIT)
+        val updated = SearchHistoryLogic.remember(recent.first(), query)
         context.searchStore.edit { it[Keys.RECENT] = updated.joinToString(SEPARATOR) }
     }
 
@@ -58,8 +56,6 @@ class SearchHistoryRepository @Inject constructor(
 
     private companion object {
         const val SEPARATOR = "\n"
-        const val LIMIT = 20
-
         /** Пустое и из одних пробелов не сохраняется; остальное — запрос пользователя. */
         const val MIN_LENGTH = 1
     }
