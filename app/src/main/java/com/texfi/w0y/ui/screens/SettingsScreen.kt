@@ -14,6 +14,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import com.texfi.w0y.ui.theme.asLabel
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import com.texfi.w0y.ui.components.hairStagger
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.theme.asTitle
@@ -128,6 +132,10 @@ fun SettingsScreen(
             }
         }
     val currentSettings by viewModel.settings.collectAsStateWithLifecycle()
+    val backdropLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) viewModel.setBackdropPhoto(uri)
+        }
     // Предупреждение об авторских правах — один раз, при первом включении
     // сохранения на устройство; действие выполняется после согласия.
     var copyrightPending by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -201,6 +209,7 @@ fun SettingsScreen(
             onExport = { exportLauncher.launch("w0y-settings.json") },
             onImport = { importLauncher.launch(arrayOf("application/json")) },
             onAutoExport = { on -> if (on) withCopyrightNotice { viewModel.setAutoExport(true) } else viewModel.setAutoExport(false) },
+            onPickBackdrop = { backdropLauncher.launch(arrayOf("image/*")) },
         )
     val hair = com.texfi.w0y.ui.theme.isHair
     val current = section?.let { name -> SettingsSection.entries.firstOrNull { it.name == name } }
@@ -256,6 +265,23 @@ fun SettingsScreen(
         // докручивает последний пункт над ними; без стекла — над жестами.
         val barsInset = com.texfi.w0y.ui.components.LocalBottomInset.current
         val rowPad = if (com.texfi.w0y.ui.theme.isHair) 0.dp else 16.dp
+        val tabOrder = listOf<String?>(null) + SectionGroup.entries.flatMap { g -> g.sections }.map { it.name }
+        androidx.compose.animation.AnimatedContent(
+            targetState = section,
+            transitionSpec = {
+                if (!hair) {
+                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                } else {
+                    val dir = if (tabOrder.indexOf(targetState) >= tabOrder.indexOf(initialState)) 1 else -1
+                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260, delayMillis = 60)) +
+                        androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { dir * it / 10 }) togetherWith
+                        (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140)) +
+                            androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { -dir * it / 12 })
+                }
+            },
+            label = "settingsTab",
+        ) { tabKey ->
+        val current = tabKey?.let { name -> SettingsSection.entries.firstOrNull { it.name == name } }
         LazyColumn(
             Modifier
                 .fillMaxWidth()
@@ -285,8 +311,12 @@ fun SettingsScreen(
                             }
                             val inSection = rows.filter { it.section == current }
                             inSection.forEachIndexed { index, row ->
-                                Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
-                                if (index < inSection.lastIndex) GroupDivider(start = 16.dp)
+                                if (hair) {
+                                    Box(Modifier.padding(bottom = 10.dp).hairStagger(index)) { SettingRowView(row) }
+                                } else {
+                                    Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
+                                    if (index < inSection.lastIndex) GroupDivider(start = 16.dp)
+                                }
                             }
                         }
                     }
@@ -325,8 +355,12 @@ fun SettingsScreen(
                                 if (!hair) GroupCaption(stringResource(R.string.settings_quick))
                                 GlassGroup {
                                     quick.forEachIndexed { index, row ->
-                                        Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
-                                        if (index < quick.lastIndex) GroupDivider(start = 16.dp)
+                                        if (hair) {
+                                            Box(Modifier.padding(bottom = 10.dp).hairStagger(index)) { SettingRowView(row) }
+                                        } else {
+                                            Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
+                                            if (index < quick.lastIndex) GroupDivider(start = 16.dp)
+                                        }
                                     }
                                 }
                             }
@@ -356,6 +390,7 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -620,7 +655,24 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
 private fun SettingRowView(row: SettingRow, sectionHint: String? = null) {
     val colors = LocalW0yColors.current
     val control = row.control
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    val hair = com.texfi.w0y.ui.theme.isHair
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(14.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .then(
+                if (hair) {
+                    Modifier
+                        .clip(cardShape)
+                        .background(colors.surface)
+                        .border(look.line, colors.border, cardShape)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                } else {
+                    Modifier.padding(vertical = 8.dp)
+                },
+            ),
+    ) {
         if (sectionHint != null) {
             Text(
                 text = "❯ ${sectionHint.uppercase()}",
@@ -680,7 +732,7 @@ private fun SettingRowView(row: SettingRow, sectionHint: String? = null) {
 private fun ChoiceControl(control: SettingControl.Choice<*>) {
     @Suppress("UNCHECKED_CAST")
     val typed = control as SettingControl.Choice<Any?>
-    if (com.texfi.w0y.ui.theme.isHair && typed.options.size > 4) {
+    if (com.texfi.w0y.ui.theme.isHair) {
         HairChips(
             options = typed.options.map { typed.label(it) },
             selectedIndex = typed.options.indexOf(typed.selected),
@@ -784,6 +836,7 @@ private fun settingsRows(
     onExport: () -> Unit,
     onImport: () -> Unit,
     onAutoExport: (Boolean) -> Unit,
+    onPickBackdrop: () -> Unit,
 ): List<SettingRow> {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val startupAverage by viewModel.startupAverage.collectAsStateWithLifecycle()
@@ -1125,6 +1178,41 @@ private fun settingsRows(
                         { if (it < 0f) stringResource(R.string.stand_brightness_system) else "${(it * 100).toInt()}%" },
                         viewModel::setStandBrightness,
                     ),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.LOOK,
+                title = stringResource(R.string.backdrop_title),
+                description = stringResource(R.string.backdrop_desc),
+                keywords = "background wallpaper aurora photo grid black",
+                quick = true,
+                control =
+                    SettingControl.Choice(
+                        com.texfi.w0y.data.BackdropMode.entries,
+                        settings.backdropMode,
+                        {
+                            stringResource(
+                                when (it) {
+                                    com.texfi.w0y.data.BackdropMode.GRID -> R.string.backdrop_grid
+                                    com.texfi.w0y.data.BackdropMode.PURE -> R.string.backdrop_pure
+                                    com.texfi.w0y.data.BackdropMode.COVER -> R.string.backdrop_cover
+                                    com.texfi.w0y.data.BackdropMode.AURORA -> R.string.backdrop_aurora
+                                    com.texfi.w0y.data.BackdropMode.PHOTO -> R.string.backdrop_photo
+                                },
+                            )
+                        },
+                        viewModel::setBackdropMode,
+                    ),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.LOOK,
+                title = stringResource(R.string.backdrop_image_title),
+                description = stringResource(R.string.backdrop_image_desc),
+                keywords = "background photo image gallery",
+                control = SettingControl.Action(stringResource(R.string.backdrop_pick), onPickBackdrop),
             ),
         )
         add(
@@ -1998,37 +2086,52 @@ private fun HairChips(options: List<String>, selectedIndex: Int, onSelect: (Int)
     }
 }
 
-/** Вкладки настроек Hairline: подписи моно, активная — с линией под ней; лента прокручивается. */
+/** Вкладки настроек Hairline: подписи моно, под активной скользит акцентная линия; выбранная вкладка сама подъезжает в видимую часть. */
 @Composable
 private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, onSelect: (String?) -> Unit) {
     val colors = LocalW0yColors.current
     val look = com.texfi.w0y.ui.theme.hairLook
+    val density = androidx.compose.ui.platform.LocalDensity.current
     val scroll = androidx.compose.foundation.rememberScrollState()
+    val spots = remember { androidx.compose.runtime.mutableStateMapOf<String, Pair<Int, Int>>() }
+    val key = selected ?: ""
+    val spot = spots[key]
+    val spec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+    val x by androidx.compose.animation.core.animateFloatAsState(spot?.first?.toFloat() ?: 0f, spec, label = "tabX")
+    val w by androidx.compose.animation.core.animateFloatAsState(spot?.second?.toFloat() ?: 0f, spec, label = "tabW")
+    androidx.compose.runtime.LaunchedEffect(spot, scroll.maxValue) {
+        spot ?: return@LaunchedEffect
+        val target = (spot.first - 60).coerceIn(0, scroll.maxValue)
+        scroll.animateScrollTo(target, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
     Box(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(scroll)
-                .padding(horizontal = 18.dp),
-        ) {
-            tabs.forEach { (key, label) ->
-                val active = key == selected
-                Column(
-                    Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable { onSelect(key) }
-                        .padding(end = 22.dp),
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        label.asLabel(),
-                        style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                        color = if (active) colors.text else colors.textMuted,
-                        maxLines = 1,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Box(Modifier.height(2.dp).fillMaxWidth().background(if (active) colors.accent else androidx.compose.ui.graphics.Color.Transparent))
+        Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
+            Row(Modifier.padding(horizontal = 18.dp)) {
+                tabs.forEach { (tabKey, label) ->
+                    val active = tabKey == selected
+                    val tone by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, androidx.compose.animation.core.tween(200), label = "tabTone")
+                    Box(
+                        Modifier
+                            .heightIn(min = 48.dp)
+                            .onGloballyPositioned { spots[tabKey ?: ""] = it.positionInParent().x.toInt() to it.size.width }
+                            .clickable { onSelect(tabKey) }
+                            .padding(horizontal = 11.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = tone, maxLines = 1)
+                    }
                 }
+            }
+            if (spot != null) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .offset { androidx.compose.ui.unit.IntOffset(x.toInt(), 0) }
+                        .width(with(density) { w.toDp() })
+                        .padding(horizontal = 11.dp)
+                        .height(2.dp)
+                        .background(colors.accent),
+                )
             }
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(look.line).background(colors.border))

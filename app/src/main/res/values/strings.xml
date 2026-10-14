@@ -747,4 +747,14 @@
     <string name="pl_glyph">Icon</string>
     <string name="pl_delete">Delete playlist</string>
     <string name="pl_delete_sure">Tap again to delete</string>
+    <string name="backdrop_title">App background</string>
+    <string name="backdrop_desc">What lies under every screen: grid, pure black, cover glow, aurora or your own photo.</string>
+    <string name="backdrop_grid">Grid</string>
+    <string name="backdrop_pure">Black</string>
+    <string name="backdrop_cover">Cover glow</string>
+    <string name="backdrop_aurora">Aurora</string>
+    <string name="backdrop_photo">My photo</string>
+    <string name="backdrop_image_title">Background photo</string>
+    <string name="backdrop_image_desc">Pick any image; it is copied into the app and darkened so text stays readable.</string>
+    <string name="backdrop_pick">Choose</string>
 </resources>

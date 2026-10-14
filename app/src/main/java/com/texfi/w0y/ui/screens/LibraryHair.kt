@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -163,12 +164,16 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
 
             item(key = "lib-header") { SectionHeader(stringResource(R.string.library_section_library), index = 1) }
             item(key = "lib-rows") {
-                Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    LinkRow(HairGlyph.HEART, stringResource(R.string.library_likes), "${liked.size}") { viewModel.open(LibraryRoute.Liked) }
-                    LinkRow(HairGlyph.TIMER, stringResource(R.string.library_history), "${recent.size}") { viewModel.open(LibraryRoute.History) }
-                    LinkRow(HairGlyph.DOWNLOAD, stringResource(R.string.library_downloaded), "${downloaded.size}") { viewModel.open(LibraryRoute.Downloads) }
-                    LinkRow(HairGlyph.NOTE, stringResource(R.string.lm_card), "${files.size}") { viewModel.open(LibraryRoute.Files) }
-                    LinkRow(HairGlyph.STATS, stringResource(R.string.library_stats), null) { viewModel.open(LibraryRoute.Stats) }
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BentoCard(0, HairGlyph.HEART, stringResource(R.string.library_likes), liked.size, { viewModel.open(LibraryRoute.Liked) }, Modifier.fillMaxWidth(), tall = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        BentoCard(1, HairGlyph.TIMER, stringResource(R.string.library_history), recent.size, { viewModel.open(LibraryRoute.History) }, Modifier.weight(1f))
+                        BentoCard(2, HairGlyph.DOWNLOAD, stringResource(R.string.library_downloaded), downloaded.size, { viewModel.open(LibraryRoute.Downloads) }, Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        BentoCard(3, HairGlyph.NOTE, stringResource(R.string.lm_card), files.size, { viewModel.open(LibraryRoute.Files) }, Modifier.weight(1f))
+                        BentoCard(4, HairGlyph.STATS, stringResource(R.string.library_stats), null, { viewModel.open(LibraryRoute.Stats) }, Modifier.weight(1f))
+                    }
                 }
             }
             item(key = "gap1") { Spacer(Modifier.height(26.dp)) }
@@ -189,7 +194,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                             .fillMaxWidth()
                             .combinedClickable(onClick = { openFolderId = folder.id }, onLongClick = { folderMenu = folder }),
                     ) {
-                        LinkRowBody(HairGlyph.FOLDER, folder.name, stringResource(R.string.folder_count, count))
+                        PanelRow(HairGlyph.FOLDER, folder.name, stringResource(R.string.folder_count, count))
                     }
                 }
             }
@@ -238,10 +243,20 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
             items(shown.chunked(COLUMNS), key = { row -> "hp-" + row.first().id }) { row ->
                 Row(Modifier.padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { playlist ->
+                        val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        val press = rememberPress(source)
                         Column(
                             Modifier
                                 .weight(1f)
+                                .hairStagger(shown.indexOf(playlist))
+                                .graphicsLayer {
+                                    val k = 1f - 0.04f * press
+                                    scaleX = k
+                                    scaleY = k
+                                }
                                 .combinedClickable(
+                                    interactionSource = source,
+                                    indication = null,
                                     onClick = { viewModel.open(LibraryRoute.Local(playlist.id)) },
                                     onLongClick = { moving = playlist },
                                 ),
@@ -294,7 +309,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                         .fillMaxWidth()
                         .clickable { navigator.open(BrowseRoute.Album(card.browseId, card.title, card.thumbnailUrl)) },
                 ) {
-                    LinkRowBody(HairGlyph.RELEASE, card.title, card.subtitle)
+                    PanelRow(HairGlyph.RELEASE, card.title, card.subtitle)
                 }
             }
         }

@@ -747,4 +747,14 @@
     <string name="pl_glyph">Значок</string>
     <string name="pl_delete">Удалить плейлист</string>
     <string name="pl_delete_sure">Нажми ещё раз, чтобы удалить</string>
+    <string name="backdrop_title">Фон приложения</string>
+    <string name="backdrop_desc">Что лежит под всеми экранами: сетка, чистый чёрный, свет обложки, переливы или своя картинка.</string>
+    <string name="backdrop_grid">Сетка</string>
+    <string name="backdrop_pure">Чёрный</string>
+    <string name="backdrop_cover">Свет обложки</string>
+    <string name="backdrop_aurora">Переливы</string>
+    <string name="backdrop_photo">Моя картинка</string>
+    <string name="backdrop_image_title">Картинка фона</string>
+    <string name="backdrop_image_desc">Любая картинка из галереи: она копируется в приложение и затемняется, чтобы текст читался.</string>
+    <string name="backdrop_pick">Выбрать</string>
 </resources>

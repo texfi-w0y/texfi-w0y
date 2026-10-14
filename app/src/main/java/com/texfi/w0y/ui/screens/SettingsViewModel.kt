@@ -318,6 +318,30 @@ class SettingsViewModel @Inject constructor(
 
     fun setStandClock(value: Boolean) = update { repository.setStandClock(value) }
 
+    fun setBackdropMode(value: com.texfi.w0y.data.BackdropMode) = update { repository.setBackdropMode(value) }
+
+    /** Своя картинка фона: копия в приложении, ужатая до экрана, — оригинал можно удалять. */
+    fun setBackdropPhoto(uri: android.net.Uri) = viewModelScope.launch {
+        val path = withContext(Dispatchers.IO) {
+            runCatching {
+                val dir = java.io.File(context.filesDir, "backdrop").apply { mkdirs() }
+                val bitmap = context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    ?: return@runCatching null
+                val side = 1600
+                val k = side.toFloat() / maxOf(bitmap.width, bitmap.height)
+                val scaled = if (k < 1f) android.graphics.Bitmap.createScaledBitmap(bitmap, (bitmap.width * k).toInt(), (bitmap.height * k).toInt(), true) else bitmap
+                dir.listFiles()?.forEach { it.delete() }
+                val file = java.io.File(dir, "bg-${System.currentTimeMillis()}.jpg")
+                file.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, it) }
+                "file://" + file.absolutePath
+            }.getOrNull()
+        }
+        if (path != null) {
+            repository.setBackdropImage(path)
+            repository.setBackdropMode(com.texfi.w0y.data.BackdropMode.PHOTO)
+        }
+    }
+
     fun setSeasonMode(value: com.texfi.w0y.data.SeasonMode) = update { repository.setSeasonMode(value) }
 
     fun setStandView(value: com.texfi.w0y.data.StandView) = update { repository.setStandView(value) }

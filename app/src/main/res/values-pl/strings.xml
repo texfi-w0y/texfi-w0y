@@ -747,4 +747,14 @@
     <string name="pl_glyph">Ikona</string>
     <string name="pl_delete">Usuń playlistę</string>
     <string name="pl_delete_sure">Kliknij ponownie, aby usunąć</string>
+    <string name="backdrop_title">Tło aplikacji</string>
+    <string name="backdrop_desc">Co leży pod każdym ekranem: siatka, czerń, blask okładki, zorza lub własne zdjęcie.</string>
+    <string name="backdrop_grid">Siatka</string>
+    <string name="backdrop_pure">Czerń</string>
+    <string name="backdrop_cover">Blask okładki</string>
+    <string name="backdrop_aurora">Zorza</string>
+    <string name="backdrop_photo">Moje zdjęcie</string>
+    <string name="backdrop_image_title">Zdjęcie tła</string>
+    <string name="backdrop_image_desc">Dowolny obraz z galerii: kopiowany do aplikacji i przyciemniany, by tekst był czytelny.</string>
+    <string name="backdrop_pick">Wybierz</string>
 </resources>

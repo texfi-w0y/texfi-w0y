@@ -747,4 +747,14 @@
     <string name="pl_glyph">Значок</string>
     <string name="pl_delete">Видалити плейлист</string>
     <string name="pl_delete_sure">Натисни ще раз, щоб видалити</string>
+    <string name="backdrop_title">Тло застосунку</string>
+    <string name="backdrop_desc">Що лежить під усіма екранами: сітка, чисте чорне, світло обкладинки, переливи або власне фото.</string>
+    <string name="backdrop_grid">Сітка</string>
+    <string name="backdrop_pure">Чорний</string>
+    <string name="backdrop_cover">Світло обкладинки</string>
+    <string name="backdrop_aurora">Переливи</string>
+    <string name="backdrop_photo">Моє фото</string>
+    <string name="backdrop_image_title">Картинка тла</string>
+    <string name="backdrop_image_desc">Будь-яка картинка з галереї: копіюється в застосунок і затемнюється, щоб текст читався.</string>
+    <string name="backdrop_pick">Обрати</string>
 </resources>

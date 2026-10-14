@@ -222,6 +222,9 @@ enum class StandView { TEXT, COVER }
 /** Сезонное оформление: само по дате, выключено или принудительно один из праздников. */
 enum class SeasonMode { AUTO, OFF, HALLOWEEN, WINTER }
 
+/** Фон приложения: сетка, чистый чёрный, свет обложки, переливы или своя картинка. */
+enum class BackdropMode { GRID, PURE, COVER, AURORA, PHOTO }
+
 // ── Hairline: настройки вида ─────────────────────────────────────────────
 
 /** Толщина линий Hairline, dp. Тоньше одного dp не бывает: на плотных экранах линия пропадает. */
@@ -402,6 +405,9 @@ data class W0ySettings(
     val standFlipped: Boolean = false,
     val standView: StandView = StandView.TEXT,
     val standClock: Boolean = true,
+    val backdropMode: BackdropMode = BackdropMode.GRID,
+    /** Своя картинка фона — файл на телефоне, file://…; null, пока не выбрана. */
+    val backdropImage: String? = null,
     val seasonMode: SeasonMode = SeasonMode.AUTO,
     val standChargingOnly: Boolean = false,
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
@@ -512,6 +518,8 @@ class SettingsRepository @Inject constructor(
                     standFlipped = prefs[Keys.STAND_FLIPPED] ?: false,
                     standView = prefs.enum(Keys.STAND_VIEW, StandView.TEXT),
                     standClock = prefs[Keys.STAND_CLOCK] ?: true,
+                    backdropMode = prefs.enum(Keys.BACKDROP_MODE, BackdropMode.GRID),
+                    backdropImage = prefs[Keys.BACKDROP_IMAGE],
                     seasonMode = prefs.enum(Keys.SEASON_MODE, SeasonMode.AUTO),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: false,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: 60,
@@ -751,6 +759,12 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setStandClock(value: Boolean) = put(Keys.STAND_CLOCK, value)
 
+    suspend fun setBackdropMode(value: BackdropMode) = put(Keys.BACKDROP_MODE, value.name)
+
+    suspend fun setBackdropImage(value: String?) {
+        context.dataStore.edit { if (value == null) it.remove(Keys.BACKDROP_IMAGE) else it[Keys.BACKDROP_IMAGE] = value }
+    }
+
     suspend fun setSeasonMode(value: SeasonMode) = put(Keys.SEASON_MODE, value.name)
 
     suspend fun setStandChargingOnly(value: Boolean) = put(Keys.STAND_CHARGING, value)
@@ -970,6 +984,8 @@ class SettingsRepository @Inject constructor(
         val STAND_FLIPPED = booleanPreferencesKey("stand_flipped")
         val STAND_VIEW = stringPreferencesKey("stand_view")
         val STAND_CLOCK = booleanPreferencesKey("stand_clock")
+        val BACKDROP_MODE = stringPreferencesKey("backdrop_mode")
+        val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")
         val STAND_MAX_MIN = intPreferencesKey("stand_max_minutes")

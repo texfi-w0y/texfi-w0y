@@ -127,8 +127,6 @@ fun HairPlayButton(
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "playPress")
     val morph by animateFloatAsState(if (playing) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "playMorph")
-    val flash = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
     val tone = Contrast.ensure(colors.accent, colors.background)
     val description = stringResource(if (playing) R.string.hl_cd_pause else R.string.hl_cd_play)
     Box(
@@ -145,26 +143,15 @@ fun HairPlayButton(
             }
             .clickable(interactionSource = interaction, indication = null) {
                 haptic()
-                if (look.motion.draws) {
-                    scope.launch {
-                        flash.snapTo(0f)
-                        flash.animateTo(1f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut))
-                    }
-                }
                 onClick()
             }
             .drawBehind { 
-                val stroke = look.line.toPx()
                 val half = this.size.minDimension / 2f
                 val r = half * 0.8f
                 val c = center
-                // Кольцо в одну линию цвета текста; под пальцем заливается, значок меняется на тёмный.
-                drawCircle(colors.text.copy(alpha = 0.92f * press), r, c)
-                drawCircle(colors.text, r, c, style = Stroke(stroke * 1.2f))
-                val f = flash.value
-                if (f < 1f) drawCircle(colors.text.copy(alpha = 0.5f * (1f - f)), r + (half - r) * f - stroke / 2f, c, style = Stroke(stroke))
+                // Без круга: только сама иконка, она крупнее и под пальцем уходит в тон акцента.
                 // Иконка: два четырёхугольника, треугольник ↔ две полосы.
-                val k = r * 1.05f / 12f
+                val k = r * 1.2f / 12f
                 val ox = c.x - 12f * k
                 val oy = c.y - 12f * k
                 val path = Path()
@@ -176,7 +163,7 @@ fun HairPlayButton(
                     }
                     path.close()
                 }
-                drawPath(path, androidx.compose.ui.graphics.lerp(colors.text, colors.background, press), style = Fill)
+                drawPath(path, androidx.compose.ui.graphics.lerp(colors.text, tone, press), style = Fill)
             },
     )
 }

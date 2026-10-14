@@ -149,6 +149,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val accent by viewModel.accent.collectAsStateWithLifecycle()
     val customAccent by viewModel.customAccent.collectAsStateWithLifecycle()
     val animatedBackground by viewModel.animatedBackground.collectAsStateWithLifecycle()
+    val backdropMode by viewModel.backdropMode.collectAsStateWithLifecycle()
+    val backdropImage by viewModel.backdropImage.collectAsStateWithLifecycle()
     val haptics by viewModel.haptics.collectAsStateWithLifecycle()
     val hapticLevel by viewModel.hapticLevel.collectAsStateWithLifecycle()
     // Заставка играет один раз за запуск, а не при каждом повороте экрана.
@@ -207,6 +209,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         com.texfi.w0y.ui.components.LocalIsPlaying provides playerState.isPlaying,
         LocalSongActions provides songActions,
     ) {
+    com.texfi.w0y.ui.theme.ProvideBackdrop(backdropMode, playerState.song?.thumbnailUrl, backdropImage) {
     val haptic = rememberHaptics()
     val hair = com.texfi.w0y.ui.theme.isHair
     val swipeDismiss by viewModel.swipeDismiss.collectAsStateWithLifecycle()
@@ -526,6 +529,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 },
             )
         }
+    }
     }
 }
 }

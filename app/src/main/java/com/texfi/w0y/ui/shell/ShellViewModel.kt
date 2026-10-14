@@ -96,6 +96,16 @@ class ShellViewModel @Inject constructor(
             .map { it.swipeDismiss }
             .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
+    val backdropMode: StateFlow<com.texfi.w0y.data.BackdropMode> =
+        settings.settings
+            .map { it.backdropMode }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.texfi.w0y.data.BackdropMode.GRID)
+
+    val backdropImage: StateFlow<String?> =
+        settings.settings
+            .map { it.backdropImage }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val animatedBackground: StateFlow<Boolean> =
         settings.settings
             .map { it.animatedBackground }
