@@ -1,41 +1,54 @@
-# w0y v0.0.3 beta-1
+# w0y v0.0.3 beta-2
 
-A new look — **Hairline** — your own audio files, better lyrics, and the
-Linux version catches up with the phone.
+Hairline grows up: a new dock, settings in tabs, a bento "Yours" screen,
+playlists you can fully restyle, and a background you choose.
 
-## New look: Hairline
+## Look and navigation
 
-- Thin lines instead of pixels and glass: near-black bluish background with a
-  faint grid, sharp corners, Unbounded for titles and a mono for labels. Sand
-  stays the default accent. Pixel and Smooth are still in Settings → Look,
-  and Hairline has its own settings section (line weight, corners, cover
-  shape, caps, density, motion).
-- A floating bottom dock whose outline is the track progress; the active tab
-  gets a small label that slides between tabs.
-- The player: a progress ring around the cover, a thin Play button, seek that
-  works while paused, long-press on the title or artist copies it, swipe down
-  closes it with a spring, links to the artist and album (also on the first
-  play).
-- Lyrics as a full page: the cover shrinks to a small header, big bold lines,
-  the current line eases up. A button toggles it; the LYRICS tab is gone.
-- New visualizer styles in Hairline: Lines, Orbit, Terrain.
-- A loading animation, a pull-to-refresh ring on Home, a new intro, five app
-  icons to choose from (Settings → Look).
-- Home: speed dial in three columns, two rows.
+- **A new floating dock.** The mini player and the tabs live in one flat
+  island, like the nav on the site: a thin line slides under the active tab.
+  The track progress is a white line running all the way round the island.
+  Settings → Hairline: island or full-width bar, colour (cover / accent /
+  none), tab labels (all / active / hidden), glow.
+- **The screen runs under the dock** instead of being cut off above it, and
+  the last row still scrolls clear of it.
+- **App background**, Settings → Look: grid, plain black, cover light,
+  aurora, or your own picture (copied into the app and dimmed so text stays
+  readable). The black band at the top of Settings is gone.
+- **Settings in tabs**, each setting a card, with an underline that follows
+  the active tab. Search is still there.
+- **Seasonal events**: pumpkins for Halloween, snowflakes and trees for the
+  New Year. Settings → Look: Auto (follows the date), Off, or pick one.
+- A proper gear for Settings, and the notification shade now shows the w0y
+  "W" instead of a generic play circle.
 
-## New
+## Library
 
-- **My files.** Add mp3, wav and other audio from the phone (Library → My
-  files). Title, artist, album and cover are read from the tags and can be
-  edited in the app. They play from the disk, go into playlists, speed dial
-  and history, and are never sent to YouTube. After a file, recommendations
-  are built from the same track found in the catalogue, and a broken file is
-  replaced by that track.
-- **Lyrics everywhere.** After LRCLIB the app tries NetEase (timed), lyrics.ovh
-  and Genius by artist and title (Settings → Player, can be turned off).
-- **Lyrics delay** from −0.5 to +2 s for lines that run ahead of the voice.
-- **Video** for tracks that are YouTube videos: cover or video in the player.
-- Sharper artwork in the notification shade.
+- **Yours as bento cards**: likes, history, downloads, my files and recap as
+  tiles with counters that count up.
+- **Playlists, fully yours:** cover from the gallery, colour, icon and a
+  description. Deleting a playlist or folder takes two taps, so it cannot
+  happen by accident.
+- **Folders** for playlists.
+
+## Player
+
+- **The "⋯" menu** in the player: sleep timer (the old block at the bottom of
+  the queue is gone), visualizer style and stand mode.
+- **Stand mode** redesigned in Hairline: a clock you can hide and the controls
+  moved below the camera.
+- **Copy the YouTube Music link** of the current track.
+- A flat Play/Pause button: no circle around it.
+
+## Fixed
+
+- Switching tabs from an artist or album page now takes you to that tab.
+- The sleep timer no longer sits in two places.
+
+## Upgrading
+
+The playlist look needs a database change (version 9). It is migrated
+automatically and your playlists, likes and history stay.
 
 ## Linux desktop
 
@@ -86,7 +99,8 @@ and your data stays.
 - Genius and NetEase lyrics are read from their public pages and can stop
   working when those sites change; they may be for a different version of
   the song.
-- Video plays over YouTube's SABR protocol; if a video does not open, the
-  player says so and the sound keeps playing.
+- Video plays over YouTube's SABR protocol. Known issue in this beta: on some
+  tracks the picture stays black while the sound plays normally. It is being
+  worked on and is not fixed here.
 
 w0y is not affiliated with YouTube or Google.

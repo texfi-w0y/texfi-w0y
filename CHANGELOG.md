@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.3 beta-2
+
+Hairline grows up: a new floating dock, tabbed settings, a bento "Yours" screen,
+fully customisable playlists and folders, app background modes, seasonal
+events, and a w0y icon in the notification shade. Details in the
+[release notes](docs/RELEASE_NOTES.md).
+
 ## v0.0.3 beta-1
 
 New Hairline look, your own audio files, lyrics from several sources with an
