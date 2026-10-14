@@ -55,12 +55,18 @@ class PlayerViewModel @Inject constructor(
     /** Обложка или визуализатор — выбор запоминается. */
     fun setPlayerArt(art: com.texfi.w0y.data.PlayerArt) = viewModelScope.launch { settingsRepository.setPlayerArt(art) }
 
+    fun setVisualizerStyle(style: com.texfi.w0y.data.VisualizerStyle) = viewModelScope.launch { settingsRepository.setVisualizerStyle(style) }
+
     fun setLyricsSize(size: com.texfi.w0y.data.LyricsSize) = viewModelScope.launch { settingsRepository.setLyricsSize(size) }
 
     /** Яркость, выставленная прямо в подставке, запоминается. */
     fun setStandBrightness(value: Float) = viewModelScope.launch { settingsRepository.setStandBrightness(value) }
 
     fun setStandView(view: com.texfi.w0y.data.StandView) = viewModelScope.launch { settingsRepository.setStandView(view) }
+
+    fun setStandVisualizer(value: Boolean) = viewModelScope.launch { settingsRepository.setStandVisualizer(value) }
+
+    fun setStandClock(value: Boolean) = viewModelScope.launch { settingsRepository.setStandClock(value) }
 
     fun setStandFlipped(value: Boolean) = viewModelScope.launch { settingsRepository.setStandFlipped(value) }
 

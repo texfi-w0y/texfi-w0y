@@ -210,6 +210,7 @@ fun PlayerScreen(
     var position by remember { mutableLongStateOf(0L) }
     var dragPosition by remember { mutableStateOf<Long?>(null) }
     var showPlaylists by remember { mutableStateOf(false) }
+    var showPlayerMenu by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableStateOf(PlayerTab.QUEUE) }
     var lyricsFull by remember { mutableStateOf(false) }
@@ -420,7 +421,7 @@ fun PlayerScreen(
                     position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
                     visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
                     onToggleArt = toggleArt,
-                    onStand = onStand,
+                    onMenu = { showPlayerMenu = true },
                     lyricsOn = lyricsOn,
                     onToggleLyrics = { lyricsOn = !lyricsOn; videoOn = false },
                     videoAvailable = isVideoTrack,
@@ -545,6 +546,11 @@ fun PlayerScreen(
                                             playing = state.isPlaying,
                                             positionProvider = viewModel.player::positionMs,
                                             modifier = Modifier.fillMaxSize(),
+                                            onError = {
+                                                videoOn = false
+                                                video = null
+                                                android.widget.Toast.makeText(context, videoFailed, android.widget.Toast.LENGTH_SHORT).show()
+                                            },
                                         )
                                     } else if (videoLoading) {
                                         com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp))
@@ -713,7 +719,8 @@ fun PlayerScreen(
                         onAdd = { showPlaylists = true },
                         onDownload = { viewModel.download(song) },
                         onShare = viewModel::shareCard,
-                        onSleep = { if (sleepLeft == null) viewModel.startSleepTimer() else viewModel.cancelSleepTimer() },
+                        onSleep = { showPlayerMenu = true },
+                        onCopyLink = copyLinkAction(song),
                     )
                 } else Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -1251,6 +1258,23 @@ fun PlayerScreen(
         }
         }
 
+        if (showPlayerMenu) {
+            HairPlayerMenu(
+                sleepLeftMs = sleepLeft,
+                sleepAfterTrack = sleepAfterTrack,
+                style = settings.visualizerStyle.forUi(settings.uiStyle),
+                onSleep = { minutes ->
+                    when (minutes) {
+                        null -> viewModel.cancelSleepTimer()
+                        0 -> viewModel.sleepAfterTrack()
+                        else -> viewModel.startSleepTimer(minutes)
+                    }
+                },
+                onStyle = viewModel::setVisualizerStyle,
+                onStand = onStand,
+                onDismiss = { showPlayerMenu = false },
+            )
+        }
         if (showPlaylists) {
             AddToPlaylistPanel(
                 song = song,

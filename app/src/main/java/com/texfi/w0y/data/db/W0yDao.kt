@@ -162,11 +162,39 @@ interface W0yDao {
         deletePlaylistRow(id)
     }
 
+    @Query("UPDATE playlists SET name = :name, note = :note, accent = :accent, glyph = :glyph, customCover = :cover WHERE id = :id")
+    suspend fun updatePlaylistLook(id: Long, name: String, note: String?, accent: Int?, glyph: String?, cover: String?)
+
     @Query("UPDATE playlists SET name = :name WHERE id = :id")
     suspend fun renamePlaylist(id: Long, name: String)
 
     @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
     fun playlists(): Flow<List<PlaylistEntity>>
+
+    @Query("SELECT * FROM folders ORDER BY createdAt ASC")
+    fun folders(): Flow<List<FolderEntity>>
+
+    @Insert
+    suspend fun createFolder(folder: FolderEntity): Long
+
+    @Query("UPDATE folders SET name = :name WHERE id = :id")
+    suspend fun renameFolder(id: Long, name: String)
+
+    @Query("UPDATE playlists SET folderId = :folderId WHERE id = :playlistId")
+    suspend fun setPlaylistFolder(playlistId: Long, folderId: Long?)
+
+    @Query("UPDATE playlists SET folderId = NULL WHERE folderId = :folderId")
+    suspend fun emptyFolder(folderId: Long)
+
+    @Query("DELETE FROM folders WHERE id = :id")
+    suspend fun deleteFolderRow(id: Long)
+
+    /** Папка исчезает, а её плейлисты возвращаются в общий список. */
+    @Transaction
+    suspend fun deleteFolder(id: Long) {
+        emptyFolder(id)
+        deleteFolderRow(id)
+    }
 
     @Query("SELECT * FROM playlists WHERE id = :id")
     fun playlist(id: Long): Flow<PlaylistEntity?>

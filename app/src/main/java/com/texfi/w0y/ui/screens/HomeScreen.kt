@@ -100,6 +100,7 @@ fun HomeScreen(
     val recommendationsFailed by home.failed.collectAsStateWithLifecycle()
     val showRecommendations by home.showRecommendations.collectAsStateWithLifecycle()
     val startupAverage by home.startupAverage.collectAsStateWithLifecycle()
+    val seasonMode by home.seasonMode.collectAsStateWithLifecycle()
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val signedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     // Меню плитки и плашка «отменить» после того, как плитку убрали на время.
@@ -148,7 +149,10 @@ fun HomeScreen(
                 // отсюда ушёл — он для отладки и живёт в «О приложении».
                 // В Hairline шапка чистая: замер живёт в «О приложении».
                 subtitle = if (hair) null else startupAverage?.let { stringResource(R.string.home_meta, it.toInt()) },
-                actions = { SpriteButton(Sprites.gear, onClick = onOpenSettings, size = 22) },
+                actions = {
+                    if (hair) com.texfi.w0y.ui.components.SeasonMark(seasonMode, Modifier.padding(end = 12.dp))
+                    SpriteButton(Sprites.gear, onClick = onOpenSettings, size = 22)
+                },
             )
         }
 

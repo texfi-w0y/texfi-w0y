@@ -397,8 +397,10 @@ class YouTubeRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             val stream =
                 runCatching { extractor.extract(videoId = videoId, hints = ContentHints(wantVideo = true, maxVideoHeight = VIDEO_MAX_HEIGHT), audioQuality = currentQuality()) }
+                    .onFailure { android.util.Log.w("w0y-video", "extract $videoId: ${it.message}") }
                     .getOrNull() ?: return@withContext null
             val url = stream.videoUrl ?: return@withContext null
+            android.util.Log.i("w0y-video", "$videoId url=${url.take(24)} sabrVideo=${stream.sabrVideoBootstrap != null} ${stream.videoWidth}x${stream.videoHeight} ${stream.videoMimeType}")
             if (url.startsWith("http")) return@withContext VideoSource(url, stream.headers, stream.videoWidth, stream.videoHeight)
             // YouTube отдаёт видео по SABR: проигрывается тем же источником, что и звук.
             val bootstrap = stream.sabrVideoBootstrap ?: return@withContext null

@@ -108,6 +108,23 @@ class LibraryViewModel @Inject constructor(
 
     val playlists: StateFlow<List<PlaylistEntity>> =
         library.playlists.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val folders: StateFlow<List<com.texfi.w0y.data.db.FolderEntity>> =
+        library.folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Новая папка; если указан плейлист — он сразу в неё перекладывается. */
+    fun createFolder(name: String, moveInto: Long? = null) {
+        viewModelScope.launch {
+            val id = library.createFolder(name) ?: return@launch
+            if (moveInto != null) library.movePlaylist(moveInto, id)
+        }
+    }
+
+    fun renameFolder(id: Long, name: String) = viewModelScope.launch { library.renameFolder(id, name) }
+
+    fun deleteFolder(id: Long) = viewModelScope.launch { library.deleteFolder(id) }
+
+    fun movePlaylist(playlistId: Long, folderId: Long?) = viewModelScope.launch { library.movePlaylist(playlistId, folderId) }
+
     val liked: StateFlow<List<SongItem>> =
         library.liked.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val recent: StateFlow<List<SongItem>> =
@@ -342,6 +359,39 @@ class LibraryViewModel @Inject constructor(
     fun deletePlaylist(id: Long) = viewModelScope.launch {
         library.deletePlaylist(id)
         back()
+    }
+
+    /** Сохраняет настройки плейлиста; выбранная картинка копируется в приложение и ужимается. */
+    fun customizePlaylist(
+        entry: PlaylistEntity,
+        name: String,
+        note: String,
+        accent: Int?,
+        glyph: String?,
+        pickedCover: android.net.Uri?,
+        clearCover: Boolean,
+    ) = viewModelScope.launch {
+        var cover = if (clearCover) null else entry.customCover
+        if (pickedCover != null) {
+            cover = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    val dir = java.io.File(context.filesDir, "playlist-covers").apply { mkdirs() }
+                    val bitmap = context.contentResolver.openInputStream(pickedCover)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                        ?: return@runCatching null
+                    val side = 720
+                    val scaled = if (maxOf(bitmap.width, bitmap.height) > side) {
+                        val k = side.toFloat() / maxOf(bitmap.width, bitmap.height)
+                        android.graphics.Bitmap.createScaledBitmap(bitmap, (bitmap.width * k).toInt(), (bitmap.height * k).toInt(), true)
+                    } else bitmap
+                    // Новое имя каждый раз: иначе картинка в кэше не обновится.
+                    val file = java.io.File(dir, "${entry.id}-${System.currentTimeMillis()}.jpg")
+                    file.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+                    "file://" + file.absolutePath
+                }.getOrNull()
+            } ?: cover
+        }
+        entry.customCover?.takeIf { it != cover }?.removePrefix("file://")?.let { java.io.File(it).delete() }
+        library.customizePlaylist(entry.id, name, note, accent, glyph, cover)
     }
 
     fun renamePlaylist(id: Long, name: String) = viewModelScope.launch { library.renamePlaylist(id, name) }

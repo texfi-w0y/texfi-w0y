@@ -82,6 +82,7 @@ import com.texfi.w0y.ui.nav.LocalBrowseNavigator
 import com.texfi.w0y.ui.screens.AlbumScreen
 import com.texfi.w0y.ui.screens.ArtistScreen
 import com.texfi.w0y.ui.screens.HomeScreen
+import com.texfi.w0y.ui.screens.copyLinkAction
 import com.texfi.w0y.ui.screens.LibraryScreen
 import com.texfi.w0y.ui.screens.LibraryRoute
 import com.texfi.w0y.ui.screens.LibraryViewModel
@@ -338,6 +339,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     items = navItems,
                     selected = tab.ordinal,
                     onSelect = {
+                        browseStack.clear()
                         tab = Tab.entries[it]
                         settingsOpen = false
                     },
@@ -361,6 +363,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                             items = navItems,
                             selected = tab.ordinal,
                             onSelect = {
+                                browseStack.clear()
                                 tab = Tab.entries[it]
                                 settingsOpen = false
                             },
@@ -432,6 +435,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
                     close()
                 },
+                onCopyLink = copyLinkAction(song),
                 onAlbum =
                     song.albumId?.let { id ->
                         {

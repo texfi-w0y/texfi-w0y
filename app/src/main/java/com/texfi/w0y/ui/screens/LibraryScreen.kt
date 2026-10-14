@@ -83,7 +83,7 @@ fun LibraryScreen(
 ) {
     val route by viewModel.route.collectAsStateWithLifecycle()
     when (val current = route) {
-        LibraryRoute.Root -> LibraryRoot(viewModel, onOpenLogin)
+        LibraryRoute.Root -> if (com.texfi.w0y.ui.theme.isHair) HairLibraryRoot(viewModel, onOpenLogin) else LibraryRoot(viewModel, onOpenLogin)
         is LibraryRoute.Local -> LocalPlaylist(current.playlistId, viewModel)
         is LibraryRoute.Remote -> RemotePlaylist(current, viewModel)
         LibraryRoute.Liked -> SongList(stringResource(R.string.library_likes), viewModel.liked.collectAsStateWithLifecycle().value, viewModel, collection = true)
@@ -721,13 +721,39 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
     // Чужой плейлист из библиотеки аккаунта YouTube править не даёт — и мы не обещаем.
     val editable = entry == null || entry.remoteId == null || entry.remoteEditable
     var renaming by remember { mutableStateOf<String?>(null) }
+    val hair = com.texfi.w0y.ui.theme.isHair
+    var customizing by remember(playlistId) { mutableStateOf(false) }
+    val covers by viewModel.playlistCovers.collectAsStateWithLifecycle()
+    if (hair && customizing && entry != null) {
+        com.texfi.w0y.ui.screens.PlaylistEditor(
+            entry = entry,
+            canRename = editable,
+            cover = covers[playlistId],
+            onSave = { newName, note, accent, glyph, picked, clear ->
+                viewModel.customizePlaylist(entry, newName, note, accent, glyph, picked, clear)
+                customizing = false
+            },
+            onDelete = { viewModel.deletePlaylist(playlistId) },
+            onClose = { customizing = false },
+        )
+        return
+    }
     Column(
         Modifier
             .fillMaxSize()
             .padding(horizontal = 18.dp),
     ) {
         ScreenTitle(title = name.lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp) {
-            SpriteButton(Sprites.trash, onClick = { viewModel.deletePlaylist(playlistId) })
+            if (hair) {
+                com.texfi.w0y.ui.components.HairIconButton(
+                    com.texfi.w0y.ui.icons.HairGlyph.SLIDERS,
+                    stringResource(R.string.pl_customize),
+                    { customizing = true },
+                    tint = colors.text,
+                )
+            } else {
+                SpriteButton(Sprites.trash, onClick = { viewModel.deletePlaylist(playlistId) })
+            }
         }
         renaming?.let { value ->
             PixelCard(modifier = Modifier.fillMaxWidth()) {
@@ -808,12 +834,17 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                 CollectionHeader(
                     title = name,
                     owner = if (entry?.remoteId != null) accountName ?: stringResource(R.string.library_own_playlist) else stringResource(R.string.library_own_playlist),
-                    coverUrl = entry?.coverUrl,
+                    coverUrl = covers[playlistId] ?: entry?.coverUrl,
                     songs = order,
                     onPlay = { viewModel.playCollection(order, 0) },
                     onShuffle = { viewModel.playCollection(order.shuffled(), 0) },
                     onDownload = { viewModel.downloadAll(order) },
                 )
+            }
+            if (hair && !entry?.note.isNullOrBlank()) {
+                item(key = "note") {
+                    Text(entry?.note.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(bottom = 12.dp))
+                }
             }
             if (order.isEmpty()) {
                 item(key = "empty") {

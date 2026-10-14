@@ -36,6 +36,8 @@ fun HairVideoSurface(
     playing: Boolean,
     positionProvider: () -> Long,
     modifier: Modifier = Modifier,
+    /** Видео не открылось или оборвалось: плеер закрывается, звук продолжает играть. */
+    onError: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val player =
@@ -53,6 +55,18 @@ fun HairVideoSurface(
                 }
         }
     val isPlaying by rememberUpdatedState(playing)
+    val failed by rememberUpdatedState(onError)
+    DisposableEffect(player) {
+        val listener =
+            object : androidx.media3.common.Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    android.util.Log.w("w0y-video", "player error: ${error.errorCodeName} ${error.message}")
+                    failed()
+                }
+            }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
     DisposableEffect(player) { onDispose { player.release() } }
     LaunchedEffect(player) {
         player.seekTo(positionProvider())

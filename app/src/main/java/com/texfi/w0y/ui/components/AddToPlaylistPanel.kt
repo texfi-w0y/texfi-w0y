@@ -51,6 +51,7 @@ fun AddToPlaylistPanel(
     /** Переход к исполнителю; у фита кнопка на каждого. */
     onArtist: ((com.texfi.w0y.data.ArtistLink) -> Unit)? = null,
     onAlbum: (() -> Unit)? = null,
+    onCopyLink: (() -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
     Box(
@@ -87,7 +88,7 @@ fun AddToPlaylistPanel(
                     }
                 }
                 val artists = if (onArtist != null) song.artistLinks() else emptyList()
-                if (onDownload != null || artists.isNotEmpty() || onAlbum != null) {
+                if (onDownload != null || artists.isNotEmpty() || onAlbum != null || onCopyLink != null) {
                     Spacer(Modifier.height(10.dp))
                     androidx.compose.foundation.layout.FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -95,6 +96,9 @@ fun AddToPlaylistPanel(
                     ) {
                         onDownload?.let {
                             PixelButton(text = stringResource(R.string.track_download), onClick = it, fill = colors.surfaceHigh)
+                        }
+                        onCopyLink?.let {
+                            PixelButton(text = stringResource(R.string.copy_link), onClick = it, fill = colors.surfaceHigh)
                         }
                         ArtistButtons(artists) { onArtist?.invoke(it) }
                         onAlbum?.let {

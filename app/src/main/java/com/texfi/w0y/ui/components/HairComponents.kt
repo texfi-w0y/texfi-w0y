@@ -119,31 +119,34 @@ internal fun HairButton(
 ) {
     val colors = LocalW0yColors.current
     val shape = styleTokens.button
-    val solid = body == colors.accent || body == colors.secondary
-    val tone = if (solid) Contrast.ensure(body, colors.background) else colors.text
+    // Как на сайте: главная кнопка — плоская светлая заливка с тёмной подписью,
+    // остальные — прозрачные с тонкой рамкой.
+    val primary = body == colors.accent || body == colors.secondary
     val press by animateFloatAsState(if (pressed) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "hairBtn")
+    val fillColor = if (primary && enabled) colors.text.copy(alpha = 1f - 0.18f * press) else colors.text.copy(alpha = 0.08f * press)
+    val labelColor =
+        when {
+            !enabled -> colors.textMuted
+            primary -> colors.background
+            else -> colors.text
+        }
     Box(
         modifier
-            .heightIn(min = HairTokens.TOUCH)
-            .graphicsLayer {
-                val k = 1f - 0.04f * press
-                scaleX = k
-                scaleY = k
-            }
+            .heightIn(min = 44.dp)
             .clip(shape)
-            .background(tone.copy(alpha = if (enabled) 0.16f * press else 0f))
-            .border(hairLook.line, if (!enabled) colors.border else if (solid) tone else colors.outline, shape)
+            .background(fillColor)
+            .then(if (primary && enabled) Modifier else Modifier.border(hairLook.line, if (enabled) colors.outline else colors.border, shape))
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = androidx.compose.ui.semantics.Role.Button) {
                 tap()
                 onClick()
             }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text.asLabel(),
             style = PixelSectionLabel,
-            color = if (enabled) tone else colors.textMuted,
+            color = labelColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

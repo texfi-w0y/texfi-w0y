@@ -316,6 +316,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setStandFlipped(value: Boolean) = update { repository.setStandFlipped(value) }
 
+    fun setStandClock(value: Boolean) = update { repository.setStandClock(value) }
+
+    fun setSeasonMode(value: com.texfi.w0y.data.SeasonMode) = update { repository.setSeasonMode(value) }
+
     fun setStandView(value: com.texfi.w0y.data.StandView) = update { repository.setStandView(value) }
 
     fun setStandChargingOnly(value: Boolean) = update { repository.setStandChargingOnly(value) }

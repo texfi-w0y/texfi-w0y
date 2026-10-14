@@ -26,6 +26,23 @@ class LibraryRepository @Inject constructor(
 
     val playlists: Flow<List<PlaylistEntity>> = dao.playlists()
 
+    val folders: Flow<List<com.texfi.w0y.data.db.FolderEntity>> = dao.folders()
+
+    suspend fun createFolder(name: String): Long? {
+        val clean = name.trim()
+        if (clean.isEmpty()) return null
+        return dao.createFolder(com.texfi.w0y.data.db.FolderEntity(name = clean, createdAt = now()))
+    }
+
+    suspend fun renameFolder(id: Long, name: String) {
+        val clean = name.trim()
+        if (clean.isNotEmpty()) dao.renameFolder(id, clean)
+    }
+
+    suspend fun deleteFolder(id: Long) = dao.deleteFolder(id)
+
+    suspend fun movePlaylist(playlistId: Long, folderId: Long?) = dao.setPlaylistFolder(playlistId, folderId)
+
     /** Куда можно добавлять треки: чужие плейлисты из библиотеки аккаунта YouTube править не даёт. */
     val editablePlaylists: Flow<List<PlaylistEntity>> =
         playlists.map { list -> list.filter { it.remoteId == null || it.remoteEditable } }
@@ -37,7 +54,7 @@ class LibraryRepository @Inject constructor(
     val playlistCovers: Flow<Map<Long, String>> =
         combine(playlists, dao.playlistFirstCovers()) { lists, firsts ->
             val first = firsts.associate { it.playlistId to it.url }
-            lists.mapNotNull { p -> (p.coverUrl ?: first[p.id])?.let { p.id to it } }.toMap()
+            lists.mapNotNull { p -> (p.customCover ?: p.coverUrl ?: first[p.id])?.let { p.id to it } }.toMap()
         }
     val liked: Flow<List<SongItem>> = dao.likedSongs().map { list -> list.map(SongEntity::toItem) }
     val recent: Flow<List<SongItem>> = dao.recentSongs().map { list -> list.map(SongEntity::toItem) }
@@ -82,6 +99,14 @@ class LibraryRepository @Inject constructor(
         val clean = name.trim()
         dao.renamePlaylist(id, clean)
         remoteId(id)?.let { sync.rename(it, clean) }
+    }
+
+    /** Всё, что пользователь настраивает в плейлисте; имя уходит и в аккаунт, остальное — только здесь. */
+    suspend fun customizePlaylist(id: Long, name: String, note: String?, accent: Int?, glyph: String?, cover: String?) {
+        val old = dao.playlistOnce(id)
+        val clean = name.trim().ifBlank { old?.name.orEmpty() }
+        dao.updatePlaylistLook(id, clean, note?.trim()?.ifBlank { null }, accent, glyph, cover)
+        if (old != null && old.name != clean) remoteId(id)?.let { sync.rename(it, clean) }
     }
 
     suspend fun deletePlaylist(id: Long) {

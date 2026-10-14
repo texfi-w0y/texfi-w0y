@@ -219,6 +219,9 @@ enum class PlayerArt { COVER, VISUALIZER }
 /** Что крупно в режиме подставки: название с исполнителем или обложка. */
 enum class StandView { TEXT, COVER }
 
+/** Сезонное оформление: само по дате, выключено или принудительно один из праздников. */
+enum class SeasonMode { AUTO, OFF, HALLOWEEN, WINTER }
+
 // ── Hairline: настройки вида ─────────────────────────────────────────────
 
 /** Толщина линий Hairline, dp. Тоньше одного dp не бывает: на плотных экранах линия пропадает. */
@@ -398,6 +401,8 @@ data class W0ySettings(
     /** Подставка вверх ногами: телефон стоит разъёмом вверх. */
     val standFlipped: Boolean = false,
     val standView: StandView = StandView.TEXT,
+    val standClock: Boolean = true,
+    val seasonMode: SeasonMode = SeasonMode.AUTO,
     val standChargingOnly: Boolean = false,
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
     val standMaxMinutes: Int = 60,
@@ -506,6 +511,8 @@ class SettingsRepository @Inject constructor(
                     standMarquee = prefs[Keys.STAND_MARQUEE] ?: false,
                     standFlipped = prefs[Keys.STAND_FLIPPED] ?: false,
                     standView = prefs.enum(Keys.STAND_VIEW, StandView.TEXT),
+                    standClock = prefs[Keys.STAND_CLOCK] ?: true,
+                    seasonMode = prefs.enum(Keys.SEASON_MODE, SeasonMode.AUTO),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: false,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: 60,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: true,
@@ -742,6 +749,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setStandView(value: StandView) = put(Keys.STAND_VIEW, value.name)
 
+    suspend fun setStandClock(value: Boolean) = put(Keys.STAND_CLOCK, value)
+
+    suspend fun setSeasonMode(value: SeasonMode) = put(Keys.SEASON_MODE, value.name)
+
     suspend fun setStandChargingOnly(value: Boolean) = put(Keys.STAND_CHARGING, value)
 
     suspend fun setStandMaxMinutes(value: Int) = put(Keys.STAND_MAX_MIN, value.coerceAtLeast(0))
@@ -958,6 +969,8 @@ class SettingsRepository @Inject constructor(
         val STAND_MARQUEE = booleanPreferencesKey("stand_marquee")
         val STAND_FLIPPED = booleanPreferencesKey("stand_flipped")
         val STAND_VIEW = stringPreferencesKey("stand_view")
+        val STAND_CLOCK = booleanPreferencesKey("stand_clock")
+        val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")
         val STAND_MAX_MIN = intPreferencesKey("stand_max_minutes")
         val STAND_LOW_BATTERY = booleanPreferencesKey("stand_low_battery_exit")

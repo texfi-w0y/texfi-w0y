@@ -10,7 +10,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.foundation.border
 import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.theme.asTitle
@@ -199,11 +202,12 @@ fun SettingsScreen(
             onImport = { importLauncher.launch(arrayOf("application/json")) },
             onAutoExport = { on -> if (on) withCopyrightNotice { viewModel.setAutoExport(true) } else viewModel.setAutoExport(false) },
         )
+    val hair = com.texfi.w0y.ui.theme.isHair
     val current = section?.let { name -> SettingsSection.entries.firstOrNull { it.name == name } }
 
     // Внутри раздела «назад» возвращает к списку разделов, а не закрывает
     // настройки целиком: закрытие с середины ощущается как сбой.
-    if (current != null) {
+    if (current != null && !hair) {
         BackHandler { section = null }
     }
 
@@ -214,8 +218,8 @@ fun SettingsScreen(
             .statusBarsPadding(),
     ) {
         ScreenTitle(
-            title = stringResource(current?.title ?: R.string.settings_title),
-            onBack = if (current != null) ({ section = null }) else onClose,
+            title = stringResource(if (hair) R.string.settings_title else (current?.title ?: R.string.settings_title)),
+            onBack = if (current != null && !hair) ({ section = null }) else onClose,
         )
         message?.let {
             Text(
@@ -226,13 +230,18 @@ fun SettingsScreen(
             )
         }
 
-        if (current == null) {
+        if (current == null || hair) {
             SettingsSearchField(value = query, onValueChange = { query = it })
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(if (hair) 4.dp else 12.dp))
+        }
+        if (hair && query.isBlank()) {
+            val tabs = listOf<Pair<String?, String>>(null to stringResource(R.string.settings_quick)) +
+                SectionGroup.entries.flatMap { g -> g.sections }.map { it.name to stringResource(it.title) }
+            HairTabStrip(tabs, section) { section = it }
         }
 
         val matches =
-            if (current != null || query.isBlank()) {
+            if ((current != null && !hair) || query.isBlank()) {
                 emptyList()
             } else {
                 val needle = query.trim().lowercase()
@@ -246,6 +255,7 @@ fun SettingsScreen(
         // Под стеклянными панелями список уходит под них, а отступ снизу
         // докручивает последний пункт над ними; без стекла — над жестами.
         val barsInset = com.texfi.w0y.ui.components.LocalBottomInset.current
+        val rowPad = if (com.texfi.w0y.ui.theme.isHair) 0.dp else 16.dp
         LazyColumn(
             Modifier
                 .fillMaxWidth()
@@ -254,7 +264,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             when {
-                current != null -> {
+                current != null && (!hair || query.isBlank()) -> {
                     item {
                         Text(
                             text = stringResource(current.summary),
@@ -270,12 +280,12 @@ fun SettingsScreen(
                     item {
                         GlassGroup {
                             if (current == SettingsSection.DEVICES) {
-                                Box(Modifier.padding(horizontal = 16.dp)) { DevicesBody(viewModel) }
+                                Box(Modifier.padding(horizontal = rowPad)) { DevicesBody(viewModel) }
                                 GroupDivider(start = 16.dp)
                             }
                             val inSection = rows.filter { it.section == current }
                             inSection.forEachIndexed { index, row ->
-                                Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { SettingRowView(row) }
+                                Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
                                 if (index < inSection.lastIndex) GroupDivider(start = 16.dp)
                             }
                         }
@@ -296,7 +306,7 @@ fun SettingsScreen(
                         item {
                             GlassGroup {
                                 matches.forEachIndexed { index, row ->
-                                    Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                    Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) {
                                         SettingRowView(row, sectionHint = stringResource(row.section.title))
                                     }
                                     if (index < matches.lastIndex) GroupDivider(start = 16.dp)
@@ -307,8 +317,23 @@ fun SettingsScreen(
                     }
 
                 else -> {
+                    // Самое нужное — сразу наверху, без заходов в разделы.
+                    val quick = rows.filter { it.quick }
+                    if (quick.isNotEmpty()) {
+                        item(key = "quick") {
+                            Column {
+                                GroupCaption(stringResource(R.string.settings_quick))
+                                GlassGroup {
+                                    quick.forEachIndexed { index, row ->
+                                        Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
+                                        if (index < quick.lastIndex) GroupDivider(start = 16.dp)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // Разделы собраны в группы с подписью — как в iOS, в каждом стиле по-своему.
-                    SectionGroup.entries.forEach { group ->
+                    if (!hair) SectionGroup.entries.forEach { group ->
                         item(key = group.name) {
                             Column {
                                 GroupCaption(stringResource(group.title))
@@ -344,20 +369,21 @@ private enum class SettingsSection(
     @StringRes val title: Int,
     @StringRes val summary: Int,
     val sprite: List<String>,
+    val glyph: com.texfi.w0y.ui.icons.HairGlyph,
 ) {
-    SOUND(R.string.settings_section_sound, R.string.settings_section_sound_sum, Sprites.wave),
-    TONE(R.string.settings_section_tone, R.string.settings_section_tone_sum, Sprites.sliders),
-    PLAYER(R.string.settings_section_player, R.string.settings_section_player_sum, Sprites.play),
-    SPEED(R.string.settings_section_speed, R.string.settings_section_speed_sum, Sprites.rocket),
-    STORAGE(R.string.settings_section_storage, R.string.settings_section_storage_sum, Sprites.box),
-    DOWNLOADS(R.string.settings_section_downloads, R.string.settings_section_downloads_sum, Sprites.download),
-    SEARCH(R.string.settings_section_search, R.string.settings_section_search_sum, Sprites.search),
-    ACCOUNT(R.string.settings_section_account, R.string.settings_section_account_sum, Sprites.sync),
-    CLEAN(R.string.settings_section_clean, R.string.settings_section_clean_sum, Sprites.shield),
-    LOOK(R.string.settings_section_look, R.string.settings_section_look_sum, Sprites.palette),
-    HAIR(R.string.hl_sec_title, R.string.hl_sec_sum, Sprites.sliders),
-    DEVICES(R.string.settings_section_devices, R.string.settings_section_devices_sum, Sprites.headphones),
-    DATA(R.string.settings_section_data, R.string.settings_section_data_sum, Sprites.license),
+    SOUND(R.string.settings_section_sound, R.string.settings_section_sound_sum, Sprites.wave, com.texfi.w0y.ui.icons.HairGlyph.WAVE),
+    TONE(R.string.settings_section_tone, R.string.settings_section_tone_sum, Sprites.sliders, com.texfi.w0y.ui.icons.HairGlyph.SLIDERS),
+    PLAYER(R.string.settings_section_player, R.string.settings_section_player_sum, Sprites.play, com.texfi.w0y.ui.icons.HairGlyph.PLAY),
+    SPEED(R.string.settings_section_speed, R.string.settings_section_speed_sum, Sprites.rocket, com.texfi.w0y.ui.icons.HairGlyph.ROCKET),
+    STORAGE(R.string.settings_section_storage, R.string.settings_section_storage_sum, Sprites.box, com.texfi.w0y.ui.icons.HairGlyph.BOX),
+    DOWNLOADS(R.string.settings_section_downloads, R.string.settings_section_downloads_sum, Sprites.download, com.texfi.w0y.ui.icons.HairGlyph.DOWNLOAD),
+    SEARCH(R.string.settings_section_search, R.string.settings_section_search_sum, Sprites.search, com.texfi.w0y.ui.icons.HairGlyph.SEARCH),
+    ACCOUNT(R.string.settings_section_account, R.string.settings_section_account_sum, Sprites.sync, com.texfi.w0y.ui.icons.HairGlyph.SYNC),
+    CLEAN(R.string.settings_section_clean, R.string.settings_section_clean_sum, Sprites.shield, com.texfi.w0y.ui.icons.HairGlyph.SHIELD),
+    LOOK(R.string.settings_section_look, R.string.settings_section_look_sum, Sprites.palette, com.texfi.w0y.ui.icons.HairGlyph.PALETTE),
+    HAIR(R.string.hl_sec_title, R.string.hl_sec_sum, Sprites.sliders, com.texfi.w0y.ui.icons.HairGlyph.SLIDERS),
+    DEVICES(R.string.settings_section_devices, R.string.settings_section_devices_sum, Sprites.headphones, com.texfi.w0y.ui.icons.HairGlyph.HEADPHONES),
+    DATA(R.string.settings_section_data, R.string.settings_section_data_sum, Sprites.license, com.texfi.w0y.ui.icons.HairGlyph.LICENSE),
 }
 
 /** Чем управляет пункт. Вид строки выбирается по этому, а не задаётся руками. */
@@ -392,6 +418,8 @@ private class SettingRow(
     val control: SettingControl,
     /** Слова, по которым пункт тоже должен находиться. */
     val keywords: String = "",
+    /** Показывается блоком «Быстро» наверху настроек. */
+    val quick: Boolean = false,
 )
 
 /** Группы разделов на главной странице настроек. */
@@ -411,18 +439,8 @@ private enum class SectionGroup(@StringRes val title: Int, val sections: List<Se
 private fun GlassGroup(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val colors = LocalW0yColors.current
     if (com.texfi.w0y.ui.theme.isHair) {
-        // Hairline: одна поверхность и контур в одну линию, без стекла и теней.
-        val look = com.texfi.w0y.ui.theme.hairLook
-        val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius)
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .hairSurface(shape)
-                .border(look.line, colors.border, shape)
-                .padding(vertical = 2.dp),
-            content = content,
-        )
+        // Hairline: без рамки и поверхности — строки идут прямо по фону, между ними тонкая линия.
+        Column(Modifier.fillMaxWidth(), content = content)
         return
     }
     if (!com.texfi.w0y.ui.theme.isSmooth) {
@@ -465,7 +483,7 @@ private fun GroupDivider(start: androidx.compose.ui.unit.Dp) {
     val hair = com.texfi.w0y.ui.theme.isHair
     Box(
         Modifier
-            .padding(start = start)
+            .padding(start = if (hair) 0.dp else start)
             .fillMaxWidth()
             .height(if (hair) com.texfi.w0y.ui.theme.hairLook.line else if (smooth) 0.5.dp else 2.dp)
             .background(if (hair) colors.border else if (smooth) colors.text.copy(alpha = 0.1f) else colors.border),
@@ -506,6 +524,22 @@ private fun GroupCaption(text: String) {
 @Composable
 private fun GlassSectionRow(section: SettingsSection, onClick: () -> Unit) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            com.texfi.w0y.ui.icons.HairIcon(section.glyph, colors.textMuted, Modifier.size(22.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(section.title), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = colors.text, maxLines = 1)
+                Text(stringResource(section.summary), style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1)
+            }
+            Spacer(Modifier.width(10.dp))
+            com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+        }
+        return
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -646,6 +680,14 @@ private fun SettingRowView(row: SettingRow, sectionHint: String? = null) {
 private fun ChoiceControl(control: SettingControl.Choice<*>) {
     @Suppress("UNCHECKED_CAST")
     val typed = control as SettingControl.Choice<Any?>
+    if (com.texfi.w0y.ui.theme.isHair && typed.options.size > 4) {
+        HairChips(
+            options = typed.options.map { typed.label(it) },
+            selectedIndex = typed.options.indexOf(typed.selected),
+            onSelect = { typed.onSelect(typed.options[it]) },
+        )
+        return
+    }
     PixelSegmented(
         options = typed.options.map { typed.label(it) },
         selectedIndex = typed.options.indexOf(typed.selected),
@@ -760,6 +802,7 @@ private fun settingsRows(
             SettingRow(
                 section = SettingsSection.SOUND,
                 title = stringResource(R.string.settings_quality_wifi_title),
+                quick = true,
                 description = stringResource(R.string.settings_quality_wifi_desc),
                 keywords = "wifi wi-fi",
                 control =
@@ -940,6 +983,7 @@ private fun settingsRows(
             SettingRow(
                 section = SettingsSection.PLAYER,
                 title = stringResource(R.string.settings_lyrics_title),
+                quick = true,
                 description = stringResource(R.string.settings_lyrics_desc),
                 control = SettingControl.Toggle(settings.showLyrics, viewModel::setShowLyrics),
             ),
@@ -972,6 +1016,7 @@ private fun settingsRows(
             SettingRow(
                 section = SettingsSection.PLAYER,
                 title = stringResource(R.string.viz_style_title),
+                quick = true,
                 description = stringResource(R.string.viz_style_desc),
                 keywords = "visualizer spectrum",
                 control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { if (settings.uiStyle == com.texfi.w0y.data.UiStyle.HAIRLINE) it.hair else (!it.hair && it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL)) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
@@ -1014,6 +1059,7 @@ private fun settingsRows(
             SettingRow(
                 section = SettingsSection.PLAYER,
                 title = stringResource(R.string.lyrics_delay_title),
+                quick = true,
                 description = stringResource(R.string.lyrics_delay_desc),
                 keywords = "lyrics sync offset delay",
                 control =
@@ -1032,6 +1078,15 @@ private fun settingsRows(
                 description = stringResource(R.string.lyrics_sources_desc),
                 keywords = "lyrics genius netease search",
                 control = SettingControl.Toggle(settings.lyricsAllSources, viewModel::setLyricsAllSources),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.PLAYER,
+                title = stringResource(R.string.stand_clock_title),
+                description = stringResource(R.string.stand_clock_desc),
+                keywords = "stand clock time",
+                control = SettingControl.Toggle(settings.standClock, viewModel::setStandClock),
             ),
         )
         add(
@@ -1069,6 +1124,30 @@ private fun settingsRows(
                         },
                         { if (it < 0f) stringResource(R.string.stand_brightness_system) else "${(it * 100).toInt()}%" },
                         viewModel::setStandBrightness,
+                    ),
+            ),
+        )
+        add(
+            SettingRow(
+                section = SettingsSection.LOOK,
+                title = stringResource(R.string.season_title),
+                description = stringResource(R.string.season_desc),
+                keywords = "season events halloween christmas winter new year",
+                control =
+                    SettingControl.Choice(
+                        com.texfi.w0y.data.SeasonMode.entries,
+                        settings.seasonMode,
+                        {
+                            stringResource(
+                                when (it) {
+                                    com.texfi.w0y.data.SeasonMode.AUTO -> R.string.season_auto
+                                    com.texfi.w0y.data.SeasonMode.OFF -> R.string.season_off
+                                    com.texfi.w0y.data.SeasonMode.HALLOWEEN -> R.string.season_halloween
+                                    com.texfi.w0y.data.SeasonMode.WINTER -> R.string.season_winter
+                                },
+                            )
+                        },
+                        viewModel::setSeasonMode,
                     ),
             ),
         )
@@ -1884,3 +1963,75 @@ private fun AppIconPicker(selected: com.texfi.w0y.data.AppIcon, onPick: (com.tex
 
 /** Фон значка, как в ресурсе icon_bg: превью рисует маску поверх него. */
 private const val ICON_BG = 0xFF0A090CL
+
+/** Много вариантов в ряд не помещаются сегментами — переносим плашками. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun HairChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEachIndexed { index, label ->
+            val active = index == selectedIndex
+            Box(
+                Modifier
+                    .heightIn(min = 40.dp)
+                    .clip(shape)
+                    .background(if (active) colors.text else androidx.compose.ui.graphics.Color.Transparent)
+                    .then(if (active) Modifier else Modifier.border(look.line, colors.outline, shape))
+                    .clickable { onSelect(index) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label.asLabel(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (active) colors.background else colors.text,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Вкладки настроек Hairline: подписи моно, активная — с линией под ней; лента прокручивается. */
+@Composable
+private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, onSelect: (String?) -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scroll)
+                .padding(horizontal = 18.dp),
+        ) {
+            tabs.forEach { (key, label) ->
+                val active = key == selected
+                Column(
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { onSelect(key) }
+                        .padding(end = 22.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        label.asLabel(),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                        color = if (active) colors.text else colors.textMuted,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(Modifier.height(look.line * 2).fillMaxWidth().background(if (active) colors.accent else androidx.compose.ui.graphics.Color.Transparent))
+                }
+            }
+        }
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(look.line).background(colors.border))
+    }
+    Spacer(Modifier.height(14.dp))
+}

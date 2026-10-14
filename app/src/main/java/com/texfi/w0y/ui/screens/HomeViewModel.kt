@@ -48,6 +48,11 @@ class HomeViewModel @Inject constructor(
             .map { it.showRecommendations }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
+    val seasonMode: StateFlow<com.texfi.w0y.data.SeasonMode> =
+        settings.settings
+            .map { it.seasonMode }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.texfi.w0y.data.SeasonMode.AUTO)
+
     private val _shelves = MutableStateFlow<List<Shelf>>(emptyList())
     val shelves: StateFlow<List<Shelf>> = _shelves.asStateFlow()
 

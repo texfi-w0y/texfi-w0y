@@ -7,6 +7,10 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -85,7 +89,7 @@ internal fun HairPlayerHeader(
     position: String?,
     visualizerOn: Boolean,
     onToggleArt: () -> Unit,
-    onStand: () -> Unit,
+    onMenu: () -> Unit,
     lyricsOn: Boolean,
     onToggleLyrics: () -> Unit,
     videoAvailable: Boolean,
@@ -105,11 +109,113 @@ internal fun HairPlayerHeader(
         }
         val on = Contrast.ensure(colors.accent, colors.background)
         if (videoAvailable) {
-            HairIconButton(HairGlyph.VIDEO, stringResource(R.string.hl_cd_video), onToggleVideo, tint = if (videoOn) on else colors.textMuted)
+            LabelledIcon(HairGlyph.VIDEO, R.string.hl_cd_video, R.string.tip_video, onToggleVideo, if (videoOn) on else colors.textMuted)
         }
-        HairIconButton(HairGlyph.LYRICS, stringResource(R.string.player_lyrics), onToggleLyrics, tint = if (lyricsOn) on else colors.textMuted)
-        HairIconButton(HairGlyph.WAVE, stringResource(R.string.player_visualizer), onToggleArt, tint = if (visualizerOn) on else colors.textMuted)
-        HairIconButton(HairGlyph.STAND, stringResource(R.string.player_stand), onStand)
+        LabelledIcon(HairGlyph.LYRICS, R.string.player_lyrics, R.string.tip_lyrics, onToggleLyrics, if (lyricsOn) on else colors.textMuted)
+        LabelledIcon(HairGlyph.WAVE, R.string.player_visualizer, R.string.tip_visual, onToggleArt, if (visualizerOn) on else colors.textMuted)
+        LabelledIcon(HairGlyph.DOTS, R.string.player_menu, R.string.tip_more, onMenu, colors.textMuted)
+    }
+}
+
+/** Иконка с короткой подписью под ней: новичку видно, что она делает, без долгого нажатия. */
+@Composable
+private fun LabelledIcon(glyph: HairGlyph, description: Int, label: Int, onClick: () -> Unit, tint: androidx.compose.ui.graphics.Color) {
+    val colors = LocalW0yColors.current
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HairIconButton(glyph, stringResource(description), onClick, tint = tint)
+        Text(
+            stringResource(label).asLabel(),
+            style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp, letterSpacing = 0.3.sp),
+            color = if (tint == colors.textMuted) colors.textMuted.copy(alpha = 0.8f) else tint,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.offset(y = (-8).dp),
+        )
+    }
+}
+
+/** Меню «⋯» плеера: таймер сна, рисунок визуализатора и подставка — всё, что настраивают на ходу. */
+@Composable
+internal fun HairPlayerMenu(
+    sleepLeftMs: Long?,
+    sleepAfterTrack: Boolean,
+    style: com.texfi.w0y.data.VisualizerStyle,
+    onSleep: (Int?) -> Unit,
+    onStyle: (com.texfi.w0y.data.VisualizerStyle) -> Unit,
+    onStand: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(18.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(colors.surface)
+                .border(look.line, colors.outline, shape)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(stringResource(R.string.settings_section_player).asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted)
+            MenuChips(
+                title = stringResource(R.string.player_sleep_title),
+                hint = sleepLeftMs?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" },
+                options = listOf(
+                    stringResource(R.string.player_sleep_off),
+                    stringResource(R.string.player_sleep_track),
+                    stringResource(R.string.settings_sleep_minutes, 15),
+                    stringResource(R.string.settings_sleep_minutes, 30),
+                    stringResource(R.string.settings_sleep_minutes, 60),
+                ),
+                selected = when {
+                    sleepAfterTrack -> 1
+                    sleepLeftMs != null -> -1
+                    else -> 0
+                },
+                onSelect = { i -> onSleep(listOf(null, 0, 15, 30, 60)[i]); onDismiss() },
+            )
+            val styles = com.texfi.w0y.data.VisualizerStyle.entries.filter { it.hair }
+            MenuChips(
+                title = stringResource(R.string.player_visualizer),
+                hint = null,
+                options = styles.map { stringResource(it.label) },
+                selected = styles.indexOf(style),
+                onSelect = { onStyle(styles[it]) },
+            )
+            com.texfi.w0y.ui.components.PixelButton(stringResource(R.string.player_stand), onClick = { onDismiss(); onStand() }, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun MenuChips(title: String, hint: String?, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row {
+            Text(title.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.text, modifier = Modifier.weight(1f))
+            if (hint != null) Text(hint, style = com.texfi.w0y.ui.theme.HairLabelStyle, color = Contrast.ensure(colors.accent, colors.surface))
+        }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEachIndexed { i, label ->
+                val active = i == selected
+                Box(
+                    Modifier
+                        .heightIn(min = 40.dp)
+                        .clip(shape)
+                        .background(if (active) colors.text else androidx.compose.ui.graphics.Color.Transparent)
+                        .then(if (active) Modifier else Modifier.border(look.line, colors.outline, shape))
+                        .clickable { onSelect(i) }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = if (active) colors.background else colors.text, maxLines = 1)
+                }
+            }
+        }
     }
 }
 
@@ -180,6 +286,7 @@ internal fun HairActionsRow(
     onDownload: () -> Unit,
     onShare: () -> Unit,
     onSleep: () -> Unit,
+    onCopyLink: (() -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
@@ -191,6 +298,7 @@ internal fun HairActionsRow(
         HairIconButton(HairGlyph.PLUS, stringResource(R.string.player_cd_playlist), onAdd)
         Box(Modifier.size(HairTokens.TOUCH), contentAlignment = Alignment.Center) { DownloadButton(song.id, onDownload = onDownload) }
         HairIconButton(HairGlyph.SHARE, stringResource(R.string.player_cd_share), onShare, tint = if (sharing) tone else colors.textMuted)
+        if (onCopyLink != null) HairIconButton(HairGlyph.LINK, stringResource(R.string.copy_link), onCopyLink)
         HairSleepButton(sleepLeftMs, onSleep)
     }
 }
@@ -499,6 +607,24 @@ internal fun HairDials(
             steps = reverbs.size - 1,
             onCommit = { onReverb(reverbs[(it * (reverbs.size - 1)).let(Math::round).coerceIn(0, reverbs.lastIndex)]) },
         )
+    }
+}
+
+/** Ссылка на трек в YouTube Music; у своих файлов её нет. */
+fun songLink(song: SongItem): String? =
+    if (song.id.startsWith("local:")) null else "https://music.youtube.com/watch?v=${song.id}"
+
+/** Действие «скопировать ссылку» или null для своих файлов; закрывает меню сам вызывающий. */
+@Composable
+fun copyLinkAction(song: SongItem, after: () -> Unit = {}): (() -> Unit)? {
+    val link = songLink(song) ?: return null
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val done = stringResource(R.string.link_copied)
+    return {
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("w0y", link))
+        android.widget.Toast.makeText(context, done, android.widget.Toast.LENGTH_SHORT).show()
+        after()
     }
 }
 

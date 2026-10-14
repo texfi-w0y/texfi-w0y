@@ -127,6 +127,24 @@ data class PlaylistEntity(
     val syncBase: String? = null,
     /** Когда плейлист последний раз сверялся с аккаунтом, мс. */
     @ColumnInfo(defaultValue = "0") val syncedAt: Long = 0L,
+    /** Папка, в которую плейлист разложен; null — лежит просто в списке. Только на этом телефоне. */
+    val folderId: Long? = null,
+    /** Цвет плейлиста (ARGB) — рамка плитки и значок; null — без цвета. Только на этом телефоне. */
+    val accent: Int? = null,
+    /** Значок плейлиста — имя глифа Hairline. */
+    val glyph: String? = null,
+    /** Описание, которое видно над списком треков. */
+    val note: String? = null,
+    /** Своя обложка — файл на телефоне; важнее обложки из аккаунта. */
+    val customCover: String? = null,
+)
+
+/** Папка для плейлистов: их можно раскладывать, как файлы. */
+@Entity(tableName = "folders")
+data class FolderEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val createdAt: Long,
 )
 
 @Entity(

@@ -205,6 +205,32 @@ fun StandScreen(onExit: (StandExit) -> Unit, viewModel: PlayerViewModel = hiltVi
                 touch++
             },
     ) {
+        if (com.texfi.w0y.ui.theme.isHair) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .offset { shift }
+                    .graphicsLayer { alpha = enter.value },
+            ) {
+                HairStandLayer(
+                    viewModel = viewModel,
+                    settings = settings,
+                    playing = state.isPlaying,
+                    song = song,
+                    durationMs = state.durationMs,
+                    lyricsLines = lyrics?.synced.orEmpty(),
+                    controls = controls,
+                    brightness = brightness,
+                    onBrightness = {
+                        brightness = it
+                        touch++
+                    },
+                    lowBattery = lowBattery,
+                    onTouch = { touch++ },
+                    onExit = { exit(StandExit.USER) },
+                )
+            }
+        } else {
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -363,6 +389,7 @@ fun StandScreen(onExit: (StandExit) -> Unit, viewModel: PlayerViewModel = hiltVi
                     SpriteButton(Sprites.close, onClick = { exit(StandExit.USER) }, size = 26)
                 }
             }
+        }
         }
     }
 }
