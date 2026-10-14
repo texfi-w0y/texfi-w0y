@@ -182,28 +182,14 @@ fun HairDock(
                     alpha = 1f - rise.value * 0.6f
                 }
                 .clip(shape)
+                .background(colors.surface)
+                // Едва заметная подкраска сверху цветом обложки — без заливок и бликов.
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            lerp(colors.surface, if (tinted) tint else Color.White, if (tinted) 0.20f else 0.07f).copy(alpha = 0.985f),
-                            lerp(colors.surface, if (tinted) tint else colors.surface, if (tinted) 0.04f else 0f).copy(alpha = 0.985f),
-                        ),
+                        0f to (if (tinted) tint.copy(alpha = 0.10f) else Color.Transparent),
+                        0.7f to Color.Transparent,
                     ),
                 )
-                // Плывущее пятно цвета обложки внутри корпуса.
-                .drawBehind {
-                    if (!tinted || glowOn.value < 0.01f) return@drawBehind
-                    val t = phase.floatValue
-                    val cx = size.width * (0.5f + 0.38f * sin(t))
-                    val cy = size.height * (0.30f + 0.12f * sin(t * 1.7f + 1f))
-                    drawRect(
-                        Brush.radialGradient(
-                            listOf(tint.copy(alpha = 0.26f * glowOn.value), Color.Transparent),
-                            Offset(cx, cy),
-                            size.width * 0.55f,
-                        ),
-                    )
-                }
                 .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.45f else 0f), if (tinted) tint else colors.progress, colors.text, config.glow),
         ) {
             mini()
@@ -212,7 +198,11 @@ fun HairDock(
     }
 }
 
-/** Рамка корпуса, блик по верхней кромке и контур-прогресс со свечением и «головкой». */
+/**
+ * Рамка корпуса в одну линию и прогресс по верхней кромке: тонкая линия
+ * цвета обложки слева направо, под ней мягкий след и точка-«головка».
+ * Линия лежит внутри корпуса, поэтому не обрезается скруглением.
+ */
 private fun Modifier.dockFrame(
     radius: Dp,
     progress: () -> Float,
@@ -224,33 +214,26 @@ private fun Modifier.dockFrame(
     drawWithCache {
         val line = 1.dp.toPx()
         val half = line / 2f
-        val rect = Rect(half, half, size.width - half, size.height - half)
-        val frame = framePath(rect, radius.toPx())
-        val measure = PathMeasure().also { it.setPath(frame, false) }
-        val part = Path()
-        val sheenBrush =
-            Brush.horizontalGradient(
-                0f to Color.Transparent,
-                0.5f to sheen.copy(alpha = 0.22f),
-                1f to Color.Transparent,
-            )
+        val frame = framePath(Rect(half, half, size.width - half, size.height - half), radius.toPx())
+        val edge = max(radius.toPx() * 0.7f, 6.dp.toPx())
         onDrawWithContent {
             drawContent()
             drawPath(frame, border, style = Stroke(line))
-            drawLine(sheenBrush, Offset(radius.toPx() + 4.dp.toPx(), line * 1.5f), Offset(size.width - radius.toPx() - 4.dp.toPx(), line * 1.5f), line)
             val p = progress()
             if (p > 0f) {
-                part.rewind()
-                val len = measure.length * p
-                measure.getSegment(0f, len, part, true)
-                if (glow) drawPath(part, progressColor.copy(alpha = 0.22f), style = Stroke(line * 7f, cap = StrokeCap.Round))
-                drawPath(part, progressColor, style = Stroke(line * 2.2f, cap = StrokeCap.Round))
-                // Головка: яркая точка в конце линии.
-                val head = measure.getPosition(len)
-                if (head.isSpecified) {
-                    if (glow) drawCircle(progressColor.copy(alpha = 0.35f), line * 5.5f, head)
-                    drawCircle(sheen, line * 2.3f, head)
+                val y = 1.5.dp.toPx()
+                val from = edge
+                val to = size.width - edge
+                val x = from + (to - from) * p
+                if (glow) {
+                    drawRect(
+                        Brush.verticalGradient(listOf(progressColor.copy(alpha = 0.30f), Color.Transparent), startY = 0f, endY = 12.dp.toPx()),
+                        Offset(from, 0f),
+                        Size(x - from, 12.dp.toPx()),
+                    )
                 }
+                drawLine(progressColor, Offset(from, y), Offset(x, y), 2.dp.toPx(), StrokeCap.Round)
+                drawCircle(sheen, 3.dp.toPx(), Offset(x, y))
             }
         }
     }
@@ -311,22 +294,18 @@ private fun DockNav(
                 val left = min(head.value, tail.value) * slot + pad
                 val right = (max(head.value, tail.value) + 1f) * slot - pad
                 val box = Rect(left, 2.dp.toPx(), right, size.height - 2.dp.toPx())
-                val corner = CornerRadius(box.height / 2f)
-                // Линза: прозрачная заливка цвета панели и тонкая рамка.
-                drawRoundRect(
-                    Brush.horizontalGradient(listOf(lensTone.copy(alpha = 0.30f), lensTone.copy(alpha = 0.12f))),
-                    box.topLeft, box.size, corner,
-                )
-                drawRoundRect(lensTone.copy(alpha = 0.65f), box.topLeft, box.size, corner, style = Stroke(1.dp.toPx()))
+                val corner = CornerRadius(LENS_RADIUS.toPx())
+                // Линза-контур: тонкая линия цвета панели, чуть подсвеченная внутри.
+                drawRoundRect(lensTone.copy(alpha = 0.09f), box.topLeft, box.size, corner)
+                drawRoundRect(lensTone.copy(alpha = 0.7f), box.topLeft, box.size, corner, style = Stroke(1.dp.toPx()))
                 val r = ripple.value
                 if (r < 1f) {
-                    val c = box.center
                     drawRoundRect(
-                        lensTone.copy(alpha = 0.55f * (1f - r)),
-                        Offset(c.x - box.width / 2f - r * 18.dp.toPx(), box.top - r * 8.dp.toPx()),
-                        Size(box.width + r * 36.dp.toPx(), box.height + r * 16.dp.toPx()),
-                        CornerRadius(box.height / 2f + r * 8.dp.toPx()),
-                        style = Stroke(1.5.dp.toPx()),
+                        lensTone.copy(alpha = 0.5f * (1f - r)),
+                        Offset(box.left - r * 14.dp.toPx(), box.top - r * 6.dp.toPx()),
+                        Size(box.width + r * 28.dp.toPx(), box.height + r * 12.dp.toPx()),
+                        CornerRadius(LENS_RADIUS.toPx() + r * 6.dp.toPx()),
+                        style = Stroke(1.dp.toPx()),
                     )
                 }
             }
@@ -409,9 +388,9 @@ private fun DockNav(
                     Text(
                         text = item.label.asLabel(),
                         style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp, letterSpacing = 1.sp),
-                        color = if (active) colors.text else colors.textMuted,
+                        color = (if (active) colors.text else colors.textMuted).copy(alpha = labelAlpha),
                         maxLines = 1,
-                        modifier = Modifier.padding(top = 3.dp).graphicsLayer { alpha = labelAlpha },
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                 }
             }
@@ -421,7 +400,8 @@ private fun DockNav(
 
 private val NAV_ITEM_HEIGHT = 56.dp
 private val LENS_MAX = 104.dp
+private val LENS_RADIUS = 10.dp
 private const val PROGRESS_POLL_MS = 400L
 private const val PAUSED_POLL_MS = 1_000L
-private const val GLOW_ALPHA = 0.38f
+private const val GLOW_ALPHA = 0.26f
 private val GLOW_REACH = 100.dp

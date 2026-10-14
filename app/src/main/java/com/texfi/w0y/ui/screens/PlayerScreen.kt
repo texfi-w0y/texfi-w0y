@@ -1044,38 +1044,40 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = if (radioLoading) colors.accent else colors.textMuted,
                         )
-                        // Таймер сна живёт здесь, а не в углу шапки: это
-                        // ответ на вопрос «что будет дальше», а дальше —
-                        // тишина. «До конца трека» важнее круглых минут:
-                        // засыпают именно так.
-                        Spacer(Modifier.height(18.dp))
-                        SectionLabel(stringResource(R.string.player_sleep_title))
-                        Spacer(Modifier.height(8.dp))
-                        val sleepOptions = listOf(null, 0, 15, 30, 60)
-                        val selectedSleep =
-                            when {
-                                sleepAfterTrack -> 1
-                                sleepLeft != null -> -1
-                                else -> 0
-                            }
-                        PixelSegmented(
-                            options =
-                                sleepOptions.map { minutes ->
-                                    when (minutes) {
-                                        null -> stringResource(R.string.player_sleep_off)
-                                        0 -> stringResource(R.string.player_sleep_track)
-                                        else -> stringResource(R.string.settings_sleep_minutes, minutes)
+                        if (!com.texfi.w0y.ui.theme.isHair) {
+                            // Таймер сна живёт здесь, а не в углу шапки: это
+                            // ответ на вопрос «что будет дальше», а дальше —
+                            // тишина. «До конца трека» важнее круглых минут:
+                            // засыпают именно так.
+                            Spacer(Modifier.height(18.dp))
+                            SectionLabel(stringResource(R.string.player_sleep_title))
+                            Spacer(Modifier.height(8.dp))
+                            val sleepOptions = listOf(null, 0, 15, 30, 60)
+                            val selectedSleep =
+                                when {
+                                    sleepAfterTrack -> 1
+                                    sleepLeft != null -> -1
+                                    else -> 0
+                                }
+                            PixelSegmented(
+                                options =
+                                    sleepOptions.map { minutes ->
+                                        when (minutes) {
+                                            null -> stringResource(R.string.player_sleep_off)
+                                            0 -> stringResource(R.string.player_sleep_track)
+                                            else -> stringResource(R.string.settings_sleep_minutes, minutes)
+                                        }
+                                    },
+                                selectedIndex = selectedSleep,
+                                onSelect = { index ->
+                                    when (val minutes = sleepOptions[index]) {
+                                        null -> viewModel.cancelSleepTimer()
+                                        0 -> viewModel.sleepAfterTrack()
+                                        else -> viewModel.startSleepTimer(minutes)
                                     }
                                 },
-                            selectedIndex = selectedSleep,
-                            onSelect = { index ->
-                                when (val minutes = sleepOptions[index]) {
-                                    null -> viewModel.cancelSleepTimer()
-                                    0 -> viewModel.sleepAfterTrack()
-                                    else -> viewModel.startSleepTimer(minutes)
-                                }
-                            },
-                        )
+                            )
+                        }
                     }
                 }
 

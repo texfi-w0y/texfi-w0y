@@ -2118,7 +2118,8 @@ private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, o
     }
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
-            Row(Modifier.padding(horizontal = 18.dp)) {
+            Row {
+                Spacer(Modifier.width(18.dp))
                 tabs.forEach { (tabKey, label) ->
                     val active = tabKey == selected
                     val tone by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, androidx.compose.animation.core.tween(200), label = "tabTone")
@@ -2133,6 +2134,7 @@ private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, o
                         Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = tone, maxLines = 1)
                     }
                 }
+                Spacer(Modifier.width(18.dp))
             }
             if (spot != null) {
                 Box(
