@@ -181,7 +181,7 @@ internal fun ConfirmDeleteButton(label: String, armedLabel: String, onConfirm: (
         }
     }
     val shape = RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
-    val danger = colors.secondary
+    val danger = Color(0xFFE5646B)
     Box(
         modifier
             .fillMaxWidth()

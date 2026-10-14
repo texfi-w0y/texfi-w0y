@@ -788,7 +788,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
             )
             Spacer(Modifier.height(12.dp))
         }
-        if (editable) {
+        if (editable && !hair) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (signedIn) {
                     PixelSprite(

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 8,
-    "identityHash": "64cdffc13c797a86fa171586bd5e3419",
+    "identityHash": "9593d9edfe884f27085be41bec68bb72",
     "entities": [
       {
         "tableName": "songs",
@@ -114,7 +114,7 @@
       },
       {
         "tableName": "playlists",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `remoteId` TEXT, `coverUrl` TEXT, `remoteEditable` INTEGER NOT NULL DEFAULT 1, `syncBase` TEXT, `syncedAt` INTEGER NOT NULL DEFAULT 0, `folderId` INTEGER, `accent` INTEGER, `glyph` TEXT, `note` TEXT, `customCover` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `remoteId` TEXT, `coverUrl` TEXT, `remoteEditable` INTEGER NOT NULL DEFAULT 1, `syncBase` TEXT, `syncedAt` INTEGER NOT NULL DEFAULT 0, `folderId` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -167,26 +167,6 @@
             "fieldPath": "folderId",
             "columnName": "folderId",
             "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "accent",
-            "columnName": "accent",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "glyph",
-            "columnName": "glyph",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "note",
-            "columnName": "note",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "customCover",
-            "columnName": "customCover",
-            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -410,7 +390,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '64cdffc13c797a86fa171586bd5e3419')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9593d9edfe884f27085be41bec68bb72')"
     ]
   }
 }

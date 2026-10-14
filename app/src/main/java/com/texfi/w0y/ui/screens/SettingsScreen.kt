@@ -322,7 +322,7 @@ fun SettingsScreen(
                     if (quick.isNotEmpty()) {
                         item(key = "quick") {
                             Column {
-                                GroupCaption(stringResource(R.string.settings_quick))
+                                if (!hair) GroupCaption(stringResource(R.string.settings_quick))
                                 GlassGroup {
                                     quick.forEachIndexed { index, row ->
                                         Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
@@ -2027,7 +2027,7 @@ private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, o
                         maxLines = 1,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Box(Modifier.height(look.line * 2).fillMaxWidth().background(if (active) colors.accent else androidx.compose.ui.graphics.Color.Transparent))
+                    Box(Modifier.height(2.dp).fillMaxWidth().background(if (active) colors.accent else androidx.compose.ui.graphics.Color.Transparent))
                 }
             }
         }

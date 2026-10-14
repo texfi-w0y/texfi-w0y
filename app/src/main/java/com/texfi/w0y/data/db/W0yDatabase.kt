@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PinEntity::class,
         FolderEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class W0yDatabase : RoomDatabase() {
@@ -113,6 +113,13 @@ abstract class W0yDatabase : RoomDatabase() {
                 override fun migrate(db: SupportSQLiteDatabase) {
                     db.execSQL("CREATE TABLE IF NOT EXISTS folders (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, createdAt INTEGER NOT NULL)")
                     db.execSQL("ALTER TABLE playlists ADD COLUMN folderId INTEGER")
+                }
+            }
+
+        /** Свой вид плейлиста: цвет, значок, описание и обложка. */
+        val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
                     db.execSQL("ALTER TABLE playlists ADD COLUMN accent INTEGER")
                     db.execSQL("ALTER TABLE playlists ADD COLUMN glyph TEXT")
                     db.execSQL("ALTER TABLE playlists ADD COLUMN note TEXT")
@@ -121,7 +128,7 @@ abstract class W0yDatabase : RoomDatabase() {
             }
 
         /** Все миграции по порядку — и для приложения, и для тестов. */
-        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8) }
+        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9) }
 
         /** Метка «E»: её показывает список, поэтому хранится вместе с треком. */
         val MIGRATION_2_3 =
