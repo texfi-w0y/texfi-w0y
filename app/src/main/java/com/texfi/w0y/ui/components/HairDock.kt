@@ -190,7 +190,7 @@ fun HairDock(
                         0.7f to Color.Transparent,
                     ),
                 )
-                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.45f else 0f), if (tinted) tint else colors.progress, colors.text, config.glow),
+                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.45f else 0f), if (tinted) tint else colors.progress, colors.text),
         ) {
             mini()
             DockNav(items, selected, onSelect, tint, tinted, config.labels, radius)
@@ -199,41 +199,52 @@ fun HairDock(
 }
 
 /**
- * Рамка корпуса в одну линию и прогресс по верхней кромке: тонкая линия
- * цвета обложки слева направо, под ней мягкий след и точка-«головка».
- * Линия лежит внутри корпуса, поэтому не обрезается скруглением.
+ * Рамка корпуса в одну линию. Прогресс идёт по ней же, по часовой, от левого
+ * края через верх, правый бок и низ — линия проходит остров целиком до конца и
+ * обводит скругления. Лежит на 1dp внутри корпуса, поэтому не обрезается.
+ * Впереди короткий светлый «носик» того же размера.
  */
 private fun Modifier.dockFrame(
     radius: Dp,
     progress: () -> Float,
     border: Color,
     progressColor: Color,
-    sheen: Color,
-    glow: Boolean,
+    head: Color,
 ): Modifier =
     drawWithCache {
         val line = 1.dp.toPx()
-        val half = line / 2f
-        val frame = framePath(Rect(half, half, size.width - half, size.height - half), radius.toPx())
-        val edge = max(radius.toPx() * 0.7f, 6.dp.toPx())
+        val thick = 2.dp.toPx()
+        val inset = 1.dp.toPx()
+        val rect = Rect(inset, inset, size.width - inset, size.height - inset)
+        val r = radius.toPx().coerceIn(0f, min(rect.width, rect.height) / 2f)
+        val frame =
+            Path().apply {
+                moveTo(rect.left, rect.top + r)
+                if (r > 0f) arcTo(Rect(rect.left, rect.top, rect.left + 2 * r, rect.top + 2 * r), 180f, 90f, false)
+                lineTo(rect.right - r, rect.top)
+                if (r > 0f) arcTo(Rect(rect.right - 2 * r, rect.top, rect.right, rect.top + 2 * r), -90f, 90f, false)
+                lineTo(rect.right, rect.bottom - r)
+                if (r > 0f) arcTo(Rect(rect.right - 2 * r, rect.bottom - 2 * r, rect.right, rect.bottom), 0f, 90f, false)
+                lineTo(rect.left + r, rect.bottom)
+                if (r > 0f) arcTo(Rect(rect.left, rect.bottom - 2 * r, rect.left + 2 * r, rect.bottom), 90f, 90f, false)
+                lineTo(rect.left, rect.top + r)
+            }
+        val measure = PathMeasure().also { it.setPath(frame, false) }
+        val length = measure.length
+        val part = Path()
+        val tip = 16.dp.toPx()
         onDrawWithContent {
             drawContent()
             drawPath(frame, border, style = Stroke(line))
             val p = progress()
-            if (p > 0f) {
-                val y = 1.5.dp.toPx()
-                val from = edge
-                val to = size.width - edge
-                val x = from + (to - from) * p
-                if (glow) {
-                    drawRect(
-                        Brush.verticalGradient(listOf(progressColor.copy(alpha = 0.30f), Color.Transparent), startY = 0f, endY = 12.dp.toPx()),
-                        Offset(from, 0f),
-                        Size(x - from, 12.dp.toPx()),
-                    )
-                }
-                drawLine(progressColor, Offset(from, y), Offset(x, y), 2.dp.toPx(), StrokeCap.Round)
-                drawCircle(sheen, 3.dp.toPx(), Offset(x, y))
+            if (p > 0f && length > 0f) {
+                val end = length * p
+                part.rewind()
+                measure.getSegment(0f, end, part, true)
+                drawPath(part, progressColor, style = Stroke(thick, cap = StrokeCap.Butt))
+                part.rewind()
+                measure.getSegment(max(0f, end - tip), end, part, true)
+                drawPath(part, head, style = Stroke(thick, cap = StrokeCap.Round))
             }
         }
     }
@@ -285,7 +296,7 @@ private fun DockNav(
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
             .height(NAV_ITEM_HEIGHT)
             .drawBehind {
                 val slot = size.width / items.size
