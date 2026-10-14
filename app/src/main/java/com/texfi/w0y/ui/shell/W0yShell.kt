@@ -150,6 +150,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val customAccent by viewModel.customAccent.collectAsStateWithLifecycle()
     val animatedBackground by viewModel.animatedBackground.collectAsStateWithLifecycle()
     val backdropMode by viewModel.backdropMode.collectAsStateWithLifecycle()
+    val dockConfig by viewModel.dockConfig.collectAsStateWithLifecycle()
     val backdropImage by viewModel.backdropImage.collectAsStateWithLifecycle()
     val haptics by viewModel.haptics.collectAsStateWithLifecycle()
     val hapticLevel by viewModel.hapticLevel.collectAsStateWithLifecycle()
@@ -347,6 +348,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                         settingsOpen = false
                     },
                     modifier = Modifier.navigationBarsPadding(),
+                    config = dockConfig,
                     mini = mini,
                 )
             } else {

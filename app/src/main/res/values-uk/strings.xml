@@ -757,4 +757,20 @@
     <string name="backdrop_image_title">Картинка тла</string>
     <string name="backdrop_image_desc">Будь-яка картинка з галереї: копіюється в застосунок і затемнюється, щоб текст читався.</string>
     <string name="backdrop_pick">Обрати</string>
+    <string name="dock_shape_title">Нижня панель: форма</string>
+    <string name="dock_shape_desc">Плаваючий острів або пласка смуга на всю ширину.</string>
+    <string name="dock_island">Острів</string>
+    <string name="dock_bar">Смуга</string>
+    <string name="dock_tint_title">Нижня панель: колір</string>
+    <string name="dock_tint_desc">Панель фарбується кольором обкладинки градієнтом, акцентом або нічим.</string>
+    <string name="dock_tint_cover">Обкладинка</string>
+    <string name="dock_tint_accent">Акцент</string>
+    <string name="dock_tint_none">Немає</string>
+    <string name="dock_labels_title">Нижня панель: підписи</string>
+    <string name="dock_labels_desc">Назви під значками вкладок: у всіх, лише в активної або сховані.</string>
+    <string name="dock_labels_all">Усі</string>
+    <string name="dock_labels_active">Активна</string>
+    <string name="dock_labels_none">Сховати</string>
+    <string name="dock_glow_title">Нижня панель: сяйво</string>
+    <string name="dock_glow_desc">Поки грає музика, світло навколо панелі дихає, а всередині пливе кольорова пляма.</string>
 </resources>

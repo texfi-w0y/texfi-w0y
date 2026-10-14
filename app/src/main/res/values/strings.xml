@@ -757,4 +757,20 @@
     <string name="backdrop_image_title">Background photo</string>
     <string name="backdrop_image_desc">Pick any image; it is copied into the app and darkened so text stays readable.</string>
     <string name="backdrop_pick">Choose</string>
+    <string name="dock_shape_title">Bottom panel: shape</string>
+    <string name="dock_shape_desc">A floating island or a flat bar across the screen.</string>
+    <string name="dock_island">Island</string>
+    <string name="dock_bar">Bar</string>
+    <string name="dock_tint_title">Bottom panel: colour</string>
+    <string name="dock_tint_desc">The panel takes the colour of the playing cover as a gradient, or the accent, or none.</string>
+    <string name="dock_tint_cover">Cover</string>
+    <string name="dock_tint_accent">Accent</string>
+    <string name="dock_tint_none">None</string>
+    <string name="dock_labels_title">Bottom panel: labels</string>
+    <string name="dock_labels_desc">Names under the tab icons: on all, only on the active one, or hidden.</string>
+    <string name="dock_labels_all">All</string>
+    <string name="dock_labels_active">Active</string>
+    <string name="dock_labels_none">Hidden</string>
+    <string name="dock_glow_title">Bottom panel: glow</string>
+    <string name="dock_glow_desc">The light around the panel breathes and a colour spot drifts inside while music plays.</string>
 </resources>

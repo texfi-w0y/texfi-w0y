@@ -96,6 +96,12 @@ class ShellViewModel @Inject constructor(
             .map { it.swipeDismiss }
             .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
+    val dockConfig: StateFlow<com.texfi.w0y.ui.components.DockConfig> =
+        settings.settings
+            .map { com.texfi.w0y.ui.components.DockConfig(it.dockShape, it.dockTint, it.dockLabels, it.dockGlow) }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.ui.components.DockConfig())
+
     val backdropMode: StateFlow<com.texfi.w0y.data.BackdropMode> =
         settings.settings
             .map { it.backdropMode }

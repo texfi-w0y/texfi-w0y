@@ -318,6 +318,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setStandClock(value: Boolean) = update { repository.setStandClock(value) }
 
+    fun setDockShape(value: com.texfi.w0y.data.DockShape) = update { repository.setDockShape(value) }
+
+    fun setDockTint(value: com.texfi.w0y.data.DockTint) = update { repository.setDockTint(value) }
+
+    fun setDockLabels(value: com.texfi.w0y.data.DockLabels) = update { repository.setDockLabels(value) }
+
+    fun setDockGlow(value: Boolean) = update { repository.setDockGlow(value) }
+
     fun setBackdropMode(value: com.texfi.w0y.data.BackdropMode) = update { repository.setBackdropMode(value) }
 
     /** Своя картинка фона: копия в приложении, ужатая до экрана, — оригинал можно удалять. */

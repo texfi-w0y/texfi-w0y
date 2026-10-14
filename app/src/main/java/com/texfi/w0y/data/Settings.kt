@@ -225,6 +225,15 @@ enum class SeasonMode { AUTO, OFF, HALLOWEEN, WINTER }
 /** Фон приложения: сетка, чистый чёрный, свет обложки, переливы или своя картинка. */
 enum class BackdropMode { GRID, PURE, COVER, AURORA, PHOTO }
 
+/** Панель снизу: парящий остров или плоская полоса во всю ширину. */
+enum class DockShape { ISLAND, BAR }
+
+/** Чем подкрашена панель: цветом обложки играющего трека, акцентом или ничем. */
+enum class DockTint { COVER, ACCENT, NONE }
+
+/** Подписи вкладок: у всех, только у активной или без подписей. */
+enum class DockLabels { ALL, ACTIVE, NONE }
+
 // ── Hairline: настройки вида ─────────────────────────────────────────────
 
 /** Толщина линий Hairline, dp. Тоньше одного dp не бывает: на плотных экранах линия пропадает. */
@@ -406,6 +415,11 @@ data class W0ySettings(
     val standView: StandView = StandView.TEXT,
     val standClock: Boolean = true,
     val backdropMode: BackdropMode = BackdropMode.GRID,
+    val dockShape: DockShape = DockShape.ISLAND,
+    val dockTint: DockTint = DockTint.COVER,
+    val dockLabels: DockLabels = DockLabels.ALL,
+    /** Дыхание и свечение панели, пока играет музыка. */
+    val dockGlow: Boolean = true,
     /** Своя картинка фона — файл на телефоне, file://…; null, пока не выбрана. */
     val backdropImage: String? = null,
     val seasonMode: SeasonMode = SeasonMode.AUTO,
@@ -519,6 +533,10 @@ class SettingsRepository @Inject constructor(
                     standView = prefs.enum(Keys.STAND_VIEW, StandView.TEXT),
                     standClock = prefs[Keys.STAND_CLOCK] ?: true,
                     backdropMode = prefs.enum(Keys.BACKDROP_MODE, BackdropMode.GRID),
+                    dockShape = prefs.enum(Keys.DOCK_SHAPE, DockShape.ISLAND),
+                    dockTint = prefs.enum(Keys.DOCK_TINT, DockTint.COVER),
+                    dockLabels = prefs.enum(Keys.DOCK_LABELS, DockLabels.ALL),
+                    dockGlow = prefs[Keys.DOCK_GLOW] ?: true,
                     backdropImage = prefs[Keys.BACKDROP_IMAGE],
                     seasonMode = prefs.enum(Keys.SEASON_MODE, SeasonMode.AUTO),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: false,
@@ -761,6 +779,14 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setBackdropMode(value: BackdropMode) = put(Keys.BACKDROP_MODE, value.name)
 
+    suspend fun setDockShape(value: DockShape) = put(Keys.DOCK_SHAPE, value.name)
+
+    suspend fun setDockTint(value: DockTint) = put(Keys.DOCK_TINT, value.name)
+
+    suspend fun setDockLabels(value: DockLabels) = put(Keys.DOCK_LABELS, value.name)
+
+    suspend fun setDockGlow(value: Boolean) = put(Keys.DOCK_GLOW, value)
+
     suspend fun setBackdropImage(value: String?) {
         context.dataStore.edit { if (value == null) it.remove(Keys.BACKDROP_IMAGE) else it[Keys.BACKDROP_IMAGE] = value }
     }
@@ -985,6 +1011,10 @@ class SettingsRepository @Inject constructor(
         val STAND_VIEW = stringPreferencesKey("stand_view")
         val STAND_CLOCK = booleanPreferencesKey("stand_clock")
         val BACKDROP_MODE = stringPreferencesKey("backdrop_mode")
+        val DOCK_SHAPE = stringPreferencesKey("dock_shape")
+        val DOCK_TINT = stringPreferencesKey("dock_tint")
+        val DOCK_LABELS = stringPreferencesKey("dock_labels")
+        val DOCK_GLOW = booleanPreferencesKey("dock_glow")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")

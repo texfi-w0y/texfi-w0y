@@ -53,7 +53,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.texfi.w0y.data.DockLabels
+import com.texfi.w0y.data.DockShape
+import com.texfi.w0y.data.DockTint
+import com.texfi.w0y.ui.icons.HairGlyph
+import com.texfi.w0y.ui.icons.HairIcon
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.isSpecified
+import kotlin.math.sin
 import com.texfi.w0y.data.CornerStyle
 import com.texfi.w0y.playback.PlayerUiState
 import com.texfi.w0y.ui.theme.Contrast
@@ -67,18 +76,26 @@ import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Настройки панели: форма, чем подкрашена, подписи, свечение. */
+data class DockConfig(
+    val shape: DockShape = DockShape.ISLAND,
+    val tint: DockTint = DockTint.COVER,
+    val labels: DockLabels = DockLabels.ALL,
+    val glow: Boolean = true,
+)
+
 /**
  * Парящая панель Hairline: мини-плеер и навигация в одном корпусе.
  *
- * Что в ней живёт:
- *  - **контур — это прогресс**: тонкая линия обводит корпус по часовой
- *    стрелке от верхней середины, пока играет трек; отдельной полосы нет;
- *  - **линза** под активной вкладкой: при переключении передний край
- *    бежит быстрее заднего, и она на миг растягивается, как капля;
- *  - **свет от обложки**: цвет играющего трека мягко подсвечивает воздух
- *    над панелью — это градиент, а не размытие, поэтому дёшево;
- *  - панель выезжает пружиной, а мини-плеер раскрывается внутри неё.
- * Позиция читается только при рисовании: строки не пересобираются.
+ *  - **цвет обложки** красит корпус сверху вниз, а внутри медленно плывёт
+ *    пятно того же цвета — панель «живёт» вместе с треком;
+ *  - **контур — прогресс**: линия со свечением и яркой «головкой» обводит
+ *    корпус по часовой стрелке;
+ *  - **линза** под активной вкладкой пружинит с перелётом, тянется каплей,
+ *    а в момент выбора от неё расходится кольцо; значок подпрыгивает;
+ *  - **дыхание**: пока играет музыка, свет вокруг панели пульсирует;
+ *  - панель выезжает пружиной, мини-плеер раскрывается внутри неё.
+ * Позиция и фазы читаются только при рисовании: строки не пересобираются.
  */
 @Composable
 fun HairDock(
@@ -88,15 +105,22 @@ fun HairDock(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    config: DockConfig = DockConfig(),
     mini: @Composable () -> Unit,
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
     val song = state.song
     val cover by rememberCoverTint(song?.thumbnailUrl, colors.accent)
-    val glowColor = animateColorAsState(cover, tween(500), label = "dockGlow")
-    val glowOn = animateFloatAsState(if (song != null) 1f else 0f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut), label = "dockGlowOn")
-    val tone = Contrast.ensure(colors.accent, colors.background)
+    val toneAccent = Contrast.ensure(colors.accent, colors.background)
+    val tintTarget = when (config.tint) {
+        DockTint.COVER -> if (song != null) Contrast.ensure(cover, colors.surface) else toneAccent
+        DockTint.ACCENT -> toneAccent
+        DockTint.NONE -> colors.text
+    }
+    val tint by animateColorAsState(tintTarget, tween(600), label = "dockTintColor")
+    val tinted = config.tint != DockTint.NONE
+    val glowOn = animateFloatAsState(if (song != null && config.glow) 1f else 0f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut), label = "dockGlowOn")
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.isPlaying, song?.id) {
@@ -109,27 +133,37 @@ fun HairDock(
     val duration = state.durationMs
     val progress = { if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f }
 
+    // Фаза дыхания и плавания пятна: только пока играет и анимации включены.
+    val alive = state.isPlaying && look.motion.moves && config.glow
+    val phase = rememberAnimationPhase(9_000, 30, enabled = alive)
+
     // Выезд снизу пружиной — один раз за жизнь панели.
     val rise = remember { Animatable(if (look.motion.moves) 1f else 0f) }
     LaunchedEffect(Unit) {
         if (rise.value > 0f) rise.animateTo(0f, spring(HairTokens.SPRING_DAMPING, HairTokens.SPRING_STIFFNESS * 0.6f))
     }
 
-    val radius = if (look.corners == CornerStyle.SHARP) 10.dp else look.cardRadius.coerceIn(10.dp, 26.dp)
+    val bar = config.shape == DockShape.BAR
+    val radius = when {
+        bar -> 0.dp
+        look.corners == CornerStyle.SHARP -> 10.dp
+        else -> look.cardRadius.coerceIn(10.dp, 28.dp)
+    }
     val shape = RoundedCornerShape(radius)
 
     Box(
         modifier
             .fillMaxWidth()
-            // Свет обложки: эллипс от нижнего края вверх, выходит за границы панели.
+            // Свет вокруг панели: эллипс от нижнего края вверх, дышит в такт фазе.
             .drawBehind {
-                val a = glowOn.value * GLOW_ALPHA
-                if (a > 0.01f) {
+                val breath = if (alive) 0.82f + 0.18f * sin(phase.floatValue * 2f) else 1f
+                val a = glowOn.value * GLOW_ALPHA * breath
+                if (a > 0.01f && tinted) {
                     val reach = GLOW_REACH.toPx()
                     drawRect(
                         brush =
                             Brush.radialGradient(
-                                colors = listOf(glowColor.value.copy(alpha = a), glowColor.value.copy(alpha = a * 0.35f), Color.Transparent),
+                                colors = listOf(tint.copy(alpha = a), tint.copy(alpha = a * 0.35f), Color.Transparent),
                                 center = Offset(size.width / 2f, size.height),
                                 radius = size.width * 0.7f,
                             ),
@@ -142,7 +176,7 @@ fun HairDock(
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
+                .padding(start = if (bar) 0.dp else 12.dp, end = if (bar) 0.dp else 12.dp, top = if (bar) 0.dp else 6.dp, bottom = if (bar) 0.dp else 10.dp)
                 .graphicsLayer {
                     translationY = rise.value * 96.dp.toPx()
                     alpha = 1f - rise.value * 0.6f
@@ -151,26 +185,41 @@ fun HairDock(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            lerp(colors.surface, Color.White, 0.07f).copy(alpha = 0.97f),
-                            colors.surface.copy(alpha = 0.97f),
+                            lerp(colors.surface, if (tinted) tint else Color.White, if (tinted) 0.20f else 0.07f).copy(alpha = 0.985f),
+                            lerp(colors.surface, if (tinted) tint else colors.surface, if (tinted) 0.04f else 0f).copy(alpha = 0.985f),
                         ),
                     ),
                 )
-                .dockFrame(radius, progress, colors.outline, colors.progress, colors.text),
+                // Плывущее пятно цвета обложки внутри корпуса.
+                .drawBehind {
+                    if (!tinted || glowOn.value < 0.01f) return@drawBehind
+                    val t = phase.floatValue
+                    val cx = size.width * (0.5f + 0.38f * sin(t))
+                    val cy = size.height * (0.30f + 0.12f * sin(t * 1.7f + 1f))
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(tint.copy(alpha = 0.26f * glowOn.value), Color.Transparent),
+                            Offset(cx, cy),
+                            size.width * 0.55f,
+                        ),
+                    )
+                }
+                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.45f else 0f), if (tinted) tint else colors.progress, colors.text, config.glow),
         ) {
             mini()
-            DockNav(items, selected, onSelect, tone, radius)
+            DockNav(items, selected, onSelect, tint, tinted, config.labels, radius)
         }
     }
 }
 
-/** Рамка корпуса, блик по верхней кромке и контур-прогресс поверх содержимого. */
+/** Рамка корпуса, блик по верхней кромке и контур-прогресс со свечением и «головкой». */
 private fun Modifier.dockFrame(
-    radius: androidx.compose.ui.unit.Dp,
+    radius: Dp,
     progress: () -> Float,
     border: Color,
     progressColor: Color,
     sheen: Color,
+    glow: Boolean,
 ): Modifier =
     drawWithCache {
         val line = 1.dp.toPx()
@@ -188,50 +237,67 @@ private fun Modifier.dockFrame(
         onDrawWithContent {
             drawContent()
             drawPath(frame, border, style = Stroke(line))
-            drawLine(sheenBrush, Offset(radius.toPx(), line * 1.5f), Offset(size.width - radius.toPx(), line * 1.5f), line)
+            drawLine(sheenBrush, Offset(radius.toPx() + 4.dp.toPx(), line * 1.5f), Offset(size.width - radius.toPx() - 4.dp.toPx(), line * 1.5f), line)
             val p = progress()
             if (p > 0f) {
                 part.rewind()
-                measure.getSegment(0f, measure.length * p, part, true)
-                drawPath(part, progressColor, style = Stroke(line * 2f, cap = StrokeCap.Round))
+                val len = measure.length * p
+                measure.getSegment(0f, len, part, true)
+                if (glow) drawPath(part, progressColor.copy(alpha = 0.22f), style = Stroke(line * 7f, cap = StrokeCap.Round))
+                drawPath(part, progressColor, style = Stroke(line * 2.2f, cap = StrokeCap.Round))
+                // Головка: яркая точка в конце линии.
+                val head = measure.getPosition(len)
+                if (head.isSpecified) {
+                    if (glow) drawCircle(progressColor.copy(alpha = 0.35f), line * 5.5f, head)
+                    drawCircle(sheen, line * 2.3f, head)
+                }
             }
         }
     }
 
-/** Навигация внутри панели: вкладки и линза, которая перетекает между ними. */
+/** Навигация внутри панели: вкладки и линза-капля, которая перетекает между ними. */
 @Composable
 private fun DockNav(
     items: List<NavItem>,
     selected: Int,
     onSelect: (Int) -> Unit,
-    tone: Color,
-    dockRadius: androidx.compose.ui.unit.Dp,
+    tint: Color,
+    tinted: Boolean,
+    labels: DockLabels,
+    dockRadius: Dp,
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val head = remember { Animatable(selected.toFloat()) }
     val tail = remember { Animatable(selected.toFloat()) }
+    // Перелёт: пружина с малым демпфированием, передний край упруго проскакивает.
     val headSpec: AnimationSpec<Float> =
         when (look.motion) {
-            MotionLevel.FULL -> spring(0.72f, 520f)
+            MotionLevel.FULL -> spring(0.5f, 420f)
             MotionLevel.LITE -> tween(HairTokens.SHORT_MS, easing = HairTokens.EaseOut)
             MotionLevel.OFF -> snap()
         }
     val tailSpec: AnimationSpec<Float> =
         when (look.motion) {
-            MotionLevel.FULL -> spring(0.86f, 190f)
+            MotionLevel.FULL -> spring(0.82f, 170f)
             MotionLevel.LITE -> tween(HairTokens.SHORT_MS, easing = HairTokens.EaseOut)
             MotionLevel.OFF -> snap()
         }
+    // Кольцо от линзы в момент выбора.
+    val ripple = remember { Animatable(1f) }
     LaunchedEffect(selected) {
         scope.launch { head.animateTo(selected.toFloat(), headSpec) }
         scope.launch { tail.animateTo(selected.toFloat(), tailSpec) }
+        if (look.motion.draws) {
+            ripple.snapTo(0f)
+            ripple.animateTo(1f, tween(650, easing = HairTokens.EaseOut))
+        }
     }
     val tick = rememberTapHaptic()
     val currentSelected by rememberUpdatedState(selected)
     val select by rememberUpdatedState(onSelect)
-    val tagColor = colors.text
+    val lensTone = if (tinted) tint else colors.text
 
     Row(
         Modifier
@@ -239,16 +305,30 @@ private fun DockNav(
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .height(NAV_ITEM_HEIGHT)
             .drawBehind {
-                // Метка-негатив под подписью активной вкладки, как «CRAFT APPS» у PhotoCraft.
-                // Передний край бежит быстрее заднего — на переходе метка тянется каплей.
                 val slot = size.width / items.size
-                val tagW = TAG_WIDTH.toPx().coerceAtMost(slot - 8.dp.toPx())
-                val pad = (slot - tagW) / 2f
+                val lensW = (slot - 14.dp.toPx()).coerceAtMost(LENS_MAX.toPx())
+                val pad = (slot - lensW) / 2f
                 val left = min(head.value, tail.value) * slot + pad
                 val right = (max(head.value, tail.value) + 1f) * slot - pad
-                val bottom = size.height - TAG_BOTTOM.toPx()
-                val box = Rect(left, bottom - TAG_HEIGHT.toPx(), right, bottom)
-                drawRoundRect(tagColor, box.topLeft, box.size, CornerRadius(2.dp.toPx()))
+                val box = Rect(left, 2.dp.toPx(), right, size.height - 2.dp.toPx())
+                val corner = CornerRadius(box.height / 2f)
+                // Линза: прозрачная заливка цвета панели и тонкая рамка.
+                drawRoundRect(
+                    Brush.horizontalGradient(listOf(lensTone.copy(alpha = 0.30f), lensTone.copy(alpha = 0.12f))),
+                    box.topLeft, box.size, corner,
+                )
+                drawRoundRect(lensTone.copy(alpha = 0.65f), box.topLeft, box.size, corner, style = Stroke(1.dp.toPx()))
+                val r = ripple.value
+                if (r < 1f) {
+                    val c = box.center
+                    drawRoundRect(
+                        lensTone.copy(alpha = 0.55f * (1f - r)),
+                        Offset(c.x - box.width / 2f - r * 18.dp.toPx(), box.top - r * 8.dp.toPx()),
+                        Size(box.width + r * 36.dp.toPx(), box.height + r * 16.dp.toPx()),
+                        CornerRadius(box.height / 2f + r * 8.dp.toPx()),
+                        style = Stroke(1.5.dp.toPx()),
+                    )
+                }
             }
             .pointerInput(items.size) {
                 var last = -1
@@ -270,18 +350,32 @@ private fun DockNav(
         items.forEachIndexed { index, item ->
             val active = index == selected
             val interaction = remember { MutableInteractionSource() }
-            val tint by animateColorAsState(
+            val iconTint by animateColorAsState(
                 targetValue = if (active) colors.text else colors.textMuted,
                 animationSpec = tween(HairTokens.SHORT_MS),
                 label = "dockTint",
             )
-            // Подпись активной лежит на светлой метке — значит, сама тёмная.
-            val labelTint by animateColorAsState(
-                targetValue = if (active) colors.background else colors.textMuted,
-                animationSpec = tween(HairTokens.MID_MS),
-                label = "dockLabel",
+            // Значок подпрыгивает с перелётом: пружина с малым демпфированием.
+            val pop by animateFloatAsState(
+                if (active) 1f else 0f,
+                if (look.motion.moves) spring(0.38f, 520f) else tween(HairTokens.SHORT_MS),
+                label = "dockPop",
             )
-            val lift by animateFloatAsState(if (active) 1f else 0f, tween(HairTokens.MID_MS, easing = HairTokens.EaseOut), label = "dockLift")
+            val labelAlpha by animateFloatAsState(
+                when (labels) {
+                    DockLabels.ALL -> if (active) 1f else 0.7f
+                    DockLabels.ACTIVE -> if (active) 1f else 0f
+                    DockLabels.NONE -> 0f
+                },
+                tween(HairTokens.MID_MS),
+                label = "dockLabelAlpha",
+            )
+            val glyph = when (index) {
+                0 -> HairGlyph.HOME
+                1 -> HairGlyph.SEARCH
+                2 -> HairGlyph.YOURS
+                else -> null
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -294,39 +388,40 @@ private fun DockNav(
                             role = Role.Tab
                             this.selected = active
                         }
-                        .pressScale(interaction, pressed = 0.94f)
+                        .pressScale(interaction, pressed = 0.92f)
                         .clickable(interactionSource = interaction, indication = null) { onSelect(index) },
             ) {
-                PixelSprite(
-                    rows = item.sprite,
-                    color = tint,
-                    modifier =
-                        Modifier
-                            .size(22.dp)
-                            .graphicsLayer {
-                                val k = 1f + 0.1f * lift
-                                scaleX = k
-                                scaleY = k
-                                translationY = -2.dp.toPx() * lift
-                            },
-                )
-                Text(
-                    text = item.label.asLabel(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = labelTint,
-                    maxLines = 1,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+                val iconModifier =
+                    Modifier
+                        .size(22.dp)
+                        .graphicsLayer {
+                            val k = 1f + 0.22f * pop
+                            scaleX = k
+                            scaleY = k
+                            translationY = -(if (labels == DockLabels.NONE) 0f else 2.dp.toPx()) * pop
+                        }
+                if (glyph != null) {
+                    HairIcon(glyph, iconTint, iconModifier)
+                } else {
+                    PixelSprite(rows = item.sprite, color = iconTint, modifier = iconModifier)
+                }
+                if (labels != DockLabels.NONE) {
+                    Text(
+                        text = item.label.asLabel(),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp, letterSpacing = 1.sp),
+                        color = if (active) colors.text else colors.textMuted,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 3.dp).graphicsLayer { alpha = labelAlpha },
+                    )
+                }
             }
         }
     }
 }
 
-private val NAV_ITEM_HEIGHT = 52.dp
-private val TAG_WIDTH = 76.dp
-private val TAG_HEIGHT = 19.dp
-private val TAG_BOTTOM = 4.dp
+private val NAV_ITEM_HEIGHT = 56.dp
+private val LENS_MAX = 104.dp
 private const val PROGRESS_POLL_MS = 400L
 private const val PAUSED_POLL_MS = 1_000L
-private const val GLOW_ALPHA = 0.34f
-private val GLOW_REACH = 90.dp
+private const val GLOW_ALPHA = 0.38f
+private val GLOW_REACH = 100.dp

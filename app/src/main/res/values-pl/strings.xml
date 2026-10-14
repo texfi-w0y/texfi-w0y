@@ -757,4 +757,20 @@
     <string name="backdrop_image_title">Zdjęcie tła</string>
     <string name="backdrop_image_desc">Dowolny obraz z galerii: kopiowany do aplikacji i przyciemniany, by tekst był czytelny.</string>
     <string name="backdrop_pick">Wybierz</string>
+    <string name="dock_shape_title">Dolny panel: kształt</string>
+    <string name="dock_shape_desc">Pływająca wyspa lub płaski pasek na całą szerokość.</string>
+    <string name="dock_island">Wyspa</string>
+    <string name="dock_bar">Pasek</string>
+    <string name="dock_tint_title">Dolny panel: kolor</string>
+    <string name="dock_tint_desc">Panel przyjmuje kolor okładki jako gradient, akcent lub nic.</string>
+    <string name="dock_tint_cover">Okładka</string>
+    <string name="dock_tint_accent">Akcent</string>
+    <string name="dock_tint_none">Brak</string>
+    <string name="dock_labels_title">Dolny panel: podpisy</string>
+    <string name="dock_labels_desc">Nazwy pod ikonami: wszystkie, tylko aktywna lub ukryte.</string>
+    <string name="dock_labels_all">Wszystkie</string>
+    <string name="dock_labels_active">Aktywna</string>
+    <string name="dock_labels_none">Ukryte</string>
+    <string name="dock_glow_title">Dolny panel: blask</string>
+    <string name="dock_glow_desc">Gdy gra muzyka, światło wokół panelu oddycha, a w środku dryfuje plama koloru.</string>
 </resources>

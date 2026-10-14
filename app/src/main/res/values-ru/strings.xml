@@ -757,4 +757,20 @@
     <string name="backdrop_image_title">Картинка фона</string>
     <string name="backdrop_image_desc">Любая картинка из галереи: она копируется в приложение и затемняется, чтобы текст читался.</string>
     <string name="backdrop_pick">Выбрать</string>
+    <string name="dock_shape_title">Нижняя панель: форма</string>
+    <string name="dock_shape_desc">Парящий остров или плоская полоса во всю ширину.</string>
+    <string name="dock_island">Остров</string>
+    <string name="dock_bar">Полоса</string>
+    <string name="dock_tint_title">Нижняя панель: цвет</string>
+    <string name="dock_tint_desc">Панель красится цветом обложки играющего трека градиентом, акцентом или ничем.</string>
+    <string name="dock_tint_cover">Обложка</string>
+    <string name="dock_tint_accent">Акцент</string>
+    <string name="dock_tint_none">Нет</string>
+    <string name="dock_labels_title">Нижняя панель: подписи</string>
+    <string name="dock_labels_desc">Названия под значками вкладок: у всех, только у активной или скрыты.</string>
+    <string name="dock_labels_all">Все</string>
+    <string name="dock_labels_active">Активная</string>
+    <string name="dock_labels_none">Скрыть</string>
+    <string name="dock_glow_title">Нижняя панель: свечение</string>
+    <string name="dock_glow_desc">Пока играет музыка, свет вокруг панели дышит, а внутри плывёт цветное пятно.</string>
 </resources>

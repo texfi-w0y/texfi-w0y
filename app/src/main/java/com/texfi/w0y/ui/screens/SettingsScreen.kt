@@ -1901,6 +1901,18 @@ private fun MutableList<SettingRow>.addHairRows(
     choice(R.string.hl_set_motion, R.string.hl_set_motion_d, com.texfi.w0y.data.MotionMode.entries, settings.motion, { stringResource(it.label) }, viewModel::setMotion, "animation reduce")
     choice(R.string.hl_set_haptics, R.string.hl_set_haptics_d, com.texfi.w0y.data.HapticLevel.entries, settings.hapticLevel, { stringResource(it.label) }, viewModel::setHapticLevel, "vibration")
     choice(R.string.hl_set_iconstyle, R.string.hl_set_iconstyle_d, com.texfi.w0y.data.IconStyle.entries, settings.iconStyle, { stringResource(it.label) }, viewModel::setIconStyle, "icons line filled dots")
+    choice(R.string.dock_shape_title, R.string.dock_shape_desc, com.texfi.w0y.data.DockShape.entries, settings.dockShape, { stringResource(if (it == com.texfi.w0y.data.DockShape.ISLAND) R.string.dock_island else R.string.dock_bar) }, viewModel::setDockShape, "panel dock bottom bar floating")
+    choice(R.string.dock_tint_title, R.string.dock_tint_desc, com.texfi.w0y.data.DockTint.entries, settings.dockTint, { stringResource(when (it) { com.texfi.w0y.data.DockTint.COVER -> R.string.dock_tint_cover; com.texfi.w0y.data.DockTint.ACCENT -> R.string.dock_tint_accent; com.texfi.w0y.data.DockTint.NONE -> R.string.dock_tint_none }) }, viewModel::setDockTint, "panel gradient colour cover")
+    choice(R.string.dock_labels_title, R.string.dock_labels_desc, com.texfi.w0y.data.DockLabels.entries, settings.dockLabels, { stringResource(when (it) { com.texfi.w0y.data.DockLabels.ALL -> R.string.dock_labels_all; com.texfi.w0y.data.DockLabels.ACTIVE -> R.string.dock_labels_active; com.texfi.w0y.data.DockLabels.NONE -> R.string.dock_labels_none }) }, viewModel::setDockLabels, "panel tabs names")
+    add(
+        SettingRow(
+            section = SettingsSection.HAIR,
+            title = context.getString(R.string.dock_glow_title),
+            description = context.getString(R.string.dock_glow_desc),
+            keywords = "panel glow breathing light pulse",
+            control = SettingControl.Toggle(settings.dockGlow, viewModel::setDockGlow),
+        ),
+    )
     add(
         SettingRow(
             section = SettingsSection.HAIR,
