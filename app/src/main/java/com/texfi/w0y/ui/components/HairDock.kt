@@ -147,7 +147,7 @@ fun HairDock(
     val radius = when {
         bar -> 0.dp
         look.corners == CornerStyle.SHARP -> 10.dp
-        else -> look.cardRadius.coerceIn(10.dp, 28.dp)
+        else -> 28.dp
     }
     val shape = RoundedCornerShape(radius)
 
@@ -183,14 +183,7 @@ fun HairDock(
                 }
                 .clip(shape)
                 .background(colors.surface)
-                // Едва заметная подкраска сверху цветом обложки — без заливок и бликов.
-                .background(
-                    Brush.verticalGradient(
-                        0f to (if (tinted) tint.copy(alpha = 0.10f) else Color.Transparent),
-                        0.7f to Color.Transparent,
-                    ),
-                )
-                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.45f else 0f), if (tinted) tint else colors.progress, colors.text),
+                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.2f else 0f), colors.text, colors.text),
         ) {
             mini()
             DockNav(items, selected, onSelect, tint, tinted, config.labels, radius)
@@ -278,15 +271,9 @@ private fun DockNav(
             MotionLevel.LITE -> tween(HairTokens.SHORT_MS, easing = HairTokens.EaseOut)
             MotionLevel.OFF -> snap()
         }
-    // Кольцо от линзы в момент выбора.
-    val ripple = remember { Animatable(1f) }
     LaunchedEffect(selected) {
         scope.launch { head.animateTo(selected.toFloat(), headSpec) }
         scope.launch { tail.animateTo(selected.toFloat(), tailSpec) }
-        if (look.motion.draws) {
-            ripple.snapTo(0f)
-            ripple.animateTo(1f, tween(650, easing = HairTokens.EaseOut))
-        }
     }
     val tick = rememberTapHaptic()
     val currentSelected by rememberUpdatedState(selected)
@@ -296,29 +283,16 @@ private fun DockNav(
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
             .height(NAV_ITEM_HEIGHT)
             .drawBehind {
                 val slot = size.width / items.size
-                val lensW = (slot - 14.dp.toPx()).coerceAtMost(LENS_MAX.toPx())
-                val pad = (slot - lensW) / 2f
-                val left = min(head.value, tail.value) * slot + pad
-                val right = (max(head.value, tail.value) + 1f) * slot - pad
-                val box = Rect(left, 2.dp.toPx(), right, size.height - 2.dp.toPx())
-                val corner = CornerRadius(LENS_RADIUS.toPx())
-                // Линза-контур: тонкая линия цвета панели, чуть подсвеченная внутри.
-                drawRoundRect(lensTone.copy(alpha = 0.09f), box.topLeft, box.size, corner)
-                drawRoundRect(lensTone.copy(alpha = 0.7f), box.topLeft, box.size, corner, style = Stroke(1.dp.toPx()))
-                val r = ripple.value
-                if (r < 1f) {
-                    drawRoundRect(
-                        lensTone.copy(alpha = 0.5f * (1f - r)),
-                        Offset(box.left - r * 14.dp.toPx(), box.top - r * 6.dp.toPx()),
-                        Size(box.width + r * 28.dp.toPx(), box.height + r * 12.dp.toPx()),
-                        CornerRadius(LENS_RADIUS.toPx() + r * 6.dp.toPx()),
-                        style = Stroke(1.dp.toPx()),
-                    )
-                }
+                val w = (slot * 0.5f).coerceIn(36.dp.toPx(), 64.dp.toPx())
+                val left = min(head.value, tail.value) * slot + (slot - w) / 2f
+                val right = max(head.value, tail.value) * slot + (slot + w) / 2f
+                val y = size.height / 2f + 14.dp.toPx()
+                // Как на сайте: тонкая линия под активным пунктом, перетекает между ними.
+                drawLine(lensTone, Offset(left, y), Offset(right, y), 2.dp.toPx(), StrokeCap.Round)
             }
             .pointerInput(items.size) {
                 var last = -1
@@ -345,30 +319,21 @@ private fun DockNav(
                 animationSpec = tween(HairTokens.SHORT_MS),
                 label = "dockTint",
             )
-            // Значок подпрыгивает с перелётом: пружина с малым демпфированием.
             val pop by animateFloatAsState(
                 if (active) 1f else 0f,
                 if (look.motion.moves) spring(0.38f, 520f) else tween(HairTokens.SHORT_MS),
                 label = "dockPop",
             )
-            val labelAlpha by animateFloatAsState(
-                when (labels) {
-                    DockLabels.ALL -> if (active) 1f else 0.7f
-                    DockLabels.ACTIVE -> if (active) 1f else 0f
-                    DockLabels.NONE -> 0f
-                },
-                tween(HairTokens.MID_MS),
-                label = "dockLabelAlpha",
-            )
+            val showLabel = labels == DockLabels.ALL || (labels == DockLabels.ACTIVE && active)
             val glyph = when (index) {
                 0 -> HairGlyph.HOME
                 1 -> HairGlyph.SEARCH
                 2 -> HairGlyph.YOURS
                 else -> null
             }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
                         .weight(1f)
@@ -378,30 +343,33 @@ private fun DockNav(
                             role = Role.Tab
                             this.selected = active
                         }
-                        .pressScale(interaction, pressed = 0.92f)
+                        .pressScale(interaction, pressed = 0.94f)
                         .clickable(interactionSource = interaction, indication = null) { onSelect(index) },
             ) {
                 val iconModifier =
                     Modifier
-                        .size(22.dp)
+                        .size(18.dp)
                         .graphicsLayer {
-                            val k = 1f + 0.22f * pop
+                            val k = 1f + 0.14f * pop
                             scaleX = k
                             scaleY = k
-                            translationY = -(if (labels == DockLabels.NONE) 0f else 2.dp.toPx()) * pop
                         }
                 if (glyph != null) {
                     HairIcon(glyph, iconTint, iconModifier)
                 } else {
                     PixelSprite(rows = item.sprite, color = iconTint, modifier = iconModifier)
                 }
-                if (labels != DockLabels.NONE) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showLabel,
+                    enter = androidx.compose.animation.fadeIn(tween(HairTokens.MID_MS)) + androidx.compose.animation.expandHorizontally(tween(HairTokens.MID_MS)),
+                    exit = androidx.compose.animation.fadeOut(tween(HairTokens.SHORT_MS)) + androidx.compose.animation.shrinkHorizontally(tween(HairTokens.SHORT_MS)),
+                ) {
                     Text(
                         text = item.label.asLabel(),
-                        style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp, letterSpacing = 1.sp),
-                        color = (if (active) colors.text else colors.textMuted).copy(alpha = labelAlpha),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 11.sp, letterSpacing = 1.sp),
+                        color = iconTint,
                         maxLines = 1,
-                        modifier = Modifier.padding(top = 3.dp),
+                        modifier = Modifier.padding(start = 7.dp),
                     )
                 }
             }
@@ -409,7 +377,7 @@ private fun DockNav(
     }
 }
 
-private val NAV_ITEM_HEIGHT = 56.dp
+private val NAV_ITEM_HEIGHT = 48.dp
 private val LENS_MAX = 104.dp
 private val LENS_RADIUS = 10.dp
 private const val PROGRESS_POLL_MS = 400L

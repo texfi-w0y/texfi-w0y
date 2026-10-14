@@ -27,6 +27,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -237,6 +241,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // список кончается над ними, и под непрозрачной панелью ничего не прячется.
     val glassBars = com.texfi.w0y.ui.theme.isSmooth && com.texfi.w0y.ui.theme.styleTokens.glass
     val barBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
+    // Hairline: экран идёт под парящей панелью до самого низа и не обрезается ею.
+    val overlayBars = glassBars || hair
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barsHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barsHeight = with(density) { barsHeightPx.toDp() }
@@ -267,10 +273,10 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(bottom = if (glassBars) 0.dp else barsHeight),
+                .padding(bottom = if (overlayBars) 0.dp else barsHeight),
         ) {
             Box(Modifier.weight(1f)) {
-            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (glassBars) barsHeight else 0.dp) {
+            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (overlayBars) barsHeight else 0.dp) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
                 Box(Modifier.fillMaxSize().softEnter(tab)) {
@@ -304,6 +310,19 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             }
             }
         }
+        }
+        if (hair) {
+            // Экран идёт под островом; полоса под ним и у жестовой планки гаснет в фон,
+            // чтобы строки не торчали из-под острова.
+            val fade = com.texfi.w0y.ui.theme.LocalW0yColors.current.background
+            val inset = androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(inset + 28.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, fade.copy(alpha = 0.92f)))),
+            )
         }
         CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalBarBackdrop provides if (glassBars) barBackdrop else null) {
         Column(
