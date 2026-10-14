@@ -129,6 +129,12 @@ class W0yPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        // Значок в шторке — монохромная «W» с кольцом, а не стандартный кружок с play.
+        setMediaNotificationProvider(
+            androidx.media3.session.DefaultMediaNotificationProvider(this).apply {
+                setSmallIcon(com.texfi.w0y.R.drawable.ic_stat_w0y)
+            },
+        )
 
         val loadControl =
             DefaultLoadControl

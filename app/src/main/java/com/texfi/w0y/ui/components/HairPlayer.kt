@@ -584,7 +584,7 @@ fun HairMiniPlayer(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
+                        .padding(start = if (docked) 16.dp else 12.dp, end = 4.dp, top = if (docked) 12.dp else 2.dp, bottom = if (docked) 10.dp else 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (docked) {
