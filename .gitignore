@@ -22,3 +22,8 @@ keystore.properties
 .DS_Store
 docs/screenshots/raw/*
 !docs/screenshots/raw/.gitkeep
+tools/ad/cache/
+tools/ad/clips/
+tools/ad/out/_video30.mp4
+tools/ad/out/*.raw
+tools/ad/out/frame_*.png
