@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Только bench: наполняет приложение «жилыми» данными для съёмки рекламы.
+         В release этого файла нет, поэтому раздаваемая сборка приёмника не содержит. -->
+    <application>
+        <receiver
+            android:name="com.texfi.w0y.demo.DemoSeedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.texfi.w0y.DEMO_SEED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

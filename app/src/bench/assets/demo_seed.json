@@ -1,0 +1,174 @@
+{
+  "reset": true,
+  "tracks": [
+    {
+      "key": "crush",
+      "id": "RZz9RMCJH2k"
+    },
+    {
+      "key": "jeans",
+      "q": "2hollis jeans",
+      "artist": "2hollis"
+    },
+    {
+      "key": "hatch",
+      "q": "Cochise Hatchback",
+      "artist": "Cochise"
+    },
+    {
+      "key": "tellem",
+      "q": "Cochise Tell Em",
+      "artist": "Cochise"
+    },
+    {
+      "key": "marble",
+      "q": "Shawn Wasabi Marble Soda",
+      "artist": "Shawn Wasabi"
+    },
+    {
+      "key": "sky",
+      "q": "Playboi Carti Sky",
+      "artist": "Playboi Carti"
+    },
+    {
+      "key": "overseas",
+      "q": "Ken Carson Overseas",
+      "artist": "Ken Carson"
+    },
+    {
+      "key": "fein",
+      "q": "Travis Scott FE!N",
+      "artist": "Travis Scott"
+    },
+    {
+      "key": "rock",
+      "q": "Lil Uzi Vert Just Wanna Rock",
+      "artist": "Lil Uzi Vert"
+    },
+    {
+      "key": "lucid",
+      "q": "Juice WRLD Lucid Dreams",
+      "artist": "Juice WRLD"
+    },
+    {
+      "key": "carnival",
+      "q": "Kanye West Ty Dolla Sign Carnival",
+      "artist": ""
+    },
+    {
+      "key": "blinding",
+      "q": "The Weeknd Blinding Lights",
+      "artist": "The Weeknd"
+    }
+  ],
+  "likes": [
+    "crush",
+    "jeans",
+    "hatch",
+    "sky",
+    "overseas",
+    "fein",
+    "marble",
+    "blinding",
+    "lucid",
+    "carnival"
+  ],
+  "playlists": [
+    {
+      "name": "Night drive",
+      "note": "Late, loud, windows down.",
+      "glyph": "MOON",
+      "accent": 4283071995,
+      "tracks": [
+        "crush",
+        "jeans",
+        "sky",
+        "fein",
+        "blinding"
+      ]
+    },
+    {
+      "name": "Gym",
+      "note": "Heavy.",
+      "glyph": "ROCKET",
+      "accent": 4292912216,
+      "tracks": [
+        "overseas",
+        "hatch",
+        "rock",
+        "carnival"
+      ]
+    },
+    {
+      "name": "Soft",
+      "note": "For when it is quiet.",
+      "glyph": "HEADPHONES",
+      "accent": 4284461962,
+      "tracks": [
+        "lucid",
+        "marble",
+        "tellem"
+      ]
+    }
+  ],
+  "history": [
+    {
+      "track": "crush",
+      "count": 6,
+      "minutesAgo": 12
+    },
+    {
+      "track": "jeans",
+      "count": 4,
+      "minutesAgo": 40
+    },
+    {
+      "track": "sky",
+      "count": 5,
+      "minutesAgo": 75
+    },
+    {
+      "track": "hatch",
+      "count": 3,
+      "minutesAgo": 130
+    },
+    {
+      "track": "overseas",
+      "count": 4,
+      "minutesAgo": 200
+    },
+    {
+      "track": "fein",
+      "count": 2,
+      "minutesAgo": 260
+    },
+    {
+      "track": "marble",
+      "count": 3,
+      "minutesAgo": 330
+    },
+    {
+      "track": "blinding",
+      "count": 2,
+      "minutesAgo": 420
+    },
+    {
+      "track": "lucid",
+      "count": 2,
+      "minutesAgo": 500
+    },
+    {
+      "track": "rock",
+      "count": 2,
+      "minutesAgo": 600
+    }
+  ],
+  "pins": [
+    "crush",
+    "jeans",
+    "sky",
+    "hatch",
+    "overseas",
+    "marble"
+  ]
+}
