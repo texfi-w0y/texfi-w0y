@@ -234,6 +234,28 @@ def make_icon(size):
     return out
 
 
+def make_glyph(size):
+    """Только «W» с кольцом, без плашки: для финала."""
+    s = size * 4
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    k = s / 108.0
+    sc = 1.6
+
+    def p(x, y):
+        return ((54 + (x - 54) * sc) * k, (62 + (y - 54) * sc) * k)
+
+    pts = [p(*q) for q in [(28, 40), (41, 74), (54, 50), (67, 74), (80, 40)]]
+    w = 7 * sc * k
+    d.line(pts, fill=(244, 244, 246, 255), width=int(w), joint="curve")
+    for x, y in pts:
+        d.ellipse((x - w / 2, y - w / 2, x + w / 2, y + w / 2), fill=(244, 244, 246, 255))
+    cx, cy = p(54, 33)
+    r = 7.5 * sc * k
+    d.ellipse((cx - r - 1.8 * sc * k, cy - r - 1.8 * sc * k, cx + r + 1.8 * sc * k, cy + r + 1.8 * sc * k), outline=(74, 124, 251, 255), width=int(3.6 * sc * k))
+    return img.resize((size, size), Image.LANCZOS)
+
+
 def clean_status(img):
     """Убирает часы и батарею из кадра экрана: повторяет строку под ними."""
     row = img.crop((0, STATUS_CUT + 4, SW, STATUS_CUT + 5)).resize((SW, STATUS_CUT + 4))
@@ -586,10 +608,18 @@ def screen_program(sc):
     return P
 
 
+XFADE = 0.22
+
+
 def screen_at(prog, t):
-    for t0, t1, fn in prog:
+    for i, (t0, t1, fn) in enumerate(prog):
         if t0 <= t < t1:
-            return fn(t, t0)
+            cur = fn(t, t0)
+            if i > 0 and t - t0 < XFADE:
+                pt0, _, pfn = prog[i - 1]
+                q = in_out((t - t0) / XFADE)
+                return Image.blend(pfn(t, pt0), cur, q)
+            return cur
     return prog[-1][2](t, prog[-1][0])
 
 
@@ -641,10 +671,10 @@ def draw_titles(base, t):
         tf, size = fit_font(lines, TITLE_MAX)
         side = 1 if idx % 2 == 0 else -1
         for i, line in enumerate(lines):
-            e = clamp((local - 0.05 * i) / 0.34)
-            a = clamp(out_cubic(e * 1.4))
-            dx = (1 - spring(e * 0.55, 0.62, 16.0 / 0.55 * 0.55)) * 0 + (1 - out_cubic(e)) * 150 * side
-            dy = (1 - out_cubic(e)) * 26
+            e = clamp((local - 0.08 * i) / 0.55)
+            a = clamp(out_cubic(e * 1.3))
+            dx = (1 - out_cubic(e)) * 36 * side
+            dy = (1 - out_cubic(e)) * 18
             x = TITLE_X + dx
             y = 95 + i * int(size * 1.18) + dy
             for seg, col in line:
@@ -704,9 +734,9 @@ def draw_claims(base, t, au):
         local = t - nb(n_in)
         tf = font("display", size)
         for i, (seg, col) in enumerate(words):
-            e = clamp((local - 0.06 * i) / 0.32)
-            a = clamp(out_cubic(e * 1.4))
-            dx = (1 - out_cubic(e)) * 220 * (1 if i == 0 else -1)
+            e = clamp((local - 0.10 * i) / 0.6)
+            a = clamp(out_cubic(e * 1.3))
+            dx = (1 - out_cubic(e)) * 40 * (1 if i == 0 else -1)
             punch = 1 + 0.0 * e
             d.text((TITLE_X + dx, y + i * int(size * 1.12)), seg, font=tf, fill=col + (int(255 * a),))
         wlast = tf.getlength(words[-1][0])
@@ -731,17 +761,17 @@ def draw_icon_end(base, t, au, icon):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     cx, cy = W // 2, 840
-    ic = 300
-    k = spring(local, 0.5, 15.0)
-    size = ic * clamp(k, 0, 1.25) * (1 + 0.035 * au.pulse(t))
+    ic = 360
+    k = spring(local, 0.62, 12.0)
+    size = ic * clamp(k, 0, 1.15) * (1 + 0.02 * au.pulse(t))
     if size > 2:
         im = icon.resize((int(size), int(size)), Image.LANCZOS)
         layer.paste(im, (int(cx - size / 2), int(cy - size / 2)), im)
     for tr in (t0, t0 + 0.55, nb(74)):
         rp = clamp((t - tr) / 0.9)
         if 0 < rp < 1:
-            rr = ic * (0.58 + 1.25 * out_cubic(rp))
-            d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=BLUE + (int(210 * (1 - rp)),), width=4)
+            rr = ic * (0.5 + 1.1 * out_cubic(rp))
+            d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=BLUE + (int(150 * (1 - rp)),), width=3)
     base.paste(layer, (0, 0), layer)
 
 
@@ -755,7 +785,7 @@ class Renderer:
         self.screen_mask = rounded_mask((SW, SH), 64)
         self.sc = Screens(self.au)
         self.prog = screen_program(self.sc)
-        self.icon = make_icon(320)
+        self.icon = make_glyph(420)
 
     def phone(self, bg, t):
         enter = clamp(spring((t + 0.18) / 1.1, 0.72, 13.0), 0, 1.15)
@@ -768,12 +798,10 @@ class Renderer:
             if tc <= t:
                 age = t - tc
                 big = 2.0 if tc == T_APP else 1.0
-                bump = 0.040 * big * math.exp(-age * 9.0)
-                side = 1 if i % 2 == 0 else -1
-                tilt = side * 3.2 * big * math.exp(-age * 7.5) * math.cos(age * 14)
+                bump = 0.014 * big * math.exp(-age * 5.0)
         k = self.au.pulse(t) if t > 0.2 else 0.0
-        ps = 1.0 + bump + 0.016 * k
-        dx = 8 * k * math.sin(t * 62)
+        ps = 1.0 + bump + 0.006 * k
+        dx = 0.0
         screen = screen_at(self.prog, t)
         lay = Image.new("RGBA", (PHONE_W, PHONE_H), (0, 0, 0, 0))
         lay.paste(screen, (BEZEL, BEZEL), self.screen_mask)
@@ -809,7 +837,7 @@ class Renderer:
             cy = PHONE_Y + PHONE_H // 2
             d.ellipse((W // 2 - rr, cy - rr, W // 2 + rr, cy + rr), outline=(255, 255, 255, int(200 * (1 - age / 0.6))), width=10)
             d.ellipse((W // 2 - rr * 0.8, cy - rr * 0.8, W // 2 + rr * 0.8, cy + rr * 0.8), outline=BLUE + (int(220 * (1 - age / 0.6)),), width=6)
-            bg = Image.blend(bg, Image.new("RGB", (W, H), (255, 255, 255)), 0.5 * math.exp(-age * 13))
+            bg = Image.blend(bg, Image.new("RGB", (W, H), (255, 255, 255)), 0.22 * math.exp(-age * 9))
             bg.paste(ov, (0, 0), ov)
         if t > DUR - 0.5:
             bg = Image.blend(bg, Image.new("RGB", (W, H), BG), 0.9 * clamp((t - (DUR - 0.5)) / 0.5))
