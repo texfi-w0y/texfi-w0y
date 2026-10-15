@@ -2,19 +2,21 @@
 """Ролик w0y для TikTok в стиле Hairline: 1080×1920, 60 fps, 30 с, со звуком.
 
 Весь монтаж привязан к настоящей сетке трека «Crush x Burnt Rice» (замер по
-файлу, analyze.py): доля B = 0.39735 с, сильные удары — на долях 0/16/…,
-ролик начинается ровно на доле 48 трека (S = 19.1918 с). Картинка реагирует
+файлу, analyze.py): доля B = 0.39735 с. Ролик начинается на доле 40 трека
+(S = 16.013 с): вступление песни играет под установку, дроп (доля 24 ролика)
+— запуск приложения. Картинка реагирует
 на звук: пульс фона и телефона берётся из баса трека, визуализатор в телефоне
 рисуется по спектру этого же куска (cache/bands.json).
 
-    python3 tools/ad/analyze.py 19.1918      # спектр трека → cache/bands.json
+    python3 tools/ad/analyze.py 16.013       # спектр трека → cache/bands.json
     python3 tools/ad/make_ad.py clips        # куски клипов → cache/clip_*
     python3 tools/ad/make_ad.py preview      # контактный лист кадров
     python3 tools/ad/make_ad.py frame 12.5   # один кадр
     python3 tools/ad/make_ad.py render       # out/w0y-tiktok-ad-30s*.mp4
 
-Структура по долям (n): 0–16 заход, 16 — дроп, 16–45 функции приложения,
-45–52 спад, 52–72 «чем отличается», 72 — только значок.
+Структура по долям (n): 0–24 сайт → скачивание → значок (вступление песни),
+24 — дроп и запуск приложения, 24–53 функции (смена каждые 2–4 доли),
+54–72 «чем отличается», 72 — только значок.
 """
 import json
 import math
@@ -38,7 +40,7 @@ MP3 = os.path.expanduser("~/Загрузки/2hollis - Crush x Shawn Wasabi -BUR
 W, H, FPS = 1080, 1920, 60
 DUR = 30.0
 B = 0.39735  # доля трека, с
-S = 19.1918  # доля 48 трека = начало ролика
+S = 16.013  # доля 40 трека = начало ролика
 
 
 def nb(n):
@@ -294,7 +296,7 @@ def zoom(img, s, cx, cy):
 # ------------------------------------------------------------------ клипы
 CLIP_WINDOWS = {
     "sound": ("clips/sound.mp4", 2.9, 1.8),
-    "stand": ("clips/stand.mp4", 0.4, 1.8),
+    "stand": ("clips/stand.mp4", 1.0, 1.8),
     "editor": ("clips/editor.mp4", 0.2, 1.6),
     "settings": ("clips/settings.mp4", 0.9, 1.8),
 }
@@ -419,39 +421,168 @@ class Viz:
             d.line(pts, fill=col, width=5 if k == 0 else 4, joint="curve")
 
 
+# ------------------------------------------------------------------ установка: сайт → скачивание → значок → запуск
+T_TAP, T_PRESS, T_DONE = nb(6), nb(8), nb(16)
+T_OPEN = nb(23.0)  # палец на значке
+T_APP = nb(24)  # окно приложения заполняет экран ровно на дропе
+HOME_POS = (1, 2)  # колонка, ряд значка w0y
+
+
+def draw_icon_at(img, icon, cx, cy, size):
+    if size < 2:
+        return
+    ic = icon.resize((int(size), int(size)), Image.LANCZOS)
+    img.paste(ic, (int(cx - size / 2), int(cy - size / 2)), ic)
+
+
+class Install:
+    def __init__(self, viz):
+        self.viz = viz
+        self.icon = make_icon(256)
+        site = Image.open(os.path.join(HERE, "shots", "site_dark.png")).convert("RGB").resize((SW, SH), Image.LANCZOS)
+        self.site = site
+        rows = [y for y in range(int(SH * 0.4), int(SH * 0.7)) if sum(site.getpixel((SW // 2 + dx, y))[0] for dx in (-40, 0, 40)) > 3 * 200]
+        top, bottom = rows[0], rows[-1]
+        xs = [x for x in range(SW) if site.getpixel((x, (top + bottom) // 2))[0] > 200]
+        self.button = (xs[0], top, xs[-1], bottom)
+
+    def finger(self, d, fx, fy, t, tp, lead, tail):
+        """Кружок-палец: подходит за `lead` до нажатия tp и гаснет через `tail`."""
+        fade = 1 - clamp((t - (tp + 0.2)) / tail)
+        r = 36 * (0.86 if tp <= t < tp + 0.12 else 1.0)
+        d.ellipse((fx - r, fy - r, fx + r, fy + r), fill=(255, 255, 255, int(70 * fade)), outline=(255, 255, 255, int(200 * fade)), width=3)
+        if t >= tp:
+            rp = clamp((t - tp) / 0.5)
+            rr = lerp(r, 130, out_cubic(rp))
+            d.ellipse((fx - rr, fy - rr, fx + rr, fy + rr), outline=(255, 255, 255, int(160 * (1 - rp) * fade)), width=3)
+
+    def site_screen(self, t):
+        img = self.site.copy()
+        d = ImageDraw.Draw(img, "RGBA")
+        bx0, by0, bx1, by1 = self.button
+        bcx, bcy = (bx0 + bx1) / 2, (by0 + by1) / 2
+        if t >= T_PRESS:
+            p = clamp((t - T_PRESS) / (T_DONE - T_PRESS))
+            d.rounded_rectangle((bx0, by0, bx1, by1), radius=6, fill=BG, outline=(90, 90, 100), width=2)
+            fw = (bx1 - bx0) * p
+            if fw > 2:
+                d.rounded_rectangle((bx0, by0, bx0 + fw, by1), radius=6, fill=BLUE)
+            label = "DOWNLOADED" if p >= 1 else "DOWNLOADING  %d%%" % int(p * 100)
+            draw_text(d, (bcx - text_width(label, font("mono", 24), 3) / 2, bcy - 14), label, font("mono", 24), TEXT, spacing=3)
+        if T_PRESS <= t < T_PRESS + 0.1:
+            d.rounded_rectangle((bx0, by0, bx1, by1), radius=6, fill=(0, 0, 0, 90))
+        if T_PRESS - 1.1 <= t < T_PRESS + 0.6:
+            q = out_cubic((t - (T_PRESS - 1.1)) / 0.9)
+            self.finger(d, lerp(SW * 0.82, bcx, q), lerp(SH * 0.80, bcy + 8, q), t, T_PRESS, 1.1, 0.35)
+        # Медленный наезд с начала, затем резкий на кнопку и отъезд к концу.
+        s = 1 + 0.05 * clamp(t / T_TAP) + 0.14 * in_out((t - T_TAP) / 0.9) - 0.19 * in_out((t - (T_DONE - 0.7)) / 0.7)
+        img = zoom(img, s, bcx, bcy)
+        d = ImageDraw.Draw(img, "RGBA")
+        if T_PRESS + 0.1 <= t < T_DONE + 0.3:
+            enter = spring((t - (T_PRESS + 0.1)) / 1.0, 0.7, 14.0)
+            leave = in_cubic((t - (T_DONE - 0.15)) / 0.3)
+            y = lerp(-150, 34, clamp(enter, 0, 1.2)) - leave * 190
+            pr = clamp((t - (T_PRESS + 0.2)) / (T_DONE - T_PRESS - 0.3))
+            x0, x1 = 22, SW - 22
+            d.rounded_rectangle((x0, y, x1, y + 124), radius=28, fill=(26, 26, 31, 246), outline=(70, 70, 80, 255), width=2)
+            ic = self.icon.resize((68, 68), Image.LANCZOS)
+            img.paste(ic, (x0 + 24, int(y + 28)), ic)
+            draw_text(d, (x0 + 112, y + 24), "TexFi-w0y-android.apk", font("semi", 23), TEXT)
+            sub = "7.7 MB  ·  %d%%" % int(pr * 100) if pr < 1 else "Download complete"
+            draw_text(d, (x0 + 112, y + 60), sub, font("mono", 19), MUTED, spacing=1)
+            d.rounded_rectangle((x0 + 112, y + 98, x1 - 26, y + 104), radius=3, fill=(60, 60, 70, 255))
+            d.rounded_rectangle((x0 + 112, y + 98, x0 + 112 + (x1 - 26 - x0 - 112) * out_cubic(pr), y + 104), radius=3, fill=BLUE)
+        return img
+
+    def home_geom(self):
+        col, row = HOME_POS
+        return SW * (0.125 + 0.25 * col), 250 + 205 * row, 116
+
+    def home_screen(self, t):
+        img = Image.new("RGB", (SW, SH), (9, 10, 16))
+        d = ImageDraw.Draw(img, "RGBA")
+        for i in range(6):
+            d.ellipse((-200 + i * 40, 300 + i * 60, SW + 200 - i * 40, 1200 - i * 40), fill=(40, 60, 120, 5))
+        d.text((40, 40), "12:30", font=font("sans", 26), fill=(230, 230, 235))
+        tints = [(34, 38, 52), (42, 36, 48), (30, 44, 44), (46, 40, 34), (36, 36, 44)]
+        cx0, cy0, size = self.home_geom()
+        t_icon = t - (T_DONE + 0.1)
+        for row in range(4):
+            for col in range(4):
+                if (col, row) == HOME_POS:
+                    continue
+                cx = SW * (0.125 + 0.25 * col)
+                cy = 250 + 205 * row
+                enter = out_cubic((t - T_DONE - 0.03 * (row * 4 + col)) / 0.35)
+                sz = size * (0.7 + 0.3 * enter)
+                tone = tints[(row * 3 + col) % len(tints)]
+                d.rounded_rectangle((cx - sz / 2, cy - sz / 2, cx + sz / 2, cy + sz / 2), radius=30, fill=tone + (int(255 * enter),))
+                d.rounded_rectangle((cx - 30, cy + size / 2 + 14, cx + 30, cy + size / 2 + 22), radius=4, fill=(120, 120, 130, int(150 * enter)))
+        d.rounded_rectangle((26, SH - 220, SW - 26, SH - 90), radius=48, fill=(255, 255, 255, 18))
+        for i in range(4):
+            cx = SW * (0.125 + 0.25 * i)
+            d.rounded_rectangle((cx - 42, SH - 198, cx + 42, SH - 114), radius=24, fill=tints[i % len(tints)] + (255,))
+        k = spring(t_icon, 0.42, 15.0) if t_icon > 0 else 0.0
+        draw_icon_at(img, self.icon, cx0, cy0, size * k)
+        if t_icon > 0:
+            rp = clamp(t_icon / 0.6)
+            rr = size * (0.6 + 1.1 * out_cubic(rp))
+            d.ellipse((cx0 - rr, cy0 - rr, cx0 + rr, cy0 + rr), outline=BLUE + (int(220 * (1 - rp)),), width=4)
+            d.text((cx0, cy0 + size / 2 + 14), "w0y", font=font("sans", 24), fill=(240, 240, 244, int(255 * out_cubic(t_icon / 0.3))), anchor="ma")
+        if T_OPEN - 0.9 <= t < T_OPEN + 0.6:
+            q = out_cubic((t - (T_OPEN - 0.9)) / 0.7)
+            self.finger(d, lerp(SW * 0.85, cx0, q), lerp(SH * 0.78, cy0 + 6, q), t, T_OPEN, 0.9, 0.3)
+        return img
+
+    def launch(self, t):
+        """Домашний экран; на последней доле окно приложения вырастает из значка."""
+        q = in_out((t - (T_APP - 0.6)) / 0.6)
+        home = self.home_screen(t)
+        if q <= 0:
+            return home
+        cx0, cy0, size = self.home_geom()
+        x0, y0 = lerp(cx0 - size / 2, 0, q), lerp(cy0 - size / 2, 0, q)
+        x1, y1 = lerp(cx0 + size / 2, SW, q), lerp(cy0 + size / 2, SH, q)
+        w, h = int(x1 - x0), int(y1 - y0)
+        if w < 4 or h < 4:
+            return home
+        target = self.viz.frame("orbit", t)
+        scale = target.resize((w, h), Image.BICUBIC)
+        scale = Image.blend(Image.new("RGB", (w, h), (14, 14, 18)), scale, clamp((q - 0.25) / 0.5))
+        home.paste(scale, (int(x0), int(y0)), rounded_mask((w, h), int(lerp(30, 64, q))))
+        return home
+
+
 # ------------------------------------------------------------------ телефон и экраны
 class Screens:
     def __init__(self, audio):
         self.shots = {n: load_shot(n) for n in ("home", "player", "playlist", "yours", "yours2", "search")}
         self.viz = Viz(audio)
+        self.ins = Install(self.viz)
 
     def still(self, name, t, t0, push=0.06, span=3.0, cx=0.5, cy=0.45):
         s = 1 + push * clamp((t - t0) / span)
         return zoom(self.shots[name], s, SW * cx, SH * cy)
 
 
-# Экраны по долям: (n0, n1, фабрика). Порядок = порядок показа.
 def screen_program(sc):
     P = []
 
     def add(n0, n1, fn):
         P.append((nb(n0), nb(n1), fn))
 
-    add(0, 8, lambda t, t0: sc.still("home", t, t0, 0.07, nb(8)))
-    add(8, 12, lambda t, t0: sc.still("player", t, t0, 0.05, nb(4), 0.5, 0.42))
-    add(12, 13, lambda t, t0: sc.still("playlist", t, t0, 0.04, nb(1)))
-    add(13, 14, lambda t, t0: sc.still("yours2", t, t0, 0.04, nb(1)))
-    add(14, 15, lambda t, t0: sc.still("search", t, t0, 0.04, nb(1)))
-    add(15, 16, lambda t, t0: sc.still("home", t, t0, 0.05, nb(1)))
-    add(16, 20, lambda t, t0: sc.viz.frame("orbit", t))
-    add(20, 22, lambda t, t0: sc.viz.frame("lines", t))
-    add(22, 24, lambda t, t0: sc.viz.frame("terrain", t))
-    add(24, 28, lambda t, t0: clip_frame("sound", t - t0))
-    add(28, 32, lambda t, t0: clip_frame("stand", t - t0))
-    add(32, 34, lambda t, t0: sc.still("yours2", t, t0, 0.16, nb(2), 0.5, 0.82))
-    add(34, 36, lambda t, t0: clip_frame("editor", t - t0))
-    add(36, 40, lambda t, t0: clip_frame("settings", t - t0))
-    add(40, 46, lambda t, t0: sc.still("home", t, t0, 0.10, nb(6), 0.5, 0.35))
+    add(0, 16, lambda t, t0: sc.ins.site_screen(t))
+    add(16, 24, lambda t, t0: sc.ins.launch(t))
+    add(24, 28, lambda t, t0: sc.viz.frame("orbit", t))
+    add(28, 30, lambda t, t0: sc.viz.frame("lines", t))
+    add(30, 32, lambda t, t0: sc.viz.frame("terrain", t))
+    add(32, 36, lambda t, t0: clip_frame("sound", t - t0))
+    add(36, 40, lambda t, t0: clip_frame("stand", t - t0))
+    add(40, 42, lambda t, t0: sc.still("yours2", t, t0, 0.18, nb(2), 0.5, 0.82))
+    add(42, 44, lambda t, t0: clip_frame("editor", t - t0))
+    add(44, 48, lambda t, t0: clip_frame("settings", t - t0))
+    add(48, 50, lambda t, t0: sc.still("search", t, t0, 0.06, nb(2)))
+    add(50, 55, lambda t, t0: sc.still("home", t, t0, 0.10, nb(5), 0.5, 0.35))
     return P
 
 
@@ -462,22 +593,22 @@ def screen_at(prog, t):
     return prog[-1][2](t, prog[-1][0])
 
 
-CUTS = [nb(n) for n in (0, 8, 12, 13, 14, 15, 16, 20, 22, 24, 28, 32, 34, 36, 40)]
-
-PHONE_IN = 0.0
-PHONE_OUT = nb(45)
+# Смены экрана: на каждой — удар и наклон телефона.
+CUTS = [nb(n) for n in (8, 16, 24, 28, 30, 32, 36, 40, 42, 44, 48, 50)]
+PHONE_OUT = nb(52.6)
 
 # ------------------------------------------------------------------ заголовки
-# (n0, n1, метка, строки [[(текст, цвет)]]) — смена жёсткая, строго на доле.
+# (n0, n1, метка, строки) — смена жёсткая, строго на доле, строки влетают сбоку.
 SCENES = [
     (0, 8, "TEXFI  /  W0Y", [[("YouTube Music,", TEXT)], [("minus the ads.", BLUE)]]),
-    (8, 16, "01  /  LISTEN", [[("Built for", TEXT)], [("listening.", BLUE)]]),
-    (16, 24, "02  /  VISUALIZER", [[("Live visualizer.", TEXT)], [("No microphone.", BLUE)]]),
-    (24, 28, "03  /  SOUND", [[("Speed, pitch, reverb", TEXT)], [("per song.", BLUE)]]),
-    (28, 32, "04  /  STAND MODE", [[("Stand mode.", TEXT)], [("A clock that plays.", BLUE)]]),
-    (32, 36, "05  /  PLAYLISTS", [[("Colour and icon", TEXT)], [("per playlist.", BLUE)]]),
-    (36, 40, "06  /  SETTINGS", [[("Every detail", TEXT)], [("is a setting.", BLUE)]]),
-    (40, 45, "07  /  HOME", [[("Speed dial", TEXT)], [("for your tracks.", BLUE)]]),
+    (8, 16, "01  /  DOWNLOAD", [[("Tap", TEXT)], [("download.", BLUE)]]),
+    (16, 24, "02  /  INSTALL", [[("Install it.", TEXT)], [("Open it.", BLUE)]]),
+    (24, 32, "03  /  VISUALIZER", [[("Live visualizer.", TEXT)], [("No microphone.", BLUE)]]),
+    (32, 36, "04  /  SOUND", [[("Speed, pitch, reverb", TEXT)], [("per song.", BLUE)]]),
+    (36, 40, "05  /  STAND MODE", [[("Stand mode.", TEXT)], [("A clock that plays.", BLUE)]]),
+    (40, 44, "06  /  PLAYLISTS", [[("Colour and icon", TEXT)], [("per playlist.", BLUE)]]),
+    (44, 48, "07  /  SETTINGS", [[("Every detail", TEXT)], [("is a setting.", BLUE)]]),
+    (48, 54, "08  /  LIBRARY", [[("Find it.", TEXT)], [("Pin it.", BLUE)]]),
 ]
 TITLE_X = 84
 TITLE_MAX = 912
@@ -497,21 +628,24 @@ def draw_titles(base, t):
     layer = Image.new("RGBA", (W, 420), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     drawn = False
-    for n0, n1, label, lines in SCENES:
+    for idx, (n0, n1, label, lines) in enumerate(SCENES):
         if not (nb(n0) <= t < nb(n1)):
             continue
         drawn = True
         local = t - nb(n0)
-        la = out_cubic(local / 0.28)
+        la = out_cubic(local / 0.25)
         f = font("mono", 26)
         draw_text(d, (TITLE_X, 40), label, f, MUTED + (int(255 * la),), spacing=4)
         lw = text_width(label, f, 4)
-        d.line((TITLE_X + lw + 24, 52, W - TITLE_X, 52), fill=LINE + (int(255 * la),), width=2)
+        d.line((TITLE_X + lw + 24, 52, TITLE_X + lw + 24 + (W - 2 * TITLE_X - lw - 24) * out_cubic(local / 0.45), 52), fill=LINE + (int(255 * la),), width=2)
         tf, size = fit_font(lines, TITLE_MAX)
+        side = 1 if idx % 2 == 0 else -1
         for i, line in enumerate(lines):
-            a = clamp(out_cubic((local - 0.05 * i) / 0.3))
-            dy = (1 - out_cubic((local - 0.05 * i) / 0.34)) * 40
-            x = TITLE_X
+            e = clamp((local - 0.05 * i) / 0.34)
+            a = clamp(out_cubic(e * 1.4))
+            dx = (1 - spring(e * 0.55, 0.62, 16.0 / 0.55 * 0.55)) * 0 + (1 - out_cubic(e)) * 150 * side
+            dy = (1 - out_cubic(e)) * 26
+            x = TITLE_X + dx
             y = 95 + i * int(size * 1.18) + dy
             for seg, col in line:
                 d.text((x, y), seg, font=tf, fill=col + (int(255 * a),))
@@ -520,13 +654,44 @@ def draw_titles(base, t):
         base.paste(layer, (0, 170), layer)
 
 
-# Заявления «чем отличается»: (n0, n1, слой, [(строки, подпись)])
+def draw_bg_orbit(base, t, au):
+    """Большой спектр-кольцо за заявлениями: живёт на каждом ударе трека."""
+    if not (nb(53) <= t < nb(72) + 0.2):
+        return
+    fade = out_cubic((t - nb(53)) / 0.6) * (1 - clamp((t - nb(71.6)) / 0.25))
+    sz = 1000
+    ov = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    cx = cy = sz / 2
+    r0 = 215
+    sp = au.spec(t, 37)
+    cp = au.spec(t, 37, caps=True)
+    for ring in (0.62, 0.86, 1.0):
+        r = r0 * ring
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(225, 225, 232, 70), width=2)
+    for i in range(72):
+        j = abs(i - 36) / 36
+        k = min(36, int(j * 36))
+        v, c = sp[k] ** 0.9, cp[k] ** 0.9
+        ang = (i / 72) * 2 * math.pi + math.pi / 2 + t * 0.1
+        ca, sa = math.cos(ang), math.sin(ang)
+        r1 = r0 * 1.1
+        L = 8 + 190 * v
+        d.line((cx + ca * r1, cy + sa * r1, cx + ca * (r1 + L), cy + sa * (r1 + L)), fill=(240, 240, 246, 150), width=5)
+        rc = r1 + 14 + 195 * c
+        d.ellipse((cx + ca * rc - 5, cy + sa * rc - 5, cx + ca * rc + 5, cy + sa * rc + 5), fill=GOLD + (170,))
+    ov = ov.point(lambda v: v)  # копия для паста
+    a = ov.getchannel("A").point(lambda v: int(v * fade))
+    ov.putalpha(a)
+    base.paste(ov, (W // 2 - sz // 2, 1440 - sz // 2), ov)
+
+
 def draw_claims(base, t, au):
-    if not (nb(46) <= t < nb(71.6)):
+    if not (nb(53.4) <= t < nb(71.6)):
         return
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    la = out_cubic((t - nb(46)) / 0.4)
+    la = out_cubic((t - nb(53.4)) / 0.3)
     f = font("mono", 26)
     label = "WHAT SETS IT APART"
     draw_text(d, (TITLE_X, 210), label, f, MUTED + (int(255 * la),), spacing=4)
@@ -539,19 +704,21 @@ def draw_claims(base, t, au):
         local = t - nb(n_in)
         tf = font("display", size)
         for i, (seg, col) in enumerate(words):
-            a = clamp(out_cubic((local - 0.05 * i) / 0.3))
-            dy = (1 - out_cubic((local - 0.05 * i) / 0.38)) * 60
-            d.text((TITLE_X, y + i * int(size * 1.12) + dy), seg, font=tf, fill=col + (int(255 * a),))
+            e = clamp((local - 0.06 * i) / 0.32)
+            a = clamp(out_cubic(e * 1.4))
+            dx = (1 - out_cubic(e)) * 220 * (1 if i == 0 else -1)
+            punch = 1 + 0.0 * e
+            d.text((TITLE_X + dx, y + i * int(size * 1.12)), seg, font=tf, fill=col + (int(255 * a),))
         wlast = tf.getlength(words[-1][0])
         ly = y + (len(words) - 1) * int(size * 1.12) + int(size * 1.08)
-        q = out_cubic((local - 0.15) / 0.5)
+        q = out_cubic((local - 0.15) / 0.4)
         d.rounded_rectangle((TITLE_X, ly + 10, TITLE_X + max(4, wlast * q), ly + 14), radius=2, fill=BLUE + (255,))
         ta = out_cubic((local - 0.25) / 0.3)
         draw_text(d, (TITLE_X, ly + 40 + (1 - ta) * 14), tag, font("mono", 28), MUTED + (int(255 * ta),), spacing=4)
 
-    block(48, 56, 560, [("Zero", TEXT), ("ads.", BLUE)], "NO BANNERS.  NO PRE-ROLLS.")
-    block(56, 64, 560, [("Zero", TEXT), ("telemetry.", BLUE)], "NO ANALYTICS.  NO TRACKERS.")
-    block(64, 71.6, 560, [("Open", TEXT), ("source.", BLUE)], "AGPL-3.0  ·  CODE ON GITHUB")
+    block(54, 58, 520, [("Zero", TEXT), ("ads.", BLUE)], "NO BANNERS.  NO PRE-ROLLS.")
+    block(58, 64, 520, [("Zero", TEXT), ("telemetry.", BLUE)], "NO ANALYTICS.  NO TRACKERS.")
+    block(64, 71.6, 520, [("Open", TEXT), ("source.", BLUE)], "AGPL-3.0  ·  CODE ON GITHUB")
     base.paste(layer, (0, 0), layer)
 
 
@@ -566,13 +733,11 @@ def draw_icon_end(base, t, au, icon):
     cx, cy = W // 2, 840
     ic = 300
     k = spring(local, 0.5, 15.0)
-    pulse = au.pulse(t) if t > nb(73) else 0.0
-    size = ic * clamp(k, 0, 1.25) * (1 + 0.035 * pulse)
+    size = ic * clamp(k, 0, 1.25) * (1 + 0.035 * au.pulse(t))
     if size > 2:
         im = icon.resize((int(size), int(size)), Image.LANCZOS)
         layer.paste(im, (int(cx - size / 2), int(cy - size / 2)), im)
-    second = END_HIT
-    for tr in (t0, second):
+    for tr in (t0, t0 + 0.55, nb(74)):
         rp = clamp((t - tr) / 0.9)
         if 0 < rp < 1:
             rr = ic * (0.58 + 1.25 * out_cubic(rp))
@@ -580,15 +745,10 @@ def draw_icon_end(base, t, au, icon):
     base.paste(layer, (0, 0), layer)
 
 
-END_HIT = nb(72) + 0.4  # уточняется по басу в Renderer.__init__
-
-
 # ------------------------------------------------------------------ кадр
 class Renderer:
     def __init__(self):
-        global END_HIT
         self.au = Audio()
-        END_HIT = self.au.first_onset(28.8, 0.35)
         self.base, self.lit = make_backgrounds()
         self.bezel = make_bezel()
         self.shadow, self.pad = make_shadow()
@@ -603,44 +763,54 @@ class Renderer:
         if leave >= 1:
             return
         dy = (1 - enter) * 1000 + leave * 1500
-        # Удар на каждой смене экрана + пульс баса.
-        bump = 0.0
-        for tc in CUTS:
+        bump, tilt, side = 0.0, 0.0, 1
+        for i, tc in enumerate(CUTS):
             if tc <= t:
                 age = t - tc
-                bump = 0.040 * math.exp(-age * 9.0)
-        ps = 1.0 + bump + 0.014 * self.au.pulse(t)
+                big = 2.0 if tc == T_APP else 1.0
+                bump = 0.040 * big * math.exp(-age * 9.0)
+                side = 1 if i % 2 == 0 else -1
+                tilt = side * 3.2 * big * math.exp(-age * 7.5) * math.cos(age * 14)
+        k = self.au.pulse(t) if t > 0.2 else 0.0
+        ps = 1.0 + bump + 0.016 * k
+        dx = 8 * k * math.sin(t * 62)
         screen = screen_at(self.prog, t)
         lay = Image.new("RGBA", (PHONE_W, PHONE_H), (0, 0, 0, 0))
         lay.paste(screen, (BEZEL, BEZEL), self.screen_mask)
         lay.alpha_composite(self.bezel)
-        sh = Image.new("RGBA", (PHONE_W + 2 * self.pad, PHONE_H + 2 * self.pad), (0, 0, 0, 0))
-        sh.paste((0, 0, 0, 255), (0, 0), self.shadow)
-        lay2 = Image.new("RGBA", sh.size, (0, 0, 0, 0))
-        lay2.alpha_composite(sh)
-        lay2.alpha_composite(lay, (self.pad, self.pad))
+        full = Image.new("RGBA", (PHONE_W + 2 * self.pad, PHONE_H + 2 * self.pad), (0, 0, 0, 0))
+        full.paste((0, 0, 0, 255), (0, 0), self.shadow)
+        full.alpha_composite(lay, (self.pad, self.pad))
         if abs(ps - 1) > 0.002:
-            nw, nh = int(lay2.width * ps), int(lay2.height * ps)
-            lay2 = lay2.resize((nw, nh), Image.BICUBIC)
-        cx = PHONE_X + PHONE_W / 2
+            full = full.resize((int(full.width * ps), int(full.height * ps)), Image.BICUBIC)
+        if abs(tilt) > 0.12:
+            full = full.rotate(tilt, resample=Image.BICUBIC, expand=True)
+        cx = PHONE_X + PHONE_W / 2 + dx
         cy = PHONE_Y + dy + PHONE_H / 2
-        bg.paste(lay2, (int(cx - lay2.width / 2), int(cy - lay2.height / 2)), lay2)
+        bg.paste(full, (int(cx - full.width / 2), int(cy - full.height / 2)), full)
 
     def frame(self, t):
         au = self.au
-        g = clamp(0.40 + 0.35 * au.glow(t) + 0.45 * au.pulse(t) * (1 if (nb(0) <= t < nb(8) or nb(16) <= t < nb(46) or t >= nb(72)) else 0.3))
+        w = 0.3 if nb(18) <= t < nb(24) else 1.0
+        g = clamp(0.40 + 0.35 * au.glow(t) + 0.45 * au.pulse(t) * w)
         bg = Image.blend(self.base, self.lit, clamp(g))
-        if t < nb(46):
+        draw_bg_orbit(bg, t, au)
+        if t < nb(55):
             self.phone(bg, t)
         draw_titles(bg, t)
         draw_claims(bg, t, au)
         draw_icon_end(bg, t, au, self.icon)
-        # Вспышка на дропе.
-        age = t - nb(16)
-        if 0 <= age < 0.5:
-            a = 0.55 * math.exp(-age * 11)
-            bg = Image.blend(bg, Image.new("RGB", (W, H), (255, 255, 255)), a)
-        # Затемнение в конце.
+        # Дроп: вспышка и волна от телефона.
+        age = t - T_APP
+        if 0 <= age < 0.6:
+            ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(ov)
+            rr = 120 + 1500 * out_cubic(age / 0.6)
+            cy = PHONE_Y + PHONE_H // 2
+            d.ellipse((W // 2 - rr, cy - rr, W // 2 + rr, cy + rr), outline=(255, 255, 255, int(200 * (1 - age / 0.6))), width=10)
+            d.ellipse((W // 2 - rr * 0.8, cy - rr * 0.8, W // 2 + rr * 0.8, cy + rr * 0.8), outline=BLUE + (int(220 * (1 - age / 0.6)),), width=6)
+            bg = Image.blend(bg, Image.new("RGB", (W, H), (255, 255, 255)), 0.5 * math.exp(-age * 13))
+            bg.paste(ov, (0, 0), ov)
         if t > DUR - 0.5:
             bg = Image.blend(bg, Image.new("RGB", (W, H), BG), 0.9 * clamp((t - (DUR - 0.5)) / 0.5))
         return bg
@@ -664,6 +834,15 @@ def render_sfx(path, au):
     def tick():
         return [math.sin(2 * math.pi * 2200 * (i / SR)) * math.exp(-(i / SR) * 90) * 0.7 + rnd.uniform(-1, 1) * math.exp(-(i / SR) * 200) * 0.3 for i in range(int(0.06 * SR))]
 
+    def click():
+        return [math.sin(2 * math.pi * 1500 * (i / SR)) * math.exp(-(i / SR) * 70) * 0.9 + rnd.uniform(-1, 1) * math.exp(-(i / SR) * 160) * 0.25 for i in range(int(0.09 * SR))]
+
+    def tone(freq, dur, decay=7.0):
+        return [(math.sin(2 * math.pi * freq * (i / SR)) + 0.3 * math.sin(2 * math.pi * freq * 2 * (i / SR))) * math.exp(-(i / SR) * decay) for i in range(int(dur * SR))]
+
+    def pop():
+        return [math.sin(2 * math.pi * (260 + 520 * math.exp(-(i / SR) * 22)) * (i / SR)) * math.exp(-(i / SR) * 14) for i in range(int(0.28 * SR))]
+
     def whoosh(dur, up=True, amp=1.4):
         out, lp = [], 0.0
         for i in range(int(dur * SR)):
@@ -679,22 +858,28 @@ def render_sfx(path, au):
     def shimmer(freq, dur):
         return [(math.sin(2 * math.pi * freq * (i / SR)) + 0.4 * math.sin(2 * math.pi * freq * 2.01 * (i / SR))) * math.exp(-(i / SR) * 3.2) for i in range(int(dur * SR))]
 
-    # Тики на каждой смене экрана.
-    for tc in CUTS[1:]:
+    # Установка: клик, тики загрузки, «готово», значок, палец.
+    add(T_PRESS, click(), 0.50)
+    steps, span = 14, T_DONE - T_PRESS - 0.5
+    for i in range(steps):
+        add(T_PRESS + 0.25 + i * (span / steps), tone(700 + 60 * i, 0.06, 40), 0.07)
+    add(T_DONE - 0.05, tone(1046, 0.5, 6), 0.14)
+    add(T_DONE + 0.05, tone(1568, 0.7, 5), 0.11)
+    add(T_DONE + 0.1, pop(), 0.30)
+    add(T_OPEN, click(), 0.35)
+    # Раскрутка в тишине перед дропом и сам дроп.
+    add(nb(18), whoosh(nb(6), True, 1.3), 0.22)
+    add(T_APP, boom(), 0.34)
+    for tc in CUTS[3:]:
         add(tc, tick(), 0.22)
-    # Раскрутка перед дропом и сам дроп.
-    add(nb(12), whoosh(nb(4), True, 1.2), 0.20)
-    add(nb(16), boom(), 0.30)
-    # Уход телефона и заявления — мягкие вуши на доле.
-    add(nb(45), whoosh(0.9, False, 1.2), 0.16)
-    for nn in (48, 56, 64):
+    add(PHONE_OUT, whoosh(0.9, False, 1.2), 0.16)
+    for nn in (54, 58, 64):
         add(nb(nn), whoosh(0.35, False, 1.0), 0.16)
         add(nb(nn), tick(), 0.18)
-    # Подъём в значок и сам значок.
     add(nb(72) - 1.05, whoosh(1.05, True, 1.5), 0.20)
     add(nb(72), boom(), 0.22)
     add(nb(72), shimmer(1568, 1.2), 0.07)
-    add(END_HIT, shimmer(784, 1.0), 0.05)
+    add(nb(74), shimmer(784, 1.0), 0.05)
     peak = max(abs(v) for v in buf) or 1.0
     scale = 0.9 / peak if peak > 0.9 else 1.0
     with wave.open(path, "wb") as w:
@@ -716,7 +901,7 @@ def main():
         return
     r = Renderer()
     if mode == "preview":
-        ns = [2, 6, 10, 12.5, 14.5, 16.3, 18, 21, 23, 26, 30, 34, 38, 42, 47, 50, 54, 58, 66, 70, 72.2, 73.5, 74.5, 75.3]
+        ns = [2, 7, 8.6, 11, 15.5, 17.5, 20, 22.6, 23.8, 24.4, 26, 29, 31, 34, 37, 41, 43, 46, 49, 52, 55, 60, 66, 73]
         times = [min(nb(n), DUR - 0.01) for n in ns]
         cols, tw, th = 8, 270, 480
         sheet = Image.new("RGB", (cols * tw, 3 * th))
@@ -724,7 +909,7 @@ def main():
             fr = r.frame(t).resize((tw, th), Image.LANCZOS)
             sheet.paste(fr, ((i % cols) * tw, (i // cols) * th))
         sheet.save(os.path.join(OUT, "preview.png"))
-        print("preview.png", [round(t, 2) for t in times], "END_HIT", round(END_HIT, 3))
+        print("preview.png", [round(t, 2) for t in times])
         return
     if mode == "frame":
         t = float(sys.argv[2])
