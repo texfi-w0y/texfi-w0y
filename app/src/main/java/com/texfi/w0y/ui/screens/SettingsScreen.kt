@@ -94,6 +94,7 @@ import com.texfi.w0y.ui.components.pressScale
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.liquidGlass
 import com.texfi.w0y.ui.theme.screenBackground
+import com.texfi.w0y.ui.components.extendUnderIsland
 import com.texfi.w0y.ui.theme.PixelSectionLabel
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -259,10 +260,11 @@ fun SettingsScreen(
     )
 
     Box(Modifier.fillMaxSize()) {
+    // Фон листа продолжается за островком до самого низа; список кончается над островком.
+    Box(Modifier.fillMaxSize().extendUnderIsland().screenBackground())
     Column(
         Modifier
             .fillMaxSize()
-            .screenBackground()
             .statusBarsPadding(),
     ) {
         ScreenTitle(

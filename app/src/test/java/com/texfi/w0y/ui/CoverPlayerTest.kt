@@ -43,7 +43,7 @@ class CoverPlayerTest {
 
     private fun block(tag: String, h: Int) = @androidx.compose.runtime.Composable { Box(Modifier.fillMaxWidth().height(h.dp).testTag(tag)) }
 
-    private fun show(poster: Boolean = false) {
+    private fun show(poster: Boolean = false, visualizerOn: Boolean = false) {
         rule.setContent {
             W0yTheme {
                 PlayerSheet(expanded = expanded, onCollapse = { collapses++; expanded = false }) {
@@ -60,6 +60,7 @@ class CoverPlayerTest {
                         onCoverTap = run { val now = visualizer; { visualizer = !now } },
                         onSwipe = {}, onDrag = {}, onDragEnd = {},
                         poster = poster,
+                        visualizerOn = visualizerOn,
                     )
                 }
             }
@@ -134,5 +135,16 @@ class CoverPlayerTest {
         rule.waitForIdle()
         rule.mainClock.advanceTimeBy(1500)
         assertEquals(1, collapses)
+    }
+
+    @Test
+    fun posterVisualizerStaysAboveControls() {
+        show(poster = true, visualizerOn = true)
+        rule.mainClock.advanceTimeBy(1500)
+        val stage = rule.onNodeWithTag("stage").fetchSemanticsNode().boundsInRoot
+        val actions = rule.onNodeWithTag("actions").fetchSemanticsNode().boundsInRoot
+        assertTrue("визуализатор над кнопками: ${stage.bottom} / ${actions.top}", stage.bottom <= actions.top)
+        val h = rule.onRoot().fetchSemanticsNode().boundsInRoot.height
+        assertTrue("крупный: ${stage.height}", stage.height > h * 0.3f)
     }
 }

@@ -738,8 +738,9 @@ fun PlayerScreen(
                             playing = state.isPlaying,
                             sensitivity = settings.visualizerSensitivity,
                             fps = settings.visualizerFps,
-                            backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
-                            modifier = Modifier.fillMaxSize().background(colors.surface),
+                            // В «постере» визуализатор стоит прямо на приглушённой обложке, без своей плашки.
+                            backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop && layout != com.texfi.w0y.data.PlayerLayout.POSTER },
+                            modifier = Modifier.fillMaxSize().then(if (layout == com.texfi.w0y.data.PlayerLayout.POSTER) Modifier else Modifier.background(colors.surface)),
                         )
                     2 ->
                         Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.92f))) {
