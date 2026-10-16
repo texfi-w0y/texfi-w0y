@@ -19,6 +19,8 @@ data class HomeBlocks(
     val releases: List<PlaylistCard> = emptyList(),
     val forgotten: List<Rec> = emptyList(),
     val timeOfDay: List<Rec> = emptyList(),
+    /** «Быстрый выбор» — первая подборка на главной, сразу под быстрым набором. */
+    val quickPicks: List<Rec> = emptyList(),
 ) {
     val isEmpty: Boolean get() = discoveries.isEmpty() && releases.isEmpty() && forgotten.isEmpty() && timeOfDay.isEmpty()
 }
@@ -152,10 +154,12 @@ class RecEngine @Inject constructor(
         val now = clock()
         homeCache?.let { (at, blocks) -> if (!force && now - at < HOME_TTL_MS) return blocks }
         val s = settings.settings.first()
-        if (!s.homeRecBlocks) return HomeBlocks()
         val taste = tasteProfile()
         val rnd = random()
         val recent = dao.recentPlays(RECENT_WINDOW).map { it.id }.toSet()
+        // Быстрый выбор нужен всегда, даже если остальные блоки выключены: это главная подборка.
+        val quick = runCatching { quickPicks(taste, recent, rnd) }.getOrDefault(emptyList())
+        if (!s.homeRecBlocks) return HomeBlocks(quickPicks = quick).also { homeCache = now to it }
 
         val forgotten =
             if (s.tasteLearning) {
@@ -187,11 +191,30 @@ class RecEngine @Inject constructor(
 
         val discoveries = discoveries(s.tasteLearning, taste, recent, rnd, now)
         val releases = if (s.tasteLearning) releasesOfYourArtists(taste, now) else emptyList()
-        return HomeBlocks(discoveries = discoveries, releases = releases, forgotten = forgotten, timeOfDay = timeOfDay)
+        return HomeBlocks(discoveries = discoveries, releases = releases, forgotten = forgotten, timeOfDay = timeOfDay, quickPicks = quick)
             .also { homeCache = now to it }
     }
 
     // ---- внутреннее
+
+    /**
+     * Быстрый выбор: радио от нескольких недавних треков разных исполнителей, перемешанное с
+     * учётом вкуса. Недавно игравшее не повторяется, но «показанное» тут не вычёркивается —
+     * иначе подборка на главной съедала бы продолжение очереди. Радио берётся из кэша, поэтому
+     * повторный показ сети не стоит.
+     */
+    private suspend fun quickPicks(taste: TasteProfile, recent: Set<String>, rnd: Random): List<Rec> {
+        val seeds = recentSeeds(null, QUICK_SEEDS)
+        if (seeds.isEmpty()) return emptyList()
+        val candidates = ArrayList<Candidate>()
+        seeds.forEach { seed ->
+            val anchor = anchorOf(seed) ?: return@forEach
+            radioOf(anchor.id)?.forEachIndexed { rank, song ->
+                if (!LocalMusic.isLocal(song.id)) candidates += Candidate(song, Origin.RADIO, rank, seed.title, seed.artist)
+            }
+        }
+        return RecRanker.rank(candidates, taste, emptySet(), recent + seeds.map { it.id }, QUICK_NOVELTY, rnd, QUICK_LIMIT)
+    }
 
     private suspend fun discoveries(learning: Boolean, taste: TasteProfile, recent: Set<String>, rnd: Random, now: Long): List<Rec> {
         if (!learning || !taste.hasData) return emptyList()
@@ -278,6 +301,9 @@ class RecEngine @Inject constructor(
         const val SEEN_MAX = 2000
         const val SIMILAR_LIMIT = 20
         const val CONTINUATION_LIMIT = 25
+        private const val QUICK_SEEDS = 4
+        private const val QUICK_LIMIT = 20
+        private const val QUICK_NOVELTY = 0.3
 
         /** Меньше этого свежих треков — очередь добирается уже показанными. */
         private const val MIN_CONTINUATION = 8

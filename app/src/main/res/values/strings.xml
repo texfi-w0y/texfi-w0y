@@ -960,4 +960,5 @@
     <string name="recap_share">Share card</string>
     <string name="recap_private">Counted on this phone only. Nothing left the device.</string>
     <string name="recap_empty">Not much music this year yet. Listen a little — the review will build itself.</string>
+    <string name="home_quick_picks">Quick picks</string>
 </resources>
