@@ -67,6 +67,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -951,6 +953,38 @@ fun PlayerScreen(
                         }
 
                     com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
+
+                    // Обложка на весь экран: от края до края, внизу растворяется в фоне; смахивание вбок — смена трека.
+                    com.texfi.w0y.data.PlayerLayout.COVER -> {
+                        val fade = colors.background
+                        Box(
+                            Modifier
+                                .layout { measurable, constraints ->
+                                    val bleed = 40.dp.roundToPx()
+                                    val w = constraints.maxWidth + bleed
+                                    val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, w))
+                                    layout(constraints.maxWidth, w) { placeable.place(-bleed / 2, 0) }
+                                }
+                                .pointerInput(song.id) {
+                                    var total = 0f
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { total = 0f },
+                                        onDragEnd = {
+                                            when {
+                                                total <= -SWIPE_THRESHOLD_PX -> { haptic(Buzz.TRACK); viewModel.player.skipNext() }
+                                                total >= SWIPE_THRESHOLD_PX -> { haptic(Buzz.TRACK); viewModel.player.skipPrevious() }
+                                            }
+                                        },
+                                    ) { _, dragAmount -> total += dragAmount }
+                                }
+                                .pointerInput(Unit) { detectTapGestures { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() } }
+                                .drawWithContent {
+                                    drawContent()
+                                    drawRect(Brush.verticalGradient(0.55f to Color.Transparent, 1f to fade))
+                                },
+                        ) { stageContent(song.thumbnailUrl) }
+                        Spacer(Modifier.height(4.dp))
+                    }
                 }
                 if (lyricsOn && lyrics != null) {
                     LyricsLangRow(

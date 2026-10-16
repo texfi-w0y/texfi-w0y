@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import kotlinx.coroutines.launch
@@ -186,11 +187,24 @@ fun HairSheetFrame(
     val dismissAt = with(density) { 96.dp.toPx() }
     var dragPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    androidx.compose.runtime.LaunchedEffect(visible) { if (!visible) dragPx = 0f }
+    var heightPx by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    // Сброс смещения — только когда панель уже уехала: иначе она на миг «прыгала» обратно вверх перед закрытием.
+    androidx.compose.runtime.LaunchedEffect(visible) {
+        if (visible) {
+            dragPx = 0f
+        } else {
+            kotlinx.coroutines.delay(500)
+            dragPx = 0f
+        }
+    }
     val currentDismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
     fun settle(velocityY: Float = 0f) {
         if (dragPx > dismissAt || velocityY > 1600f) {
-            currentDismiss()
+            // Смахнули: панель доезжает вниз той же рукой, а не пропадает рывком.
+            scope.launch {
+                androidx.compose.animation.core.animate(dragPx, heightPx, initialVelocity = velocityY.coerceAtLeast(0f), animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { v, _ -> dragPx = v }
+                currentDismiss()
+            }
         } else {
             scope.launch { androidx.compose.animation.core.animate(dragPx, 0f) { v, _ -> dragPx = v } }
         }
@@ -237,7 +251,7 @@ fun HairSheetFrame(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
+                    .background(Color.Black.copy(alpha = 0.55f * (1f - (dragPx / heightPx).coerceIn(0f, 1f))))
                     .testTag("panel-scrim")
                     .pointerInput(Unit) {
                         var drag = 0f
@@ -260,6 +274,7 @@ fun HairSheetFrame(
             Column(
                 Modifier
                     .offset { IntOffset(0, dragPx.toInt()) }
+                    .onSizeChanged { heightPx = it.height.toFloat().coerceAtLeast(1f) }
                     .nestedScroll(connection)
                     .fillMaxWidth()
                     .then(if (heightFraction != null) Modifier.fillMaxHeight(heightFraction) else Modifier)

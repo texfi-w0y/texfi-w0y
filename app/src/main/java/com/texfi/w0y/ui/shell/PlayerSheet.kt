@@ -61,11 +61,20 @@ fun PlayerSheet(
     val travelHolder = remember { floatArrayOf(1f) }
     val visible by remember { derivedStateOf { openness > 0.001f } }
 
-    fun settle(target: Float) {
+    // Актуальное состояние для жестов: onCollapse() не меняет `expanded`, если оно уже false
+    // (бросок во время закрытия), и тогда шторка застревала на середине чёрным полотном.
+    val expandedNow by androidx.compose.runtime.rememberUpdatedState(expanded)
+
+    var settleTarget by remember { mutableFloatStateOf(-1f) }
+
+    fun settle(target: Float, velocityY: Float = 0f) {
+        settleTarget = target
         job?.cancel()
         job =
             scope.launch {
-                animate(openness, target, animationSpec = if (hair && moves) { if (target > 0.5f) HairOpen else HairClose } else if (target > 0.5f) OpenSpring else CloseSpring) { value, _ ->
+                // Скорость пальца переходит в движение шторки: закрывается с той же скоростью, с какой смахнули.
+                val v = if (travelHolder[0] > 1f) -velocityY / travelHolder[0] else 0f
+                animate(openness, target, initialVelocity = v.coerceIn(-12f, 12f), animationSpec = if (hair && moves) { if (target > 0.5f) HairOpen else HairClose } else if (target > 0.5f) OpenSpring else CloseSpring) { value, _ ->
                     openness = value
                 }
             }
@@ -76,7 +85,9 @@ fun PlayerSheet(
             firstRun = false
             return@LaunchedEffect
         }
-        settle(if (expanded) 1f else 0f)
+        val want = if (expanded) 1f else 0f
+        // Уже едем туда же (смахнули жестом со скоростью) — не перебиваем.
+        if (!(job?.isActive == true && settleTarget == want)) settle(want)
     }
 
     val connection =
@@ -107,10 +118,18 @@ fun PlayerSheet(
                     if (dragged <= 0f) return Velocity.Zero
                     if (dragged > 0.22f || available.y > 1600f) {
                         onCollapse()
+                        // Даже если плеер уже «закрыт» по состоянию — шторка садится вниз сама.
+                        settle(0f, available.y)
                     } else {
                         settle(1f)
                     }
                     return available
+                }
+
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    // Палец отпущен без броска: шторка не должна остаться на полпути.
+                    if (openness in 0.001f..0.999f && job?.isActive != true) settle(if (expandedNow) 1f else 0f)
+                    return Velocity.Zero
                 }
             }
         }
