@@ -939,4 +939,11 @@
     <string name="taste_reset">RESET TASTE</string>
     <string name="taste_reset_title">Reset taste?</string>
     <string name="taste_reset_text">Play counts go back to zero (same as resetting stats) and the memory of shown tracks is cleared.</string>
+    <string name="widget_state_playing">Playing</string>
+    <string name="widget_state_paused">Paused</string>
+    <string name="widget_state_idle">Silence</string>
+    <string name="widget_state_error">Could not play</string>
+    <string name="widget_preview_title">Night Drive</string>
+    <string name="widget_preview_artist">Your artist</string>
+    <string name="widget_idle_hint">Nothing playing — tap to open</string>
 </resources>

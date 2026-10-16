@@ -1,49 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Виджет плеера. Разметка одна на оба состояния: когда трека нет,
-     прячется управление и показывается строка-приглашение — отдельный
-     макет пришлось бы править дважды и он бы разошёлся с первым. -->
+<!-- Виджет Hairline, крупный: обложка сверху, ниже текст и управление по центру (около 4×3 и выше). -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_body"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="4dp">
-
-    <!-- Тень лежит под корпусом со сдвигом: то же, что offset-тень
-         PixelCard в приложении. -->
-    <!-- FrameLayout, а не View: RemoteViews принимает только известный ей
-         список классов, и обычный View в него не входит. -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginStart="3dp"
-        android:layout_marginTop="3dp"
-        android:background="@drawable/widget_shadow" />
+    android:background="@drawable/widget_card"
+    android:padding="12dp">
 
     <LinearLayout
-        android:id="@+id/widget_body"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginEnd="3dp"
-        android:layout_marginBottom="3dp"
-        android:background="@drawable/widget_body"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="10dp">
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
         <ImageView
             android:id="@+id/widget_cover"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/widget_cover"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:contentDescription="@string/widget_cover_description"
-            android:scaleType="centerCrop" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/widget_cover" />
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
+            android:layout_marginTop="10dp"
             android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_state"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/jetbrains_mono_medium"
+                android:letterSpacing="0.1"
+                android:maxLines="1"
+                android:textAllCaps="true"
+                android:textColor="@color/w0y_accent"
+                android:textSize="10sp"
+                tools:text="ИГРАЕТ" />
 
             <TextView
                 android:id="@+id/widget_title"
@@ -52,7 +49,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_text"
-                android:textSize="14sp"
+                android:textSize="15sp"
                 tools:text="Название трека" />
 
             <TextView
@@ -66,41 +63,40 @@
                 tools:text="Исполнитель" />
         </LinearLayout>
 
-        <!-- Управление видно только когда есть что управлять: кнопка,
-             которая ничего не делает, хуже её отсутствия. -->
         <LinearLayout
             android:id="@+id/widget_controls"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <ImageButton
                 android:id="@+id/widget_previous"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/widget_previous"
-                android:padding="8dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_widget_previous"
                 android:tint="@color/widget_text" />
 
             <ImageButton
                 android:id="@+id/widget_toggle"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/widget_toggle"
-                android:padding="8dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_widget_play"
                 android:tint="@color/w0y_accent" />
 
             <ImageButton
                 android:id="@+id/widget_next"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/widget_next"
-                android:padding="8dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_widget_next"
                 android:tint="@color/widget_text" />
         </LinearLayout>
