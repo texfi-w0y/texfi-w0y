@@ -80,10 +80,28 @@ class PlaybackStarter @Inject constructor(
         scope.launch {
             player.state.collect { state ->
                 val song = state.song ?: return@collect
-                if (_mode.value != QueueMode.RADIO || collection) return@collect
-                if (state.currentIndex < state.queue.lastIndex) return@collect
+                if (state.currentIndex < state.queue.lastIndex) {
+                    extendedFor = null
+                    return@collect
+                }
                 if (extendedFor == song.id) return@collect
-                extendWithRadio(song)
+                val radio = (_mode.value == QueueMode.RADIO && !collection) || current.recInsteadOfList
+                when {
+                    radio -> extendWithRadio(song)
+
+                    // Список кончился: что дальше — выбор пользователя. Повтор и
+                    // «стоп» не трогают сеть, продолжение — один запрос на трек.
+                    state.repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF -> Unit
+
+                    current.recEndMode == com.texfi.w0y.data.RecEndMode.CONTINUE -> extendWithRadio(song)
+
+                    current.recEndMode == com.texfi.w0y.data.RecEndMode.REPEAT && state.queue.size > 1 -> {
+                        extendedFor = song.id
+                        player.replaceUpcoming(state.queue)
+                    }
+
+                    else -> Unit
+                }
             }
         }
     }
@@ -174,7 +192,12 @@ class PlaybackStarter @Inject constructor(
 
     private fun start(songs: List<SongItem>, chosen: SongItem) {
         val index = songs.indexOfFirst { it.id == chosen.id }.coerceAtLeast(0)
-        val mode = if (collection && _mode.value == QueueMode.RADIO) QueueMode.ORDER else _mode.value
+        val mode =
+            when {
+                current.recInsteadOfList -> QueueMode.RADIO
+                collection && _mode.value == QueueMode.RADIO -> QueueMode.ORDER
+                else -> _mode.value
+            }
         when (mode) {
             QueueMode.ORDER -> player.play(songs, index)
 
@@ -207,6 +230,14 @@ class PlaybackStarter @Inject constructor(
             QueueMode.SHUFFLE -> player.replaceUpcoming(player.upcoming().shuffled())
             QueueMode.RADIO -> extendWithRadio(current)
         }
+    }
+
+    /** MORE LIKE THIS: трек играет первым, дальше — радио от него. */
+    fun radioFrom(song: SongItem) {
+        setCollection(false)
+        radioJob?.cancel()
+        player.play(listOf(song), 0)
+        extendWithRadio(song)
     }
 
     private fun extendWithRadio(seed: SongItem) {

@@ -31,6 +31,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -48,10 +52,69 @@ class PlayerViewModel @Inject constructor(
     private val shareCards: ShareCardRenderer,
     private val youtube: YouTubeRepository,
     private val httpClient: io.ktor.client.HttpClient,
+    private val recs: com.texfi.w0y.recs.RecEngine,
     devices: AudioDevicesRepository,
     /** Отвод звука для визуализатора. */
     val spectrum: com.texfi.w0y.playback.SpectrumBus,
 ) : ViewModel() {
+    // ---- «Похожее»: набор подбирается в фоне при смене трека, одним запросом.
+
+    private val _similar = MutableStateFlow<com.texfi.w0y.recs.RecSet?>(null)
+    val similar: StateFlow<com.texfi.w0y.recs.RecSet?> = _similar.asStateFlow()
+
+    private val _similarLoading = MutableStateFlow(false)
+    val similarLoading: StateFlow<Boolean> = _similarLoading.asStateFlow()
+
+    private var similarJob: kotlinx.coroutines.Job? = null
+
+    init {
+        viewModelScope.launch {
+            player.state
+                .map { it.song }
+                .filterNotNull()
+                .distinctUntilChangedBy { it.id }
+                .collectLatest { song ->
+                    // Быстрое пролистывание не должно слать запрос на каждый трек.
+                    delay(SIMILAR_DEBOUNCE_MS)
+                    loadSimilar(song, manual = false)
+                }
+        }
+    }
+
+    private fun loadSimilar(song: SongItem, manual: Boolean) {
+        similarJob?.cancel()
+        similarJob =
+            viewModelScope.launch {
+                _similarLoading.value = true
+                runCatching { recs.similar(song, manual) }
+                    .onSuccess { _similar.value = it }
+                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+                _similarLoading.value = false
+            }
+    }
+
+    /** Кнопка REFRESH: другой набор, а не тот же самый. */
+    fun refreshSimilar() {
+        val song = player.state.value.song ?: return
+        loadSimilar(song, manual = true)
+    }
+
+    /** MORE LIKE THIS: радио от этого трека. */
+    fun moreLikeThis(song: SongItem) = playback.radioFrom(song)
+
+    /** LESS LIKE THIS: исполнитель уходит из вкуса и больше не предлагается. */
+    fun lessLikeThis(song: SongItem) {
+        viewModelScope.launch {
+            val now = com.texfi.w0y.recs.TasteProfile.parseExcluded(settingsRepository.settings.first().tasteExcluded)
+            settingsRepository.setTasteExcluded(com.texfi.w0y.recs.TasteProfile.formatExcluded(now + com.texfi.w0y.recs.TasteProfile.key(song.artist)))
+            _similar.value = _similar.value?.let { set -> set.copy(items = set.items.filterNot { com.texfi.w0y.recs.TasteProfile.key(it.song.artist) == com.texfi.w0y.recs.TasteProfile.key(song.artist) }) }
+        }
+    }
+
+    fun enqueue(song: SongItem) = player.enqueue(song)
+
+    fun playNextSong(song: SongItem) = player.playNext(song)
+
     /** Обложка или визуализатор — выбор запоминается. */
     fun setPlayerArt(art: com.texfi.w0y.data.PlayerArt) = viewModelScope.launch { settingsRepository.setPlayerArt(art) }
 
@@ -391,3 +454,6 @@ sealed interface EditSearch {
 
     data class Playing(val songId: String, val title: String) : EditSearch
 }
+
+
+private const val SIMILAR_DEBOUNCE_MS = 1_200L

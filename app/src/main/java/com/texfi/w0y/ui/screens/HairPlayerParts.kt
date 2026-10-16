@@ -134,63 +134,8 @@ private fun LabelledIcon(glyph: HairGlyph, description: Int, label: Int, onClick
     }
 }
 
-/** Меню «⋯» плеера: таймер сна, рисунок визуализатора и подставка — всё, что настраивают на ходу. */
 @Composable
-internal fun HairPlayerMenu(
-    sleepLeftMs: Long?,
-    sleepAfterTrack: Boolean,
-    style: com.texfi.w0y.data.VisualizerStyle,
-    onSleep: (Int?) -> Unit,
-    onStyle: (com.texfi.w0y.data.VisualizerStyle) -> Unit,
-    onStand: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val colors = LocalW0yColors.current
-    val look = hairLook
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(18.dp))
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(colors.surface)
-                .border(look.line, colors.outline, shape)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(stringResource(R.string.settings_section_player).asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted)
-            MenuChips(
-                title = stringResource(R.string.player_sleep_title),
-                hint = sleepLeftMs?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" },
-                options = listOf(
-                    stringResource(R.string.player_sleep_off),
-                    stringResource(R.string.player_sleep_track),
-                    stringResource(R.string.settings_sleep_minutes, 15),
-                    stringResource(R.string.settings_sleep_minutes, 30),
-                    stringResource(R.string.settings_sleep_minutes, 60),
-                ),
-                selected = when {
-                    sleepAfterTrack -> 1
-                    sleepLeftMs != null -> -1
-                    else -> 0
-                },
-                onSelect = { i -> onSleep(listOf(null, 0, 15, 30, 60)[i]); onDismiss() },
-            )
-            val styles = com.texfi.w0y.data.VisualizerStyle.entries.filter { it.hair }
-            MenuChips(
-                title = stringResource(R.string.player_visualizer),
-                hint = null,
-                options = styles.map { stringResource(it.label) },
-                selected = styles.indexOf(style),
-                onSelect = { onStyle(styles[it]) },
-            )
-            com.texfi.w0y.ui.components.PixelButton(stringResource(R.string.player_stand), onClick = { onDismiss(); onStand() }, modifier = Modifier.fillMaxWidth())
-        }
-    }
-}
-
-@Composable
-private fun MenuChips(title: String, hint: String?, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+internal fun MenuChips(title: String, hint: String?, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val colors = LocalW0yColors.current
     val look = hairLook
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
@@ -573,9 +518,13 @@ internal fun HairDial(
     }
 }
 
+/** Какие ручки показать: все, только скорость или только тон и эхо. */
+enum class DialSet { ALL, TONE, SPEED }
+
 /** Три регулятора звука трека: скорость, тон, эхо. Запоминаются за треком. */
 @Composable
 internal fun HairDials(
+    dials: DialSet = DialSet.ALL,
     sound: SoundProfile,
     reverbLabel: (Reverb) -> String,
     onSpeed: (Float) -> Unit,
@@ -586,21 +535,21 @@ internal fun HairDials(
     val pitchSteps = 4 // 0.9..1.1 шагом 0.05
     val reverbs = Reverb.entries
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        HairDial(
+        if (dials != DialSet.TONE) HairDial(
             label = stringResource(R.string.hl_dial_speed),
             valueText = { NumberText.speed(0.2f + it * 1.8f) },
             fraction = ((sound.speed - 0.2f) / 1.8f).coerceIn(0f, 1f),
             steps = speedSteps,
             onCommit = { onSpeed((0.2f + it * 1.8f).let { v -> Math.round(v * 20) / 20f }) },
         )
-        HairDial(
+        if (dials != DialSet.SPEED) HairDial(
             label = stringResource(R.string.hl_dial_pitch),
             valueText = { NumberText.pitch(0.9f + it * 0.2f) },
             fraction = ((sound.pitch - 0.9f) / 0.2f).coerceIn(0f, 1f),
             steps = pitchSteps,
             onCommit = { onPitch((0.9f + it * 0.2f).let { v -> Math.round(v * 20) / 20f }) },
         )
-        HairDial(
+        if (dials != DialSet.SPEED) HairDial(
             label = stringResource(R.string.hl_dial_reverb),
             valueText = { reverbLabel(reverbs[(it * (reverbs.size - 1)).let(Math::round).coerceIn(0, reverbs.lastIndex)]) },
             fraction = reverbs.indexOf(sound.reverb).coerceAtLeast(0).toFloat() / (reverbs.size - 1),
