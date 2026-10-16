@@ -135,7 +135,14 @@ class RecEngine @Inject constructor(
             // Хватает с запасом — лишних запросов не делаем.
             if (i == 0 && candidates.size >= limit * 3) break
         }
-        val ranked = RecRanker.rank(candidates, taste, seen, recent, s.recNovelty / 100.0, random(), limit)
+        var ranked = RecRanker.rank(candidates, taste, seen, recent, s.recNovelty / 100.0, random(), limit)
+        if (ranked.size < MIN_CONTINUATION && candidates.isNotEmpty()) {
+            // Всё свежее из этого радио уже показывалось (тот же трек включают не первый раз
+            // за две недели): лучше снова дать показанное, чем оставить очередь из одного трека.
+            // Исключаем только саму очередь и играющий трек.
+            val relaxed = RecRanker.rank(candidates, taste, emptySet(), exclude + current.id, s.recNovelty / 100.0, random(), limit)
+            ranked = (ranked + relaxed).distinctBy { it.song.id }.take(limit)
+        }
         remember(ranked.map { it.song.id }, now)
         return ranked.map { it.song }
     }
@@ -271,6 +278,9 @@ class RecEngine @Inject constructor(
         const val SEEN_MAX = 2000
         const val SIMILAR_LIMIT = 20
         const val CONTINUATION_LIMIT = 25
+
+        /** Меньше этого свежих треков — очередь добирается уже показанными. */
+        private const val MIN_CONTINUATION = 8
         private const val CACHE_SIZE = 16
         private const val RADIO_TTL_MS = 15L * 60 * 1000
         private const val HOME_TTL_MS = 30L * 60 * 1000

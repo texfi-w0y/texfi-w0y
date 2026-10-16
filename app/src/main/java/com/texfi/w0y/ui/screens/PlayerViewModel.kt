@@ -118,6 +118,8 @@ class PlayerViewModel @Inject constructor(
     /** Обложка или визуализатор — выбор запоминается. */
     fun setPlayerArt(art: com.texfi.w0y.data.PlayerArt) = viewModelScope.launch { settingsRepository.setPlayerArt(art) }
 
+    fun setPlayerLayout(layout: com.texfi.w0y.data.PlayerLayout) = viewModelScope.launch { settingsRepository.setPlayerLayout(layout) }
+
     fun setVisualizerStyle(style: com.texfi.w0y.data.VisualizerStyle) = viewModelScope.launch { settingsRepository.setVisualizerStyle(style) }
 
     fun setLyricsSize(size: com.texfi.w0y.data.LyricsSize) = viewModelScope.launch { settingsRepository.setLyricsSize(size) }

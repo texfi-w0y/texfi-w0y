@@ -212,7 +212,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         kotlinx.coroutines.delay(com.texfi.w0y.ui.components.UndoController.VISIBLE_MS)
         undoController.dismiss(item.id)
     }
+    val modalDim = remember { com.texfi.w0y.ui.screens.ModalDim() }
     CompositionLocalProvider(
+        com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
         LocalCompactRows provides (compactRows || com.texfi.w0y.ui.theme.hairLook.compact),
@@ -431,6 +433,18 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             )
         }
         if (overlayBars) bars(Modifier.align(Alignment.BottomCenter))
+        // Вуаль открытой панели доходит до низа экрана и ложится на островок.
+        if (modalDim.alpha > 0f) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(barsHeight)
+                    .background(Color.Black.copy(alpha = modalDim.alpha))
+                    .testTag("island-dim")
+                    .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { modalDim.dismiss?.invoke() },
+            )
+        }
 
         // «Остановлено · Отменить» — четыре секунды после того, как плеер убрали жестом.
         AnimatedVisibility(

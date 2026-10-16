@@ -1,6 +1,9 @@
 package com.texfi.w0y.ui.screens
 
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.unit.sp
 import com.texfi.w0y.ui.theme.HairTitleStyle
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -170,10 +173,20 @@ internal fun MenuChips(title: String, hint: String?, options: List<String>, sele
  * «компакт» — слева, рядом с маленьким диском.
  */
 @Composable
-internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProfile?, modifier: Modifier = Modifier) {
+internal fun HairTitleBlock(
+    song: SongItem,
+    layout: PlayerLayout,
+    own: SoundProfile?,
+    modifier: Modifier = Modifier,
+    onArtist: ((com.texfi.w0y.data.ArtistLink) -> Unit)? = null,
+    onAlbum: (() -> Unit)? = null,
+) {
     val colors = LocalW0yColors.current
     val centered = layout == PlayerLayout.RING
     val align = if (centered) Alignment.CenterHorizontally else Alignment.Start
+    // Название ведёт в альбом, имя — к исполнителю; долгое нажатие по-прежнему копирует.
+    val toAlbum = onAlbum?.takeIf { song.albumId != null }
+    val links = if (onArtist != null) song.artistLinks() else emptyList()
     Column(modifier.fillMaxWidth(), horizontalAlignment = align) {
         if (song.explicit) {
             ExplicitBadge()
@@ -186,14 +199,14 @@ internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProf
                 color = colors.text,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.copyOnLongPress(song.title),
+                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title"),
             )
         } else {
             Text(
                 text = song.title,
                 style = HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
                 // Долгое нажатие копирует название — чтобы найти трек где-то ещё.
-                modifier = Modifier.copyOnLongPress(song.title).basicMarquee(),
+                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title").basicMarquee(),
                 color = colors.text,
                 maxLines = 1,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,
@@ -201,14 +214,33 @@ internal fun HairTitleBlock(song: SongItem, layout: PlayerLayout, own: SoundProf
         }
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = song.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false).copyOnLongPress(song.artist),
-            )
+            if (links.isEmpty()) {
+                Text(
+                    text = song.artist,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false).copyOnLongPress(song.artist),
+                )
+            } else {
+                // У фита каждое имя — своя ссылка. Имена ярче подписи: видно, что они нажимаются.
+                Row(
+                    Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    links.forEachIndexed { i, link ->
+                        if (i > 0) Text(", ", style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
+                        Text(
+                            text = link.name,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = colors.text.copy(alpha = 0.9f),
+                            maxLines = 1,
+                            modifier = Modifier.copyOnLongPress(link.name) { onArtist?.invoke(link) }.testTag("player-artist-$i").padding(vertical = 6.dp),
+                        )
+                    }
+                }
+            }
             own?.takeIf { !it.isPlain }?.let {
                 Spacer(Modifier.width(8.dp))
                 VersionBadge(it.label)
@@ -580,14 +612,15 @@ fun copyLinkAction(song: SongItem, after: () -> Unit = {}): (() -> Unit)? {
 /** Долгое нажатие кладёт [text] в буфер обмена; до Android 13 ещё и говорит об этом сам. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-internal fun Modifier.copyOnLongPress(text: String): Modifier {
+internal fun Modifier.copyOnLongPress(text: String, onClick: (() -> Unit)? = null): Modifier {
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptic = com.texfi.w0y.ui.components.rememberSelectHaptic()
     val copied = stringResource(R.string.hl_copied, text)
     return combinedClickable(
         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
         indication = null,
-        onClick = {},
+        role = if (onClick != null) androidx.compose.ui.semantics.Role.Button else null,
+        onClick = { onClick?.invoke() },
         onLongClick = {
             haptic()
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

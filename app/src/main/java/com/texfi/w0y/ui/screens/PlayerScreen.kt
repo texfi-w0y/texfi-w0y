@@ -235,6 +235,17 @@ fun PlayerScreen(
     // текущий режим через State, а не значение, запомненное при первом кадре: иначе второе
     // касание снова включало визуализатор вместо того, чтобы его убрать.
     val artNow = rememberUpdatedState(art)
+    // Из названия в плеере — к исполнителю и в альбом: плеер сворачивается, открывается страница.
+    val openArtist: (com.texfi.w0y.data.ArtistLink) -> Unit = { artist ->
+        onCollapse()
+        navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
+    }
+    val openAlbum: () -> Unit = {
+        song.albumId?.let { id ->
+            onCollapse()
+            navigator.open(BrowseRoute.Album(id, song.album ?: song.title, song.thumbnailUrl))
+        }
+    }
     val toggleArt: () -> Unit = {
         lyricsOn = false
         videoOn = false
@@ -247,9 +258,10 @@ fun PlayerScreen(
             viewModel.isVideoTrack(song.id)?.let { isVideoTrack = it; return@LaunchedEffect }
             delay(500)
         }
-        // Тип так и не пришёл (ролики с обычного YouTube его не дают): кнопку не прячем,
+        // Тип так и не пришёл (ролики с обычного YouTube его не дают). Трек из альбома — это
+        // песня YouTube Music без клипа: кнопку не показываем. Ролик без альбома — показываем,
         // а если видео не окажется — переключатель честно скажет об этом.
-        isVideoTrack = true
+        isVideoTrack = song.albumId == null
     }
     val videoFailed = androidx.compose.ui.res.stringResource(R.string.hl_video_failed)
     LaunchedEffect(videoOn, song.id) {
@@ -362,6 +374,15 @@ fun PlayerScreen(
     fun LazyListScope.lookItems() {
         item(key = "sheet-look") {
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                // Раскладку плеера можно сменить прямо здесь, не уходя в настройки: видно сразу.
+                val layouts = com.texfi.w0y.data.PlayerLayout.entries
+                MenuChips(
+                    title = stringResource(R.string.hl_set_layout),
+                    hint = null,
+                    options = layouts.map { stringResource(it.label) },
+                    selected = layouts.indexOf(layout),
+                    onSelect = { viewModel.setPlayerLayout(layouts[it]) },
+                )
                 val styles = com.texfi.w0y.data.VisualizerStyle.entries.filter { it.hair }
                 MenuChips(
                     title = stringResource(R.string.player_visualizer),
@@ -851,6 +872,7 @@ fun PlayerScreen(
                 CoverPlayerPage(
                     song = song,
                     poster = layout == com.texfi.w0y.data.PlayerLayout.POSTER,
+                    visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
                     isPlaying = state.isPlaying,
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,
@@ -869,7 +891,7 @@ fun PlayerScreen(
                             onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
                         )
                     },
-                    titleBlock = { m -> HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m) },
+                    titleBlock = { m -> HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m, openArtist, openAlbum) },
                     actions = {
                         HairActionsRow(
                             song = song,
@@ -1058,7 +1080,7 @@ fun PlayerScreen(
                                 content = visualizer,
                             )
                             Spacer(Modifier.width(14.dp))
-                            HairTitleBlock(song, layout, trackSound, Modifier.weight(1f))
+                            HairTitleBlock(song, layout, trackSound, Modifier.weight(1f), openArtist, openAlbum)
                         }
 
                     com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
@@ -1167,7 +1189,7 @@ fun PlayerScreen(
             item {
                 if (hair) {
                     if (layout != com.texfi.w0y.data.PlayerLayout.COMPACT) {
-                        HairTitleBlock(song, layout, trackSound)
+                        HairTitleBlock(song, layout, trackSound, onArtist = openArtist, onAlbum = openAlbum)
                         Spacer(Modifier.height(6.dp))
                     }
                     HairActionsRow(
@@ -1235,37 +1257,7 @@ fun PlayerScreen(
                 // всего и хочется уйти «послушать, что ещё у них есть».
                 // У фита — кнопка на каждого исполнителя.
                 val artists = song.artistLinks()
-                if (hair && (artists.isNotEmpty() || song.albumId != null)) {
-                    // Hairline: ссылки строкой моно-подписей, а не стопка кнопок.
-                    Spacer(Modifier.height(6.dp))
-                    androidx.compose.foundation.layout.FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        val links = artists.map { artist ->
-                            artist.name to {
-                                onCollapse()
-                                navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
-                            }
-                        } + listOfNotNull(
-                            song.albumId?.let { id ->
-                                stringResource(R.string.player_to_album) to {
-                                    onCollapse()
-                                    navigator.open(BrowseRoute.Album(id, song.album ?: song.title, song.thumbnailUrl))
-                                }
-                            },
-                        )
-                        links.forEachIndexed { i, (label, open) ->
-                            if (i > 0) Text(" / ", style = MaterialTheme.typography.labelMedium, color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
-                            Text(
-                                text = label.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = colors.textMuted,
-                                modifier = Modifier.clickable(onClick = open).padding(horizontal = 4.dp, vertical = 12.dp),
-                            )
-                        }
-                    }
-                } else if (artists.isNotEmpty() || song.albumId != null) {
+                if (!hair && (artists.isNotEmpty() || song.albumId != null)) {
                     Spacer(Modifier.height(12.dp))
                     androidx.compose.foundation.layout.FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),

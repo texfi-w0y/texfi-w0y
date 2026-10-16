@@ -263,10 +263,11 @@ internal fun CoverPlayerPage(
     onDrag: (Long) -> Unit,
     onDragEnd: () -> Unit,
     poster: Boolean = false,
+    visualizerOn: Boolean = false,
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
     if (poster) {
-        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd)
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn)
         return
     }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -353,8 +354,7 @@ internal fun CoverPlayerPage(
 /**
  * Раскладка «постер». Обложка во всю ширину от самого верха экрана и растворяется книзу в
  * размытом фоне — без рамки, как разворот журнала. Шапка лежит на тёмной вуали поверх неё.
- * Ниже — короткая акцентная черта, название и блок управления. Ряд действий собран в рамку
- * 1 dp: на цветном фоне сразу видно, что это кнопки, а не надписи. Высота обложки считается
+ * Ниже — короткая акцентная черта, название и блок управления. Высота обложки считается
  * от того, сколько места осталось над управлением, поэтому на маленьком экране она не лезет
  * под кнопки. Смахивание вбок — соседний трек (обложка уезжает в ту же сторону), касание —
  * визуализатор, тяга вниз сворачивает плеер. На паузе обложка тускнеет и чуть приближается.
@@ -375,12 +375,17 @@ private fun PosterPlayerPage(
     onSwipe: (Int) -> Unit,
     onDrag: (Long) -> Unit,
     onDragEnd: () -> Unit,
+    visualizerOn: Boolean,
 ) {
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
         val look = hairLook
         val tone = Contrast.ensure(colors.accent, colors.background)
         val density = androidx.compose.ui.platform.LocalDensity.current
+        // Визуализатор, в отличие от обложки, не растворяется: его столбики стоят между шапкой и
+        // управлением и не заходят под кнопки.
+        val stageTop by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 72.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageTop")
+        val stageBottom by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 112.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageBottom")
         var lastSwipe by remember { mutableIntStateOf(1) }
         var controlsPx by remember { mutableIntStateOf(0) }
         val inSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.LONG_MS)
@@ -438,7 +443,11 @@ private fun PosterPlayerPage(
                             .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 4 } + fadeOut(outFade))
                     },
                     label = "posterTrack",
-                ) { _ -> Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } }
+                ) { _ ->
+                    Box(Modifier.fillMaxSize().then(if (visualizerOn) Modifier.statusBarsPadding() else Modifier).padding(top = stageTop, bottom = stageBottom).padding(horizontal = if (visualizerOn) 20.dp else 0.dp)) {
+                        stage(song.thumbnailUrl)
+                    }
+                }
                 // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.
                 Box(
                     Modifier
@@ -461,16 +470,7 @@ private fun PosterPlayerPage(
                         Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(tone))
                     }
                     Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
-                    Box(
-                        Modifier
-                            .padding(top = 10.dp, bottom = 6.dp)
-                            .hairEnter(3)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(look.cardRadius.coerceIn(3.dp, 12.dp)))
-                            .background(colors.surface)
-                            .border(look.line, colors.border, RoundedCornerShape(look.cardRadius.coerceIn(3.dp, 12.dp))),
-                        contentAlignment = Alignment.Center,
-                    ) { actions() }
+                    Box(Modifier.padding(top = 6.dp, bottom = 2.dp).hairEnter(3).fillMaxWidth()) { actions() }
                     Column(Modifier.hairEnter(4)) {
                         HairSeekLine(positionMs = positionMs, durationMs = durationMs, onDrag = onDrag, onDragEnd = onDragEnd)
                         Row(Modifier.fillMaxWidth()) {

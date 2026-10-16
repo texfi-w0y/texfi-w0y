@@ -191,4 +191,19 @@ class RecEngineTest {
             db.close()
         }
     }
+
+    @Test
+    fun sameSeedManyTimesNeverLeavesQueueEmpty() = runBlocking {
+        val (db, _, engine) = env()
+        try {
+            // Радио даёт 60 треков, каждый запуск помечает 25 показанными: к третьему разу свежих нет.
+            repeat(5) { round ->
+                val out = engine.continuation(song("cur", "Zz"), exclude = setOf("cur"), limit = 25)
+                assertTrue("запуск ${round + 1}: ${out.size}", out.size >= 8)
+                assertTrue(out.none { it.id == "cur" })
+            }
+        } finally {
+            db.close()
+        }
+    }
 }
