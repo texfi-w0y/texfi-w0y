@@ -53,11 +53,14 @@ class W0yWidget : AppWidgetProvider() {
         private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
             if (ids.isEmpty()) return
             // Состояние и обложка читаются один раз на все виджеты.
-            val state = WidgetState.read(context)
-            val cover = coverBitmap(state)
+            // Виджет не должен ронять приложение: сбой отрисовки одного виджета не трогает ни плеер, ни остальные.
+            val state = runCatching { WidgetState.read(context) }.getOrElse { WidgetState() }
+            val cover = runCatching { coverBitmap(state) }.getOrNull()
             ids.forEach { id ->
-                val height = manager.getAppWidgetOptions(id)?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
-                manager.updateAppWidget(id, build(context, state, cover, WidgetSize.forHeightDp(height)))
+                runCatching {
+                    val height = manager.getAppWidgetOptions(id)?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+                    manager.updateAppWidget(id, build(context, state, cover, WidgetSize.forHeightDp(height)))
+                }.onFailure { timber.log.Timber.w(it, "Виджет: не отрисовался") }
             }
         }
 
@@ -72,7 +75,7 @@ class W0yWidget : AppWidgetProvider() {
             return bitmap
         }
 
-        private fun build(context: Context, state: WidgetState, cover: Bitmap?, size: WidgetSize): RemoteViews {
+        internal fun build(context: Context, state: WidgetState, cover: Bitmap?, size: WidgetSize): RemoteViews {
             val layout =
                 when (size) {
                     WidgetSize.COMPACT -> R.layout.widget_compact
