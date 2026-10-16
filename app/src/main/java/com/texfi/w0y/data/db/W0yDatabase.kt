@@ -13,8 +13,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HistoryEntity::class,
         PinEntity::class,
         FolderEntity::class,
+        LocalPlaylistItemEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class W0yDatabase : RoomDatabase() {
@@ -127,8 +128,29 @@ abstract class W0yDatabase : RoomDatabase() {
                 }
             }
 
+        /**
+         * Свои файлы в плейлистах переезжают в отдельную таблицу: синхронизация
+         * с аккаунтом переписывала состав плейлиста целиком и стирала их.
+         */
+        val MIGRATION_9_10 =
+            object : Migration(9, 10) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE playlists ADD COLUMN detached INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS local_playlist_items (playlistId INTEGER NOT NULL, songId TEXT NOT NULL, " +
+                            "position INTEGER NOT NULL, addedAt INTEGER NOT NULL, PRIMARY KEY(playlistId, songId))",
+                    )
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_local_playlist_items_songId ON local_playlist_items(songId)")
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO local_playlist_items (playlistId, songId, position, addedAt) " +
+                            "SELECT playlistId, songId, position, addedAt FROM playlist_songs WHERE songId LIKE 'local:%'",
+                    )
+                    db.execSQL("DELETE FROM playlist_songs WHERE songId LIKE 'local:%'")
+                }
+            }
+
         /** Все миграции по порядку — и для приложения, и для тестов. */
-        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9) }
+        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10) }
 
         /** Метка «E»: её показывает список, поэтому хранится вместе с треком. */
         val MIGRATION_2_3 =

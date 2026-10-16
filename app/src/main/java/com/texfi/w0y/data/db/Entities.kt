@@ -137,6 +137,29 @@ data class PlaylistEntity(
     val note: String? = null,
     /** Своя обложка — файл на телефоне; важнее обложки из аккаунта. */
     val customCover: String? = null,
+    /**
+     * Плейлист оторван от аккаунта и остаётся только на телефоне: исчез на
+     * сервере или аккаунт сменили, а в нём лежат свои файлы. Такой плейлист
+     * не отправляется в аккаунт заново.
+     */
+    @ColumnInfo(defaultValue = "0") val detached: Boolean = false,
+)
+
+/**
+ * Свой файл в плейлисте. Живёт отдельно от `playlist_songs`: синхронизация
+ * с аккаунтом переписывает ту таблицу целиком, а своим файлам в YouTube
+ * делать нечего. При показе накладывается на состав плейлиста по позиции.
+ */
+@Entity(
+    tableName = "local_playlist_items",
+    primaryKeys = ["playlistId", "songId"],
+    indices = [Index("songId")],
+)
+data class LocalPlaylistItemEntity(
+    val playlistId: Long,
+    val songId: String,
+    val position: Int,
+    val addedAt: Long,
 )
 
 /** Папка для плейлистов: их можно раскладывать, как файлы. */

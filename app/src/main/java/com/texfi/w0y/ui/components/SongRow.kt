@@ -79,6 +79,9 @@ fun SongRow(
      * трека доступно из него строкой «ещё».
      */
     rowActions: List<RowAction> = emptyList(),
+    /** Моно-метка под строкой: «только на этом телефоне», «файл недоступен». */
+    tag: String? = null,
+    tagWarn: Boolean = false,
     actions: @Composable () -> Unit = {},
 ) {
     val colors = LocalW0yColors.current
@@ -171,6 +174,15 @@ fun SongRow(
                     color = colors.textMuted,
                     maxLines = 1,
                 )
+                if (tag != null) {
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (tagWarn) colors.secondary else colors.textMuted,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
             }
             song.durationText?.let {
                 Spacer(Modifier.width(8.dp))

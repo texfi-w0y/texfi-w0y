@@ -41,6 +41,9 @@ interface W0yDao {
     @Query("DELETE FROM playlist_songs WHERE songId = :id")
     suspend fun deleteSongFromPlaylists(id: String)
 
+    @Query("DELETE FROM local_playlist_items WHERE songId = :id")
+    suspend fun deleteSongFromLocalItems(id: String)
+
     @Query("DELETE FROM history WHERE songId = :id")
     suspend fun deleteSongHistory(id: String)
 
@@ -159,8 +162,19 @@ interface W0yDao {
     @Transaction
     suspend fun deletePlaylist(id: Long) {
         clearPlaylistSongs(id)
+        clearLocalItems(id)
         deletePlaylistRow(id)
     }
+
+    @Query("DELETE FROM local_playlist_items WHERE playlistId = :playlistId")
+    suspend fun clearLocalItems(playlistId: Long)
+
+    @Query("SELECT COUNT(*) FROM local_playlist_items WHERE playlistId = :playlistId")
+    suspend fun localItemCount(playlistId: Long): Int
+
+    /** Плейлист остаётся только на телефоне: аккаунтная привязка и снимок слияния снимаются. */
+    @Query("UPDATE playlists SET remoteId = NULL, syncBase = NULL, syncedAt = 0, detached = 1 WHERE id = :id")
+    suspend fun detachFromAccount(id: Long)
 
     @Query("UPDATE playlists SET name = :name, note = :note, accent = :accent, glyph = :glyph, customCover = :cover WHERE id = :id")
     suspend fun updatePlaylistLook(id: Long, name: String, note: String?, accent: Int?, glyph: String?, cover: String?)
@@ -205,7 +219,7 @@ interface W0yDao {
     @Query("SELECT * FROM playlists WHERE remoteId IS NOT NULL")
     suspend fun remotePlaylists(): List<PlaylistEntity>
 
-    @Query("SELECT * FROM playlists WHERE remoteId IS NULL")
+    @Query("SELECT * FROM playlists WHERE remoteId IS NULL AND detached = 0")
     suspend fun localOnlyPlaylists(): List<PlaylistEntity>
 
     @Query("UPDATE playlists SET name = :name, coverUrl = COALESCE(:cover, coverUrl) WHERE id = :id")
@@ -265,6 +279,48 @@ interface W0yDao {
     @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :id")
     fun playlistSize(id: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM local_playlist_items WHERE playlistId = :id")
+    fun localPlaylistSize(id: Long): Flow<Int>
+
+    /** Состав из аккаунта/своих добавлений с позициями — для наложения своих файлов. */
+    @Query(
+        """
+        SELECT songs.*, playlist_songs.position AS pos FROM songs
+        JOIN playlist_songs ON songs.id = playlist_songs.songId
+        WHERE playlist_songs.playlistId = :playlistId
+        """,
+    )
+    fun playlistItems(playlistId: Long): Flow<List<PositionedSong>>
+
+    @Query(
+        """
+        SELECT songs.*, local_playlist_items.position AS pos FROM songs
+        JOIN local_playlist_items ON songs.id = local_playlist_items.songId
+        WHERE local_playlist_items.playlistId = :playlistId
+        """,
+    )
+    fun localPlaylistItems(playlistId: Long): Flow<List<PositionedSong>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addLocalItem(entry: LocalPlaylistItemEntity)
+
+    @Query("DELETE FROM local_playlist_items WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun removeLocalItem(playlistId: Long, songId: String)
+
+    @Query("UPDATE local_playlist_items SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun setLocalPosition(playlistId: Long, songId: String, position: Int)
+
+    @Query(
+        """
+        SELECT COALESCE(MAX(p), -1) + 1 FROM (
+            SELECT position AS p FROM playlist_songs WHERE playlistId = :playlistId
+            UNION ALL
+            SELECT position AS p FROM local_playlist_items WHERE playlistId = :playlistId
+        )
+        """,
+    )
+    suspend fun nextPositionAll(playlistId: Long): Int
+
     @Query(
         """
         SELECT songs.* FROM songs
@@ -283,6 +339,13 @@ interface W0yDao {
 
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeFromPlaylist(playlistId: Long, songId: String)
+
+    /** Свой файл ложится в отдельную таблицу: синхронизация её не трогает. */
+    @Transaction
+    suspend fun addLocalSongToPlaylist(playlistId: Long, song: SongEntity, now: Long) {
+        saveSongMeta(song)
+        addLocalItem(LocalPlaylistItemEntity(playlistId, song.id, nextPositionAll(playlistId), now))
+    }
 
     @Transaction
     suspend fun addSongToPlaylist(playlistId: Long, song: SongEntity, now: Long) {
@@ -330,7 +393,10 @@ interface W0yDao {
     /** Порядок своего плейлиста целиком: позиции переписываются подряд. */
     @Transaction
     suspend fun reorderPlaylist(playlistId: Long, songIds: List<String>) {
-        songIds.forEachIndexed { index, songId -> setPosition(playlistId, songId, index) }
+        songIds.forEachIndexed { index, songId ->
+            setPosition(playlistId, songId, index)
+            setLocalPosition(playlistId, songId, index)
+        }
     }
 
     @Query("UPDATE playlist_songs SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
@@ -477,3 +543,9 @@ data class PlaylistCoverRow(val playlistId: Long, val url: String)
 
 /** Трек и причина, по которой он не скачался. */
 data class DownloadErrorRow(val id: String, val downloadError: String)
+
+/** Трек с его позицией в плейлисте. */
+data class PositionedSong(
+    @androidx.room.Embedded val song: SongEntity,
+    val pos: Int,
+)
