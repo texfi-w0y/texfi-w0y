@@ -5,6 +5,13 @@
 Search errors are now visible with a reason, plus Copy debug info and a
 connection test (no data leaves the phone).
 
+Polish pass: the bottom island no longer covers the end of lists; settings are
+ten numbered categories with favourites and search; delete protection (long-press,
+confirm, UNDO) and handle-only reordering; your own files stay in playlists after
+a sync; real numbers on the stats screen; a bottom sheet in the player (queue,
+similar, sound, speed, timer); recommendations that do not repeat and show why;
+a Hairline widget in three sizes.
+
 
 ## v0.0.3 beta-2
 
