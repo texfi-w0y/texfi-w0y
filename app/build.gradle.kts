@@ -20,8 +20,8 @@ android {
         targetSdk = 36
         // versionCode растёт, а не следует за именем версии: Android не ставит
         // сборку с меньшим кодом поверх установленной, и пришлось бы стирать данные.
-        versionCode = 12
-        versionName = "0.0.3-beta-2"
+        versionCode = 13
+        versionName = "0.0.3-beta-3"
         // Короткий хеш коммита для «Copy debug info»: по нему видно, из какого кода собран APK.
         val commit =
             runCatching {

@@ -112,8 +112,8 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
                         dstOffset = IntOffset(((w - dw) / 2f).toInt(), ((h - dh) / 2f).toInt()),
                         dstSize = IntSize(dw.toInt(), dh.toInt()),
                     )
-                    // Затемнение: линии остаются, но не спорят с текстом (множитель яркости ≈ 0,6); снизу чуть темнее.
-                    drawRect(Color.Black.copy(alpha = 0.40f), Offset.Zero, Size(w, h))
+                    // Картинка уже тёмная: лёгкое затемнение, чтобы линии не спорили с текстом; снизу чуть темнее.
+                    drawRect(Color.Black.copy(alpha = 0.10f), Offset.Zero, Size(w, h))
                     drawRect(
                         Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.25f), startY = h * 0.6f, endY = h),
                         Offset.Zero, Size(w, h),
