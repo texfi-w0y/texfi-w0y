@@ -3,18 +3,18 @@ package com.texfi.w0y.data
 /**
  * Что считать прослушиванием.
  *
- * Засчитывается включение, в котором реально проиграна хотя бы половина
- * трека, а у длинных — 4 минуты, смотря что наступит раньше. Время
+ * Засчитывается включение, в котором реально проиграно 30 секунд или половина
+ * трека, смотря что наступит раньше (у коротких треков — половина). Время
  * считается проигранное, а не позиция: перемотка в конец не делает трек
  * «прослушанным», а пропуск в начале не делает ничего.
  */
 object ListenRule {
-    /** Четыре минуты — потолок для длинных треков. */
-    const val LONG_TRACK_CAP_MS = 4 * 60 * 1000L
+    /** Тридцать секунд — потолок порога: длинные треки не требуют большего. */
+    const val THRESHOLD_MS = 30_000L
 
-    /** Сколько нужно проиграть; при неизвестной длительности — потолок. */
+    /** Сколько нужно проиграть; при неизвестной длительности — тридцать секунд. */
     fun requiredMs(durationMs: Long?): Long =
-        if (durationMs == null || durationMs <= 0) LONG_TRACK_CAP_MS else minOf(durationMs / 2, LONG_TRACK_CAP_MS)
+        if (durationMs == null || durationMs <= 0) THRESHOLD_MS else minOf(durationMs / 2, THRESHOLD_MS)
 
     fun counts(listenedMs: Long, durationMs: Long?): Boolean = listenedMs >= requiredMs(durationMs)
 }

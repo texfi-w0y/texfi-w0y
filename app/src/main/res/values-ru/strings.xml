@@ -444,7 +444,7 @@
     <!-- next: загрузки, статистика, стиль, лирика, визуализатор, подставка -->
     <string name="stats_period_year">ГОД</string>
     <string name="stats_legacy_note">Минуты до обновления оценены по длине треков: тогда прослушиванием считался любой старт.</string>
-    <string name="stats_rule_note">Прослушивание засчитывается, когда реально проиграна хотя бы половина трека (у длинных — 4 минуты). Перемотка не считается.</string>
+    <string name="stats_rule_note">Прослушивание засчитывается, когда реально проиграно 30 секунд трека (у совсем коротких — половина). Перемотка не считается.</string>
     <string name="stats_chart_title">Время прослушивания</string>
     <string name="stats_chart_empty">За этот период пока ничего не играло.</string>
     <string name="stats_minutes_short">%1$d мин</string>

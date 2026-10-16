@@ -204,7 +204,7 @@ fun HomeScreen(
                     ShelfTitle(stringResource(R.string.home_block_releases).asLabel(), Modifier.padding(horizontal = Gutter))
                     Spacer(Modifier.height(12.dp))
                     LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(recBlocks.releases, key = { "br-${it.browseId}" }) { card ->
+                        items(recBlocks.releases.distinctBy { it.browseId }, key = { "br-${it.browseId}" }) { card ->
                             ReleaseTile(card) { navigator.open(BrowseRoute.Album(card.browseId, card.title, card.thumbnailUrl)) }
                         }
                     }
@@ -629,9 +629,11 @@ private fun HairDialGrid(
 /** Горизонтальный ряд подборки: плитка трека и под ней причина, почему он здесь. */
 private fun androidx.compose.foundation.lazy.LazyListScope.recBlockRow(
     @androidx.annotation.StringRes title: Int,
-    items: List<com.texfi.w0y.recs.Rec>,
+    rawItems: List<com.texfi.w0y.recs.Rec>,
     home: HomeViewModel,
 ) {
+    // Ключи строк обязаны быть уникальными: повтор одного трека роняет весь список.
+    val items = rawItems.distinctBy { it.song.id }
     if (items.isEmpty()) return
     item(key = "block-$title") {
         Column(Modifier.padding(top = 16.dp)) {

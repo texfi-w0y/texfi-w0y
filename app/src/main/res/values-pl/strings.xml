@@ -444,7 +444,7 @@
     <!-- next: загрузки, статистика, стиль, лирика, визуализатор, подставка -->
     <string name="stats_period_year">ROK</string>
     <string name="stats_legacy_note">Minuty sprzed aktualizacji są szacowane z długości utworów: wtedy każde włączenie liczyło się jako odsłuch.</string>
-    <string name="stats_rule_note">Odsłuch liczy się, gdy faktycznie odtworzono co najmniej połowę utworu (przy długich — 4 minuty). Przewijanie się nie liczy.</string>
+    <string name="stats_rule_note">Odsłuch liczy się, gdy faktycznie odtworzono 30 sekund utworu (przy bardzo krótkich — połowę). Przewijanie się nie liczy.</string>
     <string name="stats_chart_title">Czas słuchania</string>
     <string name="stats_chart_empty">W tym okresie nic jeszcze nie grało.</string>
     <string name="stats_minutes_short">%1$d min</string>

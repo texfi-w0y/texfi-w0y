@@ -29,6 +29,8 @@ data class LogEvent(
     val bytes: Int? = null,
     /** Хост эндпоинта без пути и параметров. */
     val host: String? = null,
+    /** Короткая служебная пометка (для вылетов: экран и обрезанный стек). Без пользовательских данных. */
+    val detail: String? = null,
 )
 
 /** Кольцо последних событий: чистая логика без Android, чтобы её проверял тест. */
@@ -63,6 +65,7 @@ class EventRing(private val capacity: Int = 50) {
                 event.durationMs?.let { put("d", it) }
                 event.bytes?.let { put("b", it) }
                 event.host?.let { put("h", it) }
+                event.detail?.let { put("x", it) }
             }.toString()
 
         fun decode(line: String): LogEvent? =
@@ -76,6 +79,7 @@ class EventRing(private val capacity: Int = 50) {
                     durationMs = json["d"]?.jsonPrimitive?.long,
                     bytes = json["b"]?.jsonPrimitive?.int,
                     host = json["h"]?.jsonPrimitive?.content,
+                    detail = json["x"]?.jsonPrimitive?.content,
                 )
             }.getOrNull()
     }
@@ -99,6 +103,8 @@ class EventLog @Inject constructor(
         runCatching {
             if (file.exists()) ring.replaceAll(file.readLines().mapNotNull(EventRing::decode))
         }
+        // Вылет прошлого запуска попадает в журнал при первом же старте после него.
+        CrashReporter.takePending(context)?.let { ring.add(it); persist() }
     }
 
     fun record(event: LogEvent) {

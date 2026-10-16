@@ -166,5 +166,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.compose.ui.test)
+    testImplementation(libs.hilt.testing)
+    kspTest(libs.hilt.compiler)
     debugImplementation(libs.compose.ui.test.manifest)
 }

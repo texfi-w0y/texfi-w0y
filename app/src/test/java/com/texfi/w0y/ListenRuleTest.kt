@@ -7,7 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Правило прослушивания: половина трека или 4 минуты, и только реально проигранное время. */
+/** Правило прослушивания: 30 секунд или половина трека, и только реально проигранное время. */
 class ListenRuleTest {
     private fun play(session: ListenSession, fromMs: Long, toMs: Long, startWall: Long = 0L): Long {
         var wall = startWall
@@ -22,24 +22,27 @@ class ListenRuleTest {
     }
 
     @Test
-    fun halfOfShortTrackCounts() {
-        assertEquals(90_000L, ListenRule.requiredMs(180_000L))
+    fun thirtySecondsCountForNormalTrack() {
+        assertEquals(30_000L, ListenRule.requiredMs(180_000L))
         val session = ListenSession("a", 180_000L)
-        play(session, 0, 89_000)
+        play(session, 0, 29_000)
         assertFalse(session.counted)
-        play(session, 89_000, 91_000, startWall = 100_000)
+        play(session, 29_000, 31_000, startWall = 100_000)
         assertTrue(session.counted)
     }
 
     @Test
-    fun longTrackNeedsFourMinutes() {
-        assertEquals(ListenRule.LONG_TRACK_CAP_MS, ListenRule.requiredMs(20 * 60_000L))
-        assertEquals(ListenRule.LONG_TRACK_CAP_MS, ListenRule.requiredMs(null))
-        val session = ListenSession("a", 20 * 60_000L)
-        play(session, 0, 239_000)
-        assertFalse(session.counted)
-        play(session, 239_000, 241_000, startWall = 300_000)
+    fun halfOfVeryShortTrackCounts() {
+        assertEquals(10_000L, ListenRule.requiredMs(20_000L))
+        val session = ListenSession("a", 20_000L)
+        play(session, 0, 11_000)
         assertTrue(session.counted)
+    }
+
+    @Test
+    fun unknownDurationNeedsThirtySeconds() {
+        assertEquals(ListenRule.THRESHOLD_MS, ListenRule.requiredMs(null))
+        assertEquals(ListenRule.THRESHOLD_MS, ListenRule.requiredMs(20 * 60_000L))
     }
 
     @Test

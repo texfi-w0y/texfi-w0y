@@ -34,7 +34,21 @@ class ShellViewModel @Inject constructor(
     val player: PlayerConnection,
     private val settings: SettingsRepository,
     val downloads: DownloadsRepository,
+    private val stats: com.texfi.w0y.data.StatsRepository,
 ) : ViewModel() {
+    init {
+        // Первый запуск после обновления: прослушивания, не дописанные в историю,
+        // восстанавливаются по её меткам времени. Фоном, интерфейс не ждёт.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                if (settings.statsBackfillVersion() < STATS_BACKFILL_VERSION) {
+                    stats.backfill()
+                    settings.setStatsBackfillVersion(STATS_BACKFILL_VERSION)
+                }
+            }.onFailure { timber.log.Timber.w(it, "Статистика: восстановление не удалось") }
+        }
+    }
+
     val smoothGlass: StateFlow<Boolean> =
         settings.settings
             .map { it.smoothGlass }
@@ -160,3 +174,5 @@ class ShellViewModel @Inject constructor(
             .map { it.theme }
             .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.DARK)
 }
+
+private const val STATS_BACKFILL_VERSION = 1

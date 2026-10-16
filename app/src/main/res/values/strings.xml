@@ -444,7 +444,7 @@
     <!-- next: загрузки, статистика, стиль, лирика, визуализатор, подставка -->
     <string name="stats_period_year">YEAR</string>
     <string name="stats_legacy_note">Minutes before the update are estimated from track length: back then every start counted as a play.</string>
-    <string name="stats_rule_note">A play counts once at least half of the track has actually played (4 minutes for long ones). Skipping ahead does not count.</string>
+    <string name="stats_rule_note">A play counts once 30 seconds of the track have actually played (half of it for very short ones). Skipping ahead does not count.</string>
     <string name="stats_chart_title">Listening time</string>
     <string name="stats_chart_empty">Nothing played in this period yet.</string>
     <string name="stats_minutes_short">%1$d min</string>

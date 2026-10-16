@@ -408,11 +408,26 @@ interface W0yDao {
         SELECT history.playedAt AS playedAt, history.listenedMs AS listenedMs,
                history.legacy AS legacy, history.counted AS counted,
                songs.durationMs AS durationMs, songs.durationText AS durationText
-        FROM history JOIN songs ON songs.id = history.songId
+        FROM history LEFT JOIN songs ON songs.id = history.songId
         WHERE history.playedAt >= :since
         """,
     )
     suspend fun listensSince(since: Long): List<ListenRow>
+
+    /** Меняется при любой записи в историю и при каждом дописанном прослушивании: статистика пересчитывается сама. */
+    @Query("SELECT COUNT(*) + COALESCE(SUM(listenedMs), 0) + COALESCE(SUM(counted), 0) FROM history")
+    fun historyPulse(): Flow<Long>
+
+    /** Вся история по порядку: сырьё для восстановления прослушиваний по меткам времени. */
+    @Query(
+        """
+        SELECT history.id AS id, history.playedAt AS playedAt, history.listenedMs AS listenedMs,
+               history.legacy AS legacy, history.counted AS counted, songs.durationMs AS durationMs
+        FROM history LEFT JOIN songs ON songs.id = history.songId
+        ORDER BY history.playedAt ASC, history.id ASC
+        """,
+    )
+    suspend fun historyForBackfill(): List<BackfillRow>
 
     @Query(
         """

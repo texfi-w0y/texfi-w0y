@@ -346,7 +346,7 @@ fun LazyListScope.similarItems(
             )
         }
     }
-    val rows = set?.items.orEmpty()
+    val rows = set?.items.orEmpty().distinctBy { it.song.id }
     if (rows.isEmpty() && !loading) {
         item(key = "similar-empty") {
             Text(
