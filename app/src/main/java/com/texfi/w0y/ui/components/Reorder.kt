@@ -1,6 +1,11 @@
 package com.texfi.w0y.ui.components
 
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.positionChange
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -110,7 +115,11 @@ fun rememberReorderState(list: LazyListState, onMove: (Any, Any) -> Unit): Reord
     return androidx.compose.runtime.remember(list) { ReorderState(list, scope, { a, b -> move(a, b) }, tap) }
 }
 
-/** Ручка строки: 48 dp касания, тянется сразу, без долгого нажатия. */
+/**
+ * Ручка строки: 48 dp касания. Перенос начинается, только если палец
+ * удержан на ручке [HOLD_MS]: обычное касание и прокрутка списка переносом
+ * не становятся.
+ */
 @Composable
 fun ReorderHandle(state: ReorderState, key: Any, onDrop: () -> Unit) {
     val colors = LocalW0yColors.current
@@ -118,21 +127,44 @@ fun ReorderHandle(state: ReorderState, key: Any, onDrop: () -> Unit) {
     Box(
         Modifier
             .size(48.dp)
-            .pointerInput(key) {
-                detectDragGestures(
-                    onDragStart = {
-                        haptic(Buzz.ON)
-                        state.start(key)
-                    },
-                    onDragEnd = { if (state.end()) onDrop() },
-                    onDragCancel = { if (state.end()) onDrop() },
-                ) { change, amount ->
-                    change.consume()
-                    state.drag(amount.y)
-                }
-            },
+            .holdToDrag(
+                key = key,
+                onStart = {
+                    haptic(Buzz.ON)
+                    state.start(key)
+                },
+                onDrag = { dy -> state.drag(dy) },
+                onEnd = { if (state.end()) onDrop() },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         PixelSprite(Sprites.grip, if (state.dragging == key) colors.accent else colors.textMuted, Modifier.size(18.dp))
     }
 }
+
+/** Сколько палец держат на ручке, прежде чем начнётся перенос. */
+const val HOLD_MS = 250L
+
+/**
+ * Перенос после удержания: коснулся и ждёшь [HOLD_MS] — строка «берётся»;
+ * отпустил раньше или повёл пальцем в сторону прокрутки — ничего не произошло.
+ */
+fun Modifier.holdToDrag(key: Any, onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> Unit): Modifier =
+    pointerInput(key) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var released = true
+            withTimeoutOrNull(HOLD_MS) {
+                waitForUpOrCancellation()
+                released = true
+            } ?: run { released = false }
+            if (!released) {
+                onStart()
+                drag(down.id) { change ->
+                    change.consume()
+                    onDrag(change.positionChange().y)
+                }
+                onEnd()
+            }
+        }
+    }

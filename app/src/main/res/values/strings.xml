@@ -796,4 +796,24 @@
     <string name="diag_clear">CLEAR LOG</string>
     <string name="diag_copied">Debug info copied.</string>
     <string name="diag_cleared">Log cleared.</string>
+
+    <!-- Защита от случайного удаления -->
+    <string name="row_menu_more">MORE…</string>
+    <string name="rm_remove_from_playlist">REMOVE FROM PLAYLIST</string>
+    <string name="rm_removed_from_playlist">Removed from playlist</string>
+    <string name="rm_remove_from_queue">REMOVE FROM QUEUE</string>
+    <string name="rm_removed_from_queue">Removed from queue</string>
+    <string name="rm_remove_download">REMOVE DOWNLOAD</string>
+    <string name="rm_remove_download_text">Delete the downloaded copy of “%1$s”? You can download it again later.</string>
+    <string name="rm_select_several">SELECT SEVERAL</string>
+    <string name="rm_remove_file">REMOVE FILE FROM THIS PHONE</string>
+    <string name="rm_remove_file_text">Delete “%1$s” from this phone? The file is removed for good and can\'t be brought back.</string>
+    <string name="rm_remove_file_button">DELETE FILE</string>
+    <string name="rm_clear_history_title">CLEAR HISTORY</string>
+    <string name="rm_clear_history_text">Clear the whole listening history (%1$d tracks)? Your stats and recommendations use it.</string>
+    <string name="rm_clear_button">CLEAR</string>
+    <string name="rm_delete_downloads_title">REMOVE DOWNLOADS</string>
+    <string name="rm_delete_downloads_text">Delete %1$d downloaded tracks? You can download them again later.</string>
+    <string name="rm_delete_button">DELETE</string>
+    <string name="rm_item_handle">Hold and drag to reorder</string>
 </resources>

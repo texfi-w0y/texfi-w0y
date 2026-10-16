@@ -235,13 +235,24 @@ private fun LocalFileEditor(
             PixelButton(stringResource(R.string.library_cancel), onClick = onClose, fill = colors.surfaceHigh)
         }
         Text(
-            stringResource(if (sure) R.string.lm_remove_sure else R.string.lm_remove).asLabel(),
+            stringResource(R.string.lm_remove).asLabel(),
             style = MaterialTheme.typography.labelMedium,
-            color = if (sure) colors.secondary else colors.textMuted,
+            color = colors.textMuted,
             modifier = Modifier
-                .clickable { if (sure) onRemove() else sure = true }
+                .clickable { sure = true }
                 .padding(vertical = 14.dp),
         )
+        if (sure) {
+            // Файл удаляется с телефона насовсем: подтверждение обязательно всегда.
+            com.texfi.w0y.ui.components.ConfirmDialog(
+                title = stringResource(R.string.rm_remove_file),
+                text = stringResource(R.string.rm_remove_file_text, song.title),
+                confirm = stringResource(R.string.rm_remove_file_button),
+                dismiss = stringResource(R.string.library_cancel),
+                onConfirm = { sure = false; onRemove() },
+                onDismiss = { sure = false },
+            )
+        }
         com.texfi.w0y.ui.components.BottomInsetSpacer()
     }
 }

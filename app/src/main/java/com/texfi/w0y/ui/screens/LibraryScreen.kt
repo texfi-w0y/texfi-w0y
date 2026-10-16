@@ -5,6 +5,8 @@ import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
 import com.texfi.w0y.ui.components.W0yMotion
 import com.texfi.w0y.ui.components.SteppedEasing
+import com.texfi.w0y.ui.components.ConfirmDialog
+import com.texfi.w0y.ui.components.RowAction
 import com.texfi.w0y.ui.components.rememberReorderState
 import com.texfi.w0y.ui.components.ReorderState
 import com.texfi.w0y.ui.components.ReorderHandle
@@ -450,7 +452,18 @@ private fun SongList(
                 SpriteButton(Sprites.download, onClick = { viewModel.downloadAll(songs) })
                 onClear?.let {
                     Spacer(Modifier.width(12.dp))
-                    SpriteButton(Sprites.trash, onClick = it)
+                    var askClear by remember { mutableStateOf(false) }
+                    SpriteButton(Sprites.trash, onClick = { askClear = true })
+                    if (askClear) {
+                        ConfirmDialog(
+                            title = stringResource(R.string.rm_clear_history_title),
+                            text = stringResource(R.string.rm_clear_history_text, songs.size),
+                            confirm = stringResource(R.string.rm_clear_button),
+                            dismiss = stringResource(R.string.library_cancel),
+                            onConfirm = { askClear = false; it() },
+                            onDismiss = { askClear = false },
+                        )
+                    }
                 }
             }
         }
@@ -656,17 +669,32 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
                     SongRow(
                         song = song,
                         onClick = { if (selecting) toggle(song.id) else viewModel.playCollection(songs, songs.indexOf(song)) },
+                        rowActions =
+                            if (selecting) {
+                                emptyList()
+                            } else {
+                                listOf(
+                                    RowAction(
+                                        label = stringResource(R.string.rm_remove_download),
+                                        danger = true,
+                                        confirmTitle = stringResource(R.string.rm_remove_download),
+                                        confirmText = stringResource(R.string.rm_remove_download_text, song.title),
+                                        confirmButton = stringResource(R.string.rm_delete_button),
+                                        run = { viewModel.cancelDownload(song.id) },
+                                    ),
+                                    RowAction(label = stringResource(R.string.rm_select_several)) {
+                                        selecting = true
+                                        toggle(song.id)
+                                    },
+                                )
+                            },
                         onLongClick = {
                             selecting = true
                             toggle(song.id)
                         },
                         progressPercent = state?.percent,
                         actions = {
-                            if (selecting) {
-                                SelectMark(checked)
-                            } else {
-                                SpriteButton(Sprites.trash, onClick = { viewModel.cancelDownload(song.id) })
-                            }
+                            if (selecting) SelectMark(checked)
                         },
                     )
                     // Скорость и остаток — только пока качается и есть замер.
@@ -868,12 +896,22 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                                 // Соседи уступают место ступенями, как всё движение TexFi.
                                 Modifier.animateItem(placementSpec = tween(W0yMotion.MID_MS, easing = SteppedEasing(4)))
                             },
+                        rowActions =
+                            if (editable) {
+                                val before = order.map { it.id }
+                                listOf(
+                                    RowAction(
+                                        label = stringResource(R.string.rm_remove_from_playlist),
+                                        undoMessage = stringResource(R.string.rm_removed_from_playlist),
+                                        onUndo = { viewModel.restoreToPlaylist(playlistId, song, before) },
+                                        run = { viewModel.removeFromPlaylist(playlistId, song.id) },
+                                    ),
+                                )
+                            } else {
+                                emptyList()
+                            },
                         actions = {
                             if (editable) {
-                                SpriteButton(
-                                    Sprites.trash,
-                                    onClick = { viewModel.removeFromPlaylist(playlistId, song.id) },
-                                )
                                 ReorderHandle(reorder, song.id) {
                                     if (order.map { it.id } != songs.map { it.id }) {
                                         viewModel.reorderPlaylist(playlistId, order.map { it.id })

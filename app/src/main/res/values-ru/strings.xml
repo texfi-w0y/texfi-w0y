@@ -796,4 +796,24 @@
     <string name="diag_clear">ОЧИСТИТЬ ЖУРНАЛ</string>
     <string name="diag_copied">Отчёт скопирован.</string>
     <string name="diag_cleared">Журнал очищен.</string>
+
+    <!-- Защита от случайного удаления -->
+    <string name="row_menu_more">ЕЩЁ…</string>
+    <string name="rm_remove_from_playlist">УБРАТЬ ИЗ ПЛЕЙЛИСТА</string>
+    <string name="rm_removed_from_playlist">Убрано из плейлиста</string>
+    <string name="rm_remove_from_queue">УБРАТЬ ИЗ ОЧЕРЕДИ</string>
+    <string name="rm_removed_from_queue">Убрано из очереди</string>
+    <string name="rm_remove_download">УДАЛИТЬ ЗАГРУЗКУ</string>
+    <string name="rm_remove_download_text">Удалить загруженную копию «%1$s»? Её можно скачать снова.</string>
+    <string name="rm_select_several">ВЫБРАТЬ НЕСКОЛЬКО</string>
+    <string name="rm_remove_file">УДАЛИТЬ ФАЙЛ С ТЕЛЕФОНА</string>
+    <string name="rm_remove_file_text">Удалить «%1$s» с этого телефона? Файл будет удалён насовсем, вернуть его нельзя.</string>
+    <string name="rm_remove_file_button">УДАЛИТЬ ФАЙЛ</string>
+    <string name="rm_clear_history_title">ОЧИСТИТЬ ИСТОРИЮ</string>
+    <string name="rm_clear_history_text">Очистить всю историю прослушивания (%1$d треков)? По ней считаются статистика и рекомендации.</string>
+    <string name="rm_clear_button">ОЧИСТИТЬ</string>
+    <string name="rm_delete_downloads_title">УДАЛИТЬ ЗАГРУЗКИ</string>
+    <string name="rm_delete_downloads_text">Удалить загруженные треки (%1$d)? Их можно скачать снова.</string>
+    <string name="rm_delete_button">УДАЛИТЬ</string>
+    <string name="rm_item_handle">Удерживай и тяни, чтобы переставить</string>
 </resources>

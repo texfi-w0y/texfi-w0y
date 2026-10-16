@@ -238,6 +238,13 @@ class PlayerConnection @Inject constructor(
         media.addMediaItem(target, toMediaItem(song))
     }
 
+    /** Возвращает трек в очередь на прежнее место (UNDO после «убрать из очереди»). */
+    fun insertInQueue(index: Int, song: SongItem) {
+        val media = controller ?: return
+        if (indexOf(media, song.id) != null) return
+        media.addMediaItem(index.coerceIn(0, media.mediaItemCount), toMediaItem(song))
+    }
+
     /** Добавляет трек в конец очереди. */
     fun enqueue(song: SongItem) {
         val media = controller ?: return

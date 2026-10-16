@@ -342,6 +342,8 @@ class PlayerViewModel @Inject constructor(
 
     fun removeFromQueue(index: Int) = player.removeFromQueue(index)
 
+    fun insertInQueue(index: Int, song: SongItem) = player.insertInQueue(index, song)
+
     fun moveUpInQueue(index: Int) = player.moveUp(index)
 
     fun moveInQueue(from: Int, to: Int) = player.moveInQueue(from, to)
