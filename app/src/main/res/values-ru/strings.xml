@@ -826,4 +826,7 @@
     <string name="stats_reset_text">Минуты, прослушивания и топы начнутся с нуля. История в «Недавнем» останется.</string>
     <string name="stats_reset_confirm">СБРОСИТЬ</string>
     <string name="stats_local_note">Считается только на этом телефоне и никуда не уходит.</string>
+    <string name="rec_end_continue">ПРОДОЛЖИТЬ ПОХОЖИМ</string>
+    <string name="rec_end_repeat">ПОВТОРИТЬ</string>
+    <string name="rec_end_stop">ОСТАНОВИТЬСЯ</string>
 </resources>

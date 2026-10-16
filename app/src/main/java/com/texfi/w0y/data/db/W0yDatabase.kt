@@ -14,8 +14,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PinEntity::class,
         FolderEntity::class,
         LocalPlaylistItemEntity::class,
+        RecSeenEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class W0yDatabase : RoomDatabase() {
@@ -149,8 +150,17 @@ abstract class W0yDatabase : RoomDatabase() {
                 }
             }
 
+        /** Что уже показывали в подборках: чтобы они не повторялись. */
+        val MIGRATION_10_11 =
+            object : Migration(10, 11) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("CREATE TABLE IF NOT EXISTS rec_seen (songId TEXT NOT NULL, seenAt INTEGER NOT NULL, PRIMARY KEY(songId))")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_rec_seen_seenAt ON rec_seen(seenAt)")
+                }
+            }
+
         /** Все миграции по порядку — и для приложения, и для тестов. */
-        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10) }
+        val ALL by lazy { arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11) }
 
         /** Метка «E»: её показывает список, поэтому хранится вместе с треком. */
         val MIGRATION_2_3 =

@@ -162,6 +162,13 @@ data class LocalPlaylistItemEntity(
     val addedAt: Long,
 )
 
+/** Трек, который уже попадался в подборках; хранится ограниченное время и число записей. */
+@Entity(tableName = "rec_seen", indices = [Index("seenAt")])
+data class RecSeenEntity(
+    @PrimaryKey val songId: String,
+    val seenAt: Long,
+)
+
 /** Папка для плейлистов: их можно раскладывать, как файлы. */
 @Entity(tableName = "folders")
 data class FolderEntity(

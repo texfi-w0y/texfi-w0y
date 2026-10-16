@@ -48,6 +48,13 @@ enum class QueueMode(
     RADIO(R.string.queue_mode_radio, R.string.queue_mode_radio_hint),
 }
 
+/** Что делать, когда очередь доиграла до конца. */
+enum class RecEndMode(@StringRes val label: Int) {
+    CONTINUE(R.string.rec_end_continue),
+    REPEAT(R.string.rec_end_repeat),
+    STOP(R.string.rec_end_stop),
+}
+
 /**
  * Реверб поверх трека.
  *
@@ -447,6 +454,23 @@ data class W0ySettings(
     val gestureHintSeen: Boolean = false,
     /** Защита от случайного удаления и переноса треков (долгое нажатие, подтверждение, UNDO). */
     val deleteProtection: Boolean = true,
+    /** Доля нового в подборках, %: 0 — только знакомое, 100 — только новое. */
+    val recNovelty: Int = 30,
+    val recEndMode: RecEndMode = RecEndMode.CONTINUE,
+    /** Вместо списка играть похожее на выбранный трек. */
+    val recInsteadOfList: Boolean = false,
+    /** Приложение учитывает твои прослушивания в подборках; выключено — подборки без вкуса. */
+    val tasteLearning: Boolean = true,
+    /** Исполнители, которых не учитывать во вкусе и не предлагать; через перевод строки. */
+    val tasteExcluded: String = "",
+    /** Блоки подборок на главной. */
+    val homeRecBlocks: Boolean = true,
+    /** Раз в неделю собирать плейлист «Открытия». */
+    val weeklyDiscovery: Boolean = false,
+    /** Значок состояния (скорость, эквалайзер) в плеере; при умолчаниях он скрыт сам. */
+    val playerStateBadge: Boolean = true,
+    /** Закреплённые настройки, ключи через запятую. */
+    val settingsFavorites: String = "",
 )
 
 @Singleton
@@ -563,6 +587,15 @@ class SettingsRepository @Inject constructor(
                     swipeDismiss = prefs[Keys.HL_SWIPE_DISMISS] ?: d.swipeDismiss,
                     gestureHintSeen = prefs[Keys.HL_HINT_SEEN] ?: d.gestureHintSeen,
                     deleteProtection = prefs[Keys.DELETE_PROTECTION] ?: d.deleteProtection,
+                    recNovelty = (prefs[Keys.REC_NOVELTY] ?: d.recNovelty).coerceIn(0, 100),
+                    recEndMode = prefs.enum(Keys.REC_END_MODE, d.recEndMode),
+                    recInsteadOfList = prefs[Keys.REC_INSTEAD] ?: d.recInsteadOfList,
+                    tasteLearning = prefs[Keys.TASTE_LEARNING] ?: d.tasteLearning,
+                    tasteExcluded = prefs[Keys.TASTE_EXCLUDED] ?: d.tasteExcluded,
+                    homeRecBlocks = prefs[Keys.HOME_REC_BLOCKS] ?: d.homeRecBlocks,
+                    weeklyDiscovery = prefs[Keys.WEEKLY_DISCOVERY] ?: d.weeklyDiscovery,
+                    playerStateBadge = prefs[Keys.PLAYER_BADGE] ?: d.playerStateBadge,
+                    settingsFavorites = prefs[Keys.SETTINGS_FAVORITES] ?: d.settingsFavorites,
                 )
             }
 
@@ -589,6 +622,24 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setDeleteProtection(value: Boolean) = put(Keys.DELETE_PROTECTION, value)
+
+    suspend fun setRecNovelty(value: Int) = put(Keys.REC_NOVELTY, value.coerceIn(0, 100))
+
+    suspend fun setRecEndMode(value: RecEndMode) = put(Keys.REC_END_MODE, value.name)
+
+    suspend fun setRecInsteadOfList(value: Boolean) = put(Keys.REC_INSTEAD, value)
+
+    suspend fun setTasteLearning(value: Boolean) = put(Keys.TASTE_LEARNING, value)
+
+    suspend fun setTasteExcluded(value: String) = put(Keys.TASTE_EXCLUDED, value)
+
+    suspend fun setHomeRecBlocks(value: Boolean) = put(Keys.HOME_REC_BLOCKS, value)
+
+    suspend fun setWeeklyDiscovery(value: Boolean) = put(Keys.WEEKLY_DISCOVERY, value)
+
+    suspend fun setPlayerStateBadge(value: Boolean) = put(Keys.PLAYER_BADGE, value)
+
+    suspend fun setSettingsFavorites(value: String) = put(Keys.SETTINGS_FAVORITES, value)
 
     suspend fun setQualityWifi(value: Quality) = put(Keys.QUALITY_WIFI, value.name)
 
@@ -970,6 +1021,15 @@ class SettingsRepository @Inject constructor(
 
     private object Keys {
         val DELETE_PROTECTION = booleanPreferencesKey("delete_protection")
+        val REC_NOVELTY = intPreferencesKey("rec_novelty")
+        val REC_END_MODE = stringPreferencesKey("rec_end_mode")
+        val REC_INSTEAD = booleanPreferencesKey("rec_instead_of_list")
+        val TASTE_LEARNING = booleanPreferencesKey("taste_learning")
+        val TASTE_EXCLUDED = stringPreferencesKey("taste_excluded")
+        val HOME_REC_BLOCKS = booleanPreferencesKey("home_rec_blocks")
+        val WEEKLY_DISCOVERY = booleanPreferencesKey("weekly_discovery")
+        val PLAYER_BADGE = booleanPreferencesKey("player_state_badge")
+        val SETTINGS_FAVORITES = stringPreferencesKey("settings_favorites")
         val SCHEMA = intPreferencesKey("settings_schema")
         val QUALITY_WIFI = stringPreferencesKey("quality_wifi")
         val QUALITY_MOBILE = stringPreferencesKey("quality_mobile")

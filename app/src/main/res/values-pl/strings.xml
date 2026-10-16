@@ -826,4 +826,7 @@
     <string name="stats_reset_text">Minuty, odtworzenia i rankingi zaczną od zera. Historia w „Ostatnich” zostanie.</string>
     <string name="stats_reset_confirm">ZRESETUJ</string>
     <string name="stats_local_note">Liczone tylko na tym telefonie. Nic go nie opuszcza.</string>
+    <string name="rec_end_continue">KONTYNUUJ PODOBNYM</string>
+    <string name="rec_end_repeat">POWTÓRZ</string>
+    <string name="rec_end_stop">ZATRZYMAJ</string>
 </resources>
