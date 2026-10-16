@@ -341,7 +341,7 @@ internal fun CoverPlayerPage(
                                     .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 3 } + fadeOut(outFade))
                             },
                             label = "coverTrack",
-                        ) { _ -> Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } }
+                        ) { trackId -> androidx.compose.runtime.key(trackId) { Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } } }
                     }
                 }
                 Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
@@ -460,17 +460,19 @@ private fun PosterPlayerPage(
                             .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 4 } + fadeOut(outFade))
                     },
                     label = "posterTrack",
-                ) { _ ->
-                    Box(Modifier.fillMaxSize().coverFlightHide(flight)) {
-                        // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
-                        // встают поверх неё в свободной части между шапкой и управлением.
-                        PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha })
-                        if (visualizerOn) {
-                            Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = stageTop, bottom = stageBottom)) {
+                ) { trackId ->
+                    androidx.compose.runtime.key(trackId) {
+                        Box(Modifier.fillMaxSize().coverFlightHide(flight)) {
+                            // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
+                            // встают поверх неё в свободной части между шапкой и управлением.
+                            PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha })
+                            if (visualizerOn) {
+                                Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = stageTop, bottom = stageBottom)) {
+                                    stage(song.thumbnailUrl)
+                                }
+                            } else {
                                 stage(song.thumbnailUrl)
                             }
-                        } else {
-                            stage(song.thumbnailUrl)
                         }
                     }
                 }
