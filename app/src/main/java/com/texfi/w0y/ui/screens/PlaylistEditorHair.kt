@@ -164,7 +164,7 @@ internal fun PlaylistEditor(
             PixelButton(stringResource(R.string.library_cancel), onClick = onClose, fill = colors.surfaceHigh)
         }
         ConfirmDeleteButton(stringResource(R.string.pl_delete), stringResource(R.string.pl_delete_sure), onDelete)
-        Spacer(Modifier.height(com.texfi.w0y.ui.components.LocalBottomInset.current))
+        com.texfi.w0y.ui.components.BottomInsetSpacer()
     }
 }
 

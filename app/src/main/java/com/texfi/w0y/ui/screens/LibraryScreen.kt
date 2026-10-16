@@ -123,7 +123,7 @@ private fun LibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
             .fillMaxSize()
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current),
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
     ) {
         item { ScreenTitle(title = stringResource(R.string.library_title), horizontalPadding = 0.dp) }
 
@@ -829,7 +829,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                 val b = order.indexOfFirst { it.id == to }
                 if (a >= 0 && b >= 0) order = order.toMutableList().apply { add(b, removeAt(a)) }
             }
-        LazyColumn(state = listState, contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current)) {
+        LazyColumn(state = listState, contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
             item(key = "header") {
                 CollectionHeader(
                     title = name,

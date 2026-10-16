@@ -82,7 +82,7 @@ fun StatsScreen(
 
         LazyColumn(
             Modifier.padding(horizontal = Gutter),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current),
+            contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
         ) {
             item {
                 Row(Modifier.fillMaxWidth()) {

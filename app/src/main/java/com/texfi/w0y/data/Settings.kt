@@ -18,7 +18,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("w0y")
@@ -320,7 +323,7 @@ data class W0ySettings(
     val preloadNext: Boolean = true,
     val cacheLimitMb: Int = 512,
     val autoDownloadLiked: Boolean = false,
-    val normalizeVolume: Boolean = true,
+    val normalizeVolume: Boolean = false,
     val skipSilence: Boolean = false,
     val pauseOnHeadphonesOut: Boolean = true,
     val resumeOnHeadphonesIn: Boolean = false,
@@ -417,7 +420,7 @@ data class W0ySettings(
     val backdropMode: BackdropMode = BackdropMode.GRID,
     val dockShape: DockShape = DockShape.ISLAND,
     val dockTint: DockTint = DockTint.COVER,
-    val dockLabels: DockLabels = DockLabels.ALL,
+    val dockLabels: DockLabels = DockLabels.ACTIVE,
     /** Дыхание и свечение панели, пока играет музыка. */
     val dockGlow: Boolean = true,
     /** Своя картинка фона — файл на телефоне, file://…; null, пока не выбрана. */
@@ -442,6 +445,8 @@ data class W0ySettings(
     val swipeDismiss: Boolean = true,
     /** Подсказки жестов показаны. */
     val gestureHintSeen: Boolean = false,
+    /** Защита от случайного удаления и переноса треков (долгое нажатие, подтверждение, UNDO). */
+    val deleteProtection: Boolean = true,
 )
 
 @Singleton
@@ -449,112 +454,141 @@ class SettingsRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     val settings: Flow<W0ySettings> =
-        context.dataStore.data
+        flow {
+            migrateOnce()
+            emitAll(context.dataStore.data)
+        }
             // Повреждённый файл настроек не должен ронять приложение —
             // лучше стартовать со значениями по умолчанию.
             .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
             .map { prefs ->
+                val d = W0ySettings()
                 W0ySettings(
-                    qualityWifi = prefs.enum(Keys.QUALITY_WIFI, Quality.HIGH),
-                    qualityMobile = prefs.enum(Keys.QUALITY_MOBILE, Quality.MEDIUM),
-                    preloadNext = prefs[Keys.PRELOAD] ?: true,
-                    cacheLimitMb = prefs[Keys.CACHE_MB] ?: 512,
-                    autoDownloadLiked = prefs[Keys.AUTO_DOWNLOAD] ?: false,
-                    normalizeVolume = prefs[Keys.NORMALIZE] ?: true,
-                    skipSilence = prefs[Keys.SKIP_SILENCE] ?: false,
-                    pauseOnHeadphonesOut = prefs[Keys.PAUSE_ON_UNPLUG] ?: true,
-                    resumeOnHeadphonesIn = prefs[Keys.RESUME_ON_PLUG] ?: false,
-                    sleepTimerDefaultMin = prefs[Keys.SLEEP_MIN] ?: 30,
-                    theme = prefs.enum(Keys.THEME, ThemeMode.DARK),
-                    showLyrics = prefs[Keys.LYRICS] ?: true,
-                    keepHistory = prefs[Keys.HISTORY] ?: true,
-                    queueMode = prefs.enum(Keys.QUEUE_MODE, QueueMode.ORDER),
-                    speed = prefs[Keys.SPEED] ?: 1f,
-                    pitch = prefs[Keys.PITCH] ?: 1f,
-                    reverb = prefs.enum(Keys.REVERB, Reverb.OFF),
-                    showRecommendations = prefs[Keys.SHOW_RECOMMENDATIONS] ?: true,
-                    compactRows = prefs[Keys.COMPACT_ROWS] ?: false,
-                    saveSearchHistory = prefs[Keys.SAVE_SEARCHES] ?: true,
-                    downloadOnWifiOnly = prefs[Keys.WIFI_ONLY_DOWNLOADS] ?: true,
-                    startTab = prefs.enum(Keys.START_TAB, StartTab.LAST),
-                    lastTab = prefs.enum(Keys.LAST_TAB, StartTab.HOME),
-                    cleanMode = prefs[Keys.CLEAN_MODE] ?: false,
-                    explicitFallback = prefs.enum(Keys.EXPLICIT_FALLBACK, ExplicitFallback.PLAY),
-                    hideExplicit = prefs[Keys.HIDE_EXPLICIT] ?: false,
-                    muteSwearLines = prefs[Keys.MUTE_SWEAR_LINES] ?: false,
-                    welcomeSeen = prefs[Keys.WELCOME_SEEN] ?: false,
-                    language = prefs.enum(Keys.LANGUAGE, Language.SYSTEM),
-                    animatedBackground = prefs[Keys.ANIMATED_BACKGROUND] ?: true,
-                    accent = prefs.enum(Keys.ACCENT, Accent.SAND),
-                    customAccent = prefs[Keys.CUSTOM_ACCENT] ?: 0xFFA06CFF.toInt(),
-                    syncPlaylists = prefs[Keys.SYNC_PLAYLISTS] ?: true,
-                    searchSuggestions = prefs[Keys.SEARCH_SUGGESTIONS] ?: true,
+                    qualityWifi = prefs.enum(Keys.QUALITY_WIFI, d.qualityWifi),
+                    qualityMobile = prefs.enum(Keys.QUALITY_MOBILE, d.qualityMobile),
+                    preloadNext = prefs[Keys.PRELOAD] ?: d.preloadNext,
+                    cacheLimitMb = prefs[Keys.CACHE_MB] ?: d.cacheLimitMb,
+                    autoDownloadLiked = prefs[Keys.AUTO_DOWNLOAD] ?: d.autoDownloadLiked,
+                    normalizeVolume = prefs[Keys.NORMALIZE] ?: d.normalizeVolume,
+                    skipSilence = prefs[Keys.SKIP_SILENCE] ?: d.skipSilence,
+                    pauseOnHeadphonesOut = prefs[Keys.PAUSE_ON_UNPLUG] ?: d.pauseOnHeadphonesOut,
+                    resumeOnHeadphonesIn = prefs[Keys.RESUME_ON_PLUG] ?: d.resumeOnHeadphonesIn,
+                    sleepTimerDefaultMin = prefs[Keys.SLEEP_MIN] ?: d.sleepTimerDefaultMin,
+                    theme = prefs.enum(Keys.THEME, d.theme),
+                    showLyrics = prefs[Keys.LYRICS] ?: d.showLyrics,
+                    keepHistory = prefs[Keys.HISTORY] ?: d.keepHistory,
+                    queueMode = prefs.enum(Keys.QUEUE_MODE, d.queueMode),
+                    speed = prefs[Keys.SPEED] ?: d.speed,
+                    pitch = prefs[Keys.PITCH] ?: d.pitch,
+                    reverb = prefs.enum(Keys.REVERB, d.reverb),
+                    showRecommendations = prefs[Keys.SHOW_RECOMMENDATIONS] ?: d.showRecommendations,
+                    compactRows = prefs[Keys.COMPACT_ROWS] ?: d.compactRows,
+                    saveSearchHistory = prefs[Keys.SAVE_SEARCHES] ?: d.saveSearchHistory,
+                    downloadOnWifiOnly = prefs[Keys.WIFI_ONLY_DOWNLOADS] ?: d.downloadOnWifiOnly,
+                    startTab = prefs.enum(Keys.START_TAB, d.startTab),
+                    lastTab = prefs.enum(Keys.LAST_TAB, d.lastTab),
+                    cleanMode = prefs[Keys.CLEAN_MODE] ?: d.cleanMode,
+                    explicitFallback = prefs.enum(Keys.EXPLICIT_FALLBACK, d.explicitFallback),
+                    hideExplicit = prefs[Keys.HIDE_EXPLICIT] ?: d.hideExplicit,
+                    muteSwearLines = prefs[Keys.MUTE_SWEAR_LINES] ?: d.muteSwearLines,
+                    welcomeSeen = prefs[Keys.WELCOME_SEEN] ?: d.welcomeSeen,
+                    language = prefs.enum(Keys.LANGUAGE, d.language),
+                    animatedBackground = prefs[Keys.ANIMATED_BACKGROUND] ?: d.animatedBackground,
+                    accent = prefs.enum(Keys.ACCENT, d.accent),
+                    customAccent = prefs[Keys.CUSTOM_ACCENT] ?: d.customAccent,
+                    syncPlaylists = prefs[Keys.SYNC_PLAYLISTS] ?: d.syncPlaylists,
+                    searchSuggestions = prefs[Keys.SEARCH_SUGGESTIONS] ?: d.searchSuggestions,
                     haptics = hapticLevelOf(prefs) != HapticLevel.OFF,
                     hapticLevel = hapticLevelOf(prefs),
-                    seekStepSec = prefs[Keys.SEEK_STEP] ?: 10,
-                    playerCoverGlow = prefs[Keys.COVER_GLOW] ?: true,
-                    fallbackAudio = prefs[Keys.FALLBACK_AUDIO] ?: true,
-                    fallbackSource = prefs.enum(Keys.FALLBACK_SOURCE, FallbackSource.AUTO),
+                    seekStepSec = prefs[Keys.SEEK_STEP] ?: d.seekStepSec,
+                    playerCoverGlow = prefs[Keys.COVER_GLOW] ?: d.playerCoverGlow,
+                    fallbackAudio = prefs[Keys.FALLBACK_AUDIO] ?: d.fallbackAudio,
+                    fallbackSource = prefs.enum(Keys.FALLBACK_SOURCE, d.fallbackSource),
                     lyricsLang = prefs[Keys.LYRICS_LANG].orEmpty(),
-                    experiments = prefs[Keys.EXPERIMENTS] ?: false,
-                    downloadQualityWifi = prefs.enum(Keys.DL_QUALITY_WIFI, Quality.HIGH),
-                    downloadQualityMobile = prefs.enum(Keys.DL_QUALITY_MOBILE, Quality.HIGH),
+                    experiments = prefs[Keys.EXPERIMENTS] ?: d.experiments,
+                    downloadQualityWifi = prefs.enum(Keys.DL_QUALITY_WIFI, d.downloadQualityWifi),
+                    downloadQualityMobile = prefs.enum(Keys.DL_QUALITY_MOBILE, d.downloadQualityMobile),
                     downloadParallel = (prefs[Keys.DL_PARALLEL] ?: 2).coerceIn(1, 4),
-                    downloadSpeedLimitKb = prefs[Keys.DL_SPEED_LIMIT] ?: 0,
-                    downloadPauseOnLowBattery = prefs[Keys.DL_LOW_BATTERY] ?: true,
-                    downloadAutoResume = prefs[Keys.DL_AUTO_RESUME] ?: true,
+                    downloadSpeedLimitKb = prefs[Keys.DL_SPEED_LIMIT] ?: d.downloadSpeedLimitKb,
+                    downloadPauseOnLowBattery = prefs[Keys.DL_LOW_BATTERY] ?: d.downloadPauseOnLowBattery,
+                    downloadAutoResume = prefs[Keys.DL_AUTO_RESUME] ?: d.downloadAutoResume,
                     downloadRetries = (prefs[Keys.DL_RETRIES] ?: 3).coerceIn(0, 10),
-                    downloadStorageLimitMb = prefs[Keys.DL_STORAGE_LIMIT] ?: 0,
-                    downloadNotifications = prefs[Keys.DL_NOTIFICATIONS] ?: true,
+                    downloadStorageLimitMb = prefs[Keys.DL_STORAGE_LIMIT] ?: d.downloadStorageLimitMb,
+                    downloadNotifications = prefs[Keys.DL_NOTIFICATIONS] ?: d.downloadNotifications,
                     exportTreeUri = prefs[Keys.EXPORT_TREE].orEmpty(),
-                    autoExport = prefs[Keys.AUTO_EXPORT] ?: false,
-                    exportWarningSeen = prefs[Keys.EXPORT_WARNING] ?: false,
-                    exportFolderAsked = prefs[Keys.EXPORT_FOLDER_ASKED] ?: false,
+                    autoExport = prefs[Keys.AUTO_EXPORT] ?: d.autoExport,
+                    exportWarningSeen = prefs[Keys.EXPORT_WARNING] ?: d.exportWarningSeen,
+                    exportFolderAsked = prefs[Keys.EXPORT_FOLDER_ASKED] ?: d.exportFolderAsked,
                     autoDownloadPlaylists =
                         prefs[Keys.AUTO_DL_PLAYLISTS].orEmpty().split(',').mapNotNull { it.toLongOrNull() }.toSet(),
-                    showPlaylistRecommendations = prefs[Keys.PLAYLIST_RECS] ?: false,
+                    showPlaylistRecommendations = prefs[Keys.PLAYLIST_RECS] ?: d.showPlaylistRecommendations,
                     dialMinPlays = (prefs[Keys.DIAL_MIN_PLAYS] ?: 1).coerceIn(1, 20),
-                    uiStyle = prefs.enum(Keys.UI_STYLE, UiStyle.HAIRLINE),
-                    smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: true,
-                    stylePicked = prefs[Keys.STYLE_PICKED] ?: false,
-                    lyricsSize = prefs.enum(Keys.LYRICS_SIZE, LyricsSize.MEDIUM),
-                    lyricsDelayMs = prefs[Keys.LYRICS_DELAY] ?: 0,
-                    lyricsAllSources = prefs[Keys.LYRICS_ALL] ?: true,
-                    visualizerStyle = prefs.enum(Keys.VIZ_STYLE, VisualizerStyle.SEGMENTS),
-                    visualizerSensitivity = prefs[Keys.VIZ_SENSITIVITY] ?: 1f,
-                    visualizerFps = prefs[Keys.VIZ_FPS] ?: 60,
-                    visualizerCoverBackdrop = prefs[Keys.VIZ_BACKDROP] ?: true,
-                    playerArt = prefs.enum(Keys.PLAYER_ART, PlayerArt.COVER),
-                    standLyrics = prefs[Keys.STAND_LYRICS] ?: false,
-                    standVisualizer = prefs[Keys.STAND_VIZ] ?: false,
-                    standBrightness = prefs[Keys.STAND_BRIGHTNESS] ?: STAND_BRIGHTNESS_SYSTEM,
-                    standMarquee = prefs[Keys.STAND_MARQUEE] ?: false,
-                    standFlipped = prefs[Keys.STAND_FLIPPED] ?: false,
-                    standView = prefs.enum(Keys.STAND_VIEW, StandView.TEXT),
-                    standClock = prefs[Keys.STAND_CLOCK] ?: true,
-                    backdropMode = prefs.enum(Keys.BACKDROP_MODE, BackdropMode.GRID),
-                    dockShape = prefs.enum(Keys.DOCK_SHAPE, DockShape.ISLAND),
-                    dockTint = prefs.enum(Keys.DOCK_TINT, DockTint.COVER),
-                    dockLabels = prefs.enum(Keys.DOCK_LABELS, DockLabels.ALL),
-                    dockGlow = prefs[Keys.DOCK_GLOW] ?: true,
+                    uiStyle = prefs.enum(Keys.UI_STYLE, d.uiStyle),
+                    smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: d.smoothGlass,
+                    stylePicked = prefs[Keys.STYLE_PICKED] ?: d.stylePicked,
+                    lyricsSize = prefs.enum(Keys.LYRICS_SIZE, d.lyricsSize),
+                    lyricsDelayMs = prefs[Keys.LYRICS_DELAY] ?: d.lyricsDelayMs,
+                    lyricsAllSources = prefs[Keys.LYRICS_ALL] ?: d.lyricsAllSources,
+                    visualizerStyle = prefs.enum(Keys.VIZ_STYLE, d.visualizerStyle),
+                    visualizerSensitivity = prefs[Keys.VIZ_SENSITIVITY] ?: d.visualizerSensitivity,
+                    visualizerFps = prefs[Keys.VIZ_FPS] ?: d.visualizerFps,
+                    visualizerCoverBackdrop = prefs[Keys.VIZ_BACKDROP] ?: d.visualizerCoverBackdrop,
+                    playerArt = prefs.enum(Keys.PLAYER_ART, d.playerArt),
+                    standLyrics = prefs[Keys.STAND_LYRICS] ?: d.standLyrics,
+                    standVisualizer = prefs[Keys.STAND_VIZ] ?: d.standVisualizer,
+                    standBrightness = prefs[Keys.STAND_BRIGHTNESS] ?: d.standBrightness,
+                    standMarquee = prefs[Keys.STAND_MARQUEE] ?: d.standMarquee,
+                    standFlipped = prefs[Keys.STAND_FLIPPED] ?: d.standFlipped,
+                    standView = prefs.enum(Keys.STAND_VIEW, d.standView),
+                    standClock = prefs[Keys.STAND_CLOCK] ?: d.standClock,
+                    backdropMode = prefs.enum(Keys.BACKDROP_MODE, d.backdropMode),
+                    dockShape = prefs.enum(Keys.DOCK_SHAPE, d.dockShape),
+                    dockTint = prefs.enum(Keys.DOCK_TINT, d.dockTint),
+                    dockLabels = prefs.enum(Keys.DOCK_LABELS, d.dockLabels),
+                    dockGlow = prefs[Keys.DOCK_GLOW] ?: d.dockGlow,
                     backdropImage = prefs[Keys.BACKDROP_IMAGE],
-                    seasonMode = prefs.enum(Keys.SEASON_MODE, SeasonMode.AUTO),
-                    standChargingOnly = prefs[Keys.STAND_CHARGING] ?: false,
-                    standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: 60,
-                    standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: true,
-                    lineWeight = prefs.enum(Keys.HL_WEIGHT, LineWeight.THIN),
-                    corners = prefs.enum(Keys.HL_CORNERS, CornerStyle.SHARP),
-                    coverShape = prefs.enum(Keys.HL_COVER, CoverShape.ROUNDED),
-                    playerLayout = prefs.enum(Keys.HL_LAYOUT, PlayerLayout.RING),
-                    caps = prefs.enum(Keys.HL_CAPS, CapsMode.TITLES_LABELS),
-                    density = prefs.enum(Keys.HL_DENSITY, Density.COMFORTABLE),
-                    motion = prefs.enum(Keys.HL_MOTION, MotionMode.AUTO),
-                    iconStyle = prefs.enum(Keys.HL_ICONS, IconStyle.LINE),
-                    appIcon = prefs.enum(Keys.HL_APP_ICON, AppIcon.W),
-                    swipeDismiss = prefs[Keys.HL_SWIPE_DISMISS] ?: true,
-                    gestureHintSeen = prefs[Keys.HL_HINT_SEEN] ?: false,
+                    seasonMode = prefs.enum(Keys.SEASON_MODE, d.seasonMode),
+                    standChargingOnly = prefs[Keys.STAND_CHARGING] ?: d.standChargingOnly,
+                    standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: d.standMaxMinutes,
+                    standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: d.standLowBatteryExit,
+                    lineWeight = prefs.enum(Keys.HL_WEIGHT, d.lineWeight),
+                    corners = prefs.enum(Keys.HL_CORNERS, d.corners),
+                    coverShape = prefs.enum(Keys.HL_COVER, d.coverShape),
+                    playerLayout = prefs.enum(Keys.HL_LAYOUT, d.playerLayout),
+                    caps = prefs.enum(Keys.HL_CAPS, d.caps),
+                    density = prefs.enum(Keys.HL_DENSITY, d.density),
+                    motion = prefs.enum(Keys.HL_MOTION, d.motion),
+                    iconStyle = prefs.enum(Keys.HL_ICONS, d.iconStyle),
+                    appIcon = prefs.enum(Keys.HL_APP_ICON, d.appIcon),
+                    swipeDismiss = prefs[Keys.HL_SWIPE_DISMISS] ?: d.swipeDismiss,
+                    gestureHintSeen = prefs[Keys.HL_HINT_SEEN] ?: d.gestureHintSeen,
+                    deleteProtection = prefs[Keys.DELETE_PROTECTION] ?: d.deleteProtection,
                 )
             }
+
+    private val migrationLock = kotlinx.coroutines.sync.Mutex()
+
+    @Volatile
+    private var migrated = false
+
+    /**
+     * Закрепляет прежние умолчания за теми, кто уже пользовался приложением:
+     * умолчания поменялись, а выбор людей — нет. Чистая логика — в [SettingsMigration].
+     */
+    private suspend fun migrateOnce() {
+        if (migrated) return
+        migrationLock.withLock {
+            if (migrated) return
+            runCatching {
+                context.dataStore.edit { prefs ->
+                    SettingsMigration.apply(prefs, SettingsMigration.CURRENT)
+                }
+            }
+            migrated = true
+        }
+    }
+
+    suspend fun setDeleteProtection(value: Boolean) = put(Keys.DELETE_PROTECTION, value)
 
     suspend fun setQualityWifi(value: Quality) = put(Keys.QUALITY_WIFI, value.name)
 
@@ -935,6 +969,8 @@ class SettingsRepository @Inject constructor(
     ): T = this[key]?.let { name -> runCatching { enumValueOf<T>(name) }.getOrNull() } ?: fallback
 
     private object Keys {
+        val DELETE_PROTECTION = booleanPreferencesKey("delete_protection")
+        val SCHEMA = intPreferencesKey("settings_schema")
         val QUALITY_WIFI = stringPreferencesKey("quality_wifi")
         val QUALITY_MOBILE = stringPreferencesKey("quality_mobile")
         val PRELOAD = booleanPreferencesKey("preload_next")
@@ -1037,3 +1073,30 @@ class SettingsRepository @Inject constructor(
 
 /** Яркость подставки «как в системе» — окно яркость не переопределяет. */
 const val STAND_BRIGHTNESS_SYSTEM = -1f
+
+
+/**
+ * Миграция сохранённых настроек. Новые установки получают новые умолчания;
+ * существующим сначала записываются старые значения тех ключей, чьё умолчание
+ * изменилось, — иначе тихо поменялось бы то, что человек не трогал.
+ *
+ * Схема 1 (эта правка): `normalize_volume` был включён по умолчанию, `dock_labels`
+ * показывал все подписи; теперь по умолчанию выключено и «активная».
+ */
+object SettingsMigration {
+    const val CURRENT = 1
+
+    fun apply(prefs: androidx.datastore.preferences.core.MutablePreferences, target: Int) {
+        val schema = prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] ?: 0
+        if (schema >= target) return
+        // Любой уже сохранённый ключ — значит, приложением пользовались.
+        val existing = prefs.asMap().isNotEmpty()
+        if (existing && schema < 1) {
+            val normalize = androidx.datastore.preferences.core.booleanPreferencesKey("normalize_volume")
+            val labels = androidx.datastore.preferences.core.stringPreferencesKey("dock_labels")
+            if (normalize !in prefs) prefs[normalize] = true
+            if (labels !in prefs) prefs[labels] = DockLabels.ALL.name
+        }
+        prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] = target
+    }
+}

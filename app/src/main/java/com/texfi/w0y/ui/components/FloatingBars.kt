@@ -386,6 +386,29 @@ private const val NAV_STEPS = 5
  */
 val LocalBottomInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
 
+/** Запас под последним элементом списка сверх высоты панелей. */
+val BottomContentMargin = 16.dp
+
+/**
+ * Единственный источник нижнего отступа прокручиваемых контейнеров:
+ * высота панелей (остров + системная навигация, измеряется в оболочке и
+ * анимируется) плюс запас [BottomContentMargin]. Ручные `PaddingValues(bottom = …)`
+ * в экранах не нужны и проверяются тестом.
+ */
+@androidx.compose.runtime.Composable
+fun bottomContentPadding(
+    start: androidx.compose.ui.unit.Dp = 0.dp,
+    top: androidx.compose.ui.unit.Dp = 0.dp,
+    end: androidx.compose.ui.unit.Dp = 0.dp,
+): androidx.compose.foundation.layout.PaddingValues =
+    androidx.compose.foundation.layout.PaddingValues(start = start, top = top, end = end, bottom = LocalBottomInset.current + BottomContentMargin)
+
+/** Пустое место в конце `Column(verticalScroll)`: то же, что [bottomContentPadding], но спейсером. */
+@androidx.compose.runtime.Composable
+fun BottomInsetSpacer() {
+    androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(LocalBottomInset.current + BottomContentMargin))
+}
+
 
 /**
  * Навигация Hairline: одна полоса во всю ширину, тонкая линия сверху.

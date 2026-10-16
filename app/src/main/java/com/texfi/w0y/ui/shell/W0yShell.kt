@@ -245,7 +245,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val overlayBars = glassBars || hair
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barsHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-    val barsHeight = with(density) { barsHeightPx.toDp() }
+    val barsHeightTarget = with(density) { barsHeightPx.toDp() }
+    // Мини-плеер появляется и исчезает: отступ списков едет плавно, а не рывком.
+    val barsHeight by androidx.compose.animation.core.animateDpAsState(barsHeightTarget, androidx.compose.animation.core.tween(220), label = "barsInset")
     Box(
         Modifier
             .fillMaxSize()

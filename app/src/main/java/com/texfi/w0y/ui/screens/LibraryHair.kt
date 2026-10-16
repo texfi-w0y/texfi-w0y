@@ -98,7 +98,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current),
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
     ) {
         if (openFolder != null) {
             item(key = "folder-title") {
