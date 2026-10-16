@@ -939,4 +939,25 @@
     <string name="widget_preview_title">Nocna droga</string>
     <string name="widget_preview_artist">Twój wykonawca</string>
     <string name="widget_idle_hint">Nic nie gra — otwórz w0y</string>
+    <string name="home_play_all">Odtwórz wszystko</string>
+    <string name="recap_card_label">%1$d · twój rok</string>
+    <string name="recap_entry">Minuty, wykonawca roku, najważniejsze utwory i twój rytm</string>
+    <string name="recap_minutes_title">minut muzyki</string>
+    <string name="recap_hours">To %1$d godz. muzyki.</string>
+    <string name="recap_plays">Odtworzeń: %1$d</string>
+    <string name="recap_artist_label">Wykonawca roku</string>
+    <string name="recap_songs_label">Najważniejsze utwory</string>
+    <string name="recap_song_label">Utwór roku</string>
+    <string name="recap_rhythm_label">Twój rytm</string>
+    <string name="recap_peak_hour">godzina, w której słuchasz najwięcej</string>
+    <string name="recap_fact_streak">Dni z rzędu</string>
+    <string name="recap_fact_days">Dni z muzyką</string>
+    <string name="recap_fact_hour">Główna godzina</string>
+    <string name="recap_fact_month">Najbardziej muzyczny miesiąc</string>
+    <string name="recap_fact_best_day">Rekordowy dzień</string>
+    <string name="recap_fact_new_artists">Nowi wykonawcy</string>
+    <string name="recap_final_title">Tak wyglądał twój rok w muzyce.</string>
+    <string name="recap_share">Udostępnij kartę</string>
+    <string name="recap_private">Policzone tylko na tym telefonie. Nic nie wyszło na zewnątrz.</string>
+    <string name="recap_empty">W tym roku jest jeszcze mało muzyki. Posłuchaj trochę — podsumowanie zbierze się samo.</string>
 </resources>
