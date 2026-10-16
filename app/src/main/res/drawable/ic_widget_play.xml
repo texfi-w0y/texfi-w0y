@@ -1,40 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Тот же спрайт 12×12, что рисует PixelSprite в интерфейсе: виджет
-     рисуется системой, там нашего Canvas нет — но знак должен быть
-     тем же, иначе виджет читается как чужой. Цвет задаётся tint-ом. -->
+<!-- Контурный знак Hairline, тот же контур, что рисует HairIcon в приложении:
+     линия 1,7 dp без заливки. Цвет задаётся tint-ом. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="12"
-    android:viewportHeight="12">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,1h2v1h-2z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,2h4v1h-4z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,3h6v1h-6z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,4h8v1h-8z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,5h10v1h-10z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,6h10v1h-10z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,7h8v1h-8z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,8h6v1h-6z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,9h4v1h-4z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,10h2v1h-2z" />
+        android:pathData="M8,5 L19,12 L8,19 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

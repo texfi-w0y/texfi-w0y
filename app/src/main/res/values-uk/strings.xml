@@ -939,4 +939,11 @@
     <string name="taste_reset">СКИНУТИ СМАК</string>
     <string name="taste_reset_title">Скинути смак?</string>
     <string name="taste_reset_text">Лічильники прослуховувань обнуляться (як скидання підсумків), пам’ять показаного очиститься.</string>
+    <string name="widget_state_playing">ГРАЄ</string>
+    <string name="widget_state_paused">ПАУЗА</string>
+    <string name="widget_state_idle">ТИША</string>
+    <string name="widget_state_error">НЕ ВДАЛОСЯ УВІМКНУТИ</string>
+    <string name="widget_preview_title">Нічна дорога</string>
+    <string name="widget_preview_artist">Твій виконавець</string>
+    <string name="widget_idle_hint">Нічого не грає — відкрити w0y</string>
 </resources>

@@ -206,6 +206,7 @@ class W0yPlayerService : MediaSessionService() {
         settingsRepository.settings
             .onEach { current ->
                 settings.value = current
+                widgetUpdater.setAccent(widgetAccent())
                 player.skipSilenceEnabled = current.skipSilence
                 player.setHandleAudioBecomingNoisy(current.pauseOnHeadphonesOut)
                 applyLoudness(player)
@@ -509,8 +510,15 @@ class W0yPlayerService : MediaSessionService() {
                 artist = metadata?.artist?.toString().orEmpty(),
                 playing = player.isPlaying,
                 coverUrl = metadata?.artworkUri?.toString(),
+                accent = widgetAccent(),
             )
         }
+    }
+
+    /** Акцент приложения для виджета: выбранный цвет или свой. */
+    private fun widgetAccent(): Int {
+        val s = settings.value
+        return if (s.accent == com.texfi.w0y.data.Accent.CUSTOM) s.customAccent else s.accent.accent.toInt()
     }
 
     private inner class TrackListener(
@@ -608,6 +616,7 @@ class W0yPlayerService : MediaSessionService() {
 
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             Timber.w(error, "Ошибка воспроизведения")
+            widgetUpdater.markError()
             val current = player.currentMediaItem
             if (current != null && com.texfi.w0y.data.LocalMusic.isLocal(current.mediaId)) {
                 replaceBrokenFile(current)

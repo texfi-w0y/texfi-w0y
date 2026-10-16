@@ -1,70 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Тот же спрайт 12×12, что рисует PixelSprite в интерфейсе: виджет
-     рисуется системой, там нашего Canvas нет — но знак должен быть
-     тем же, иначе виджет читается как чужой. Цвет задаётся tint-ом. -->
+<!-- Контурный знак Hairline, тот же контур, что рисует HairIcon в приложении:
+     линия 1,7 dp без заливки. Цвет задаётся tint-ом. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="12"
-    android:viewportHeight="12">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,1h3v1h-3z" />
+        android:pathData="M8.5,5 V19"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,1h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,2h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,2h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,3h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,3h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,4h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,4h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,5h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,5h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,6h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,6h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,7h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,7h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,8h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,8h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,9h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,9h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M2,10h3v1h-3z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,10h3v1h-3z" />
+        android:pathData="M15.5,5 V19"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

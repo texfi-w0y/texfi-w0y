@@ -7,13 +7,12 @@
     <color name="w0y_accent">#FF4A7CFB</color>
 
     <!-- Цвета виджета: он рисуется системой, где нет ни Compose, ни нашей
-         темы, поэтому палитра продублирована ресурсами. Значения — из
-         тёмной темы (ui/theme/Color.kt). -->
-    <color name="widget_surface">#FF14141A</color>
-    <color name="widget_surface_high">#FF1E1E26</color>
-    <color name="widget_border">#FF2E2E3A</color>
-    <color name="widget_border_high">#FF3A3A48</color>
-    <color name="widget_shadow">#FF000000</color>
-    <color name="widget_text">#FFF2F2F5</color>
-    <color name="widget_text_muted">#FF8A8A96</color>
+         темы, поэтому палитра продублирована ресурсами. Тёмная — токены
+         Hairline (фон #0a090c, карточка #121116); светлая включается вместе
+         с системной светлой темой. -->
+    <color name="widget_card">#FFF8F7FA</color>
+    <color name="widget_card_high">#FFEDEBF1</color>
+    <color name="widget_line">#FFD9D6E0</color>
+    <color name="widget_text">#FF16141B</color>
+    <color name="widget_text_muted">#FF6B6677</color>
 </resources>

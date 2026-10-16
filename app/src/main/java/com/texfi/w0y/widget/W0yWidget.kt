@@ -6,7 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.RemoteViews
@@ -16,21 +19,27 @@ import com.texfi.w0y.playback.W0yPlayerService
 import java.io.File
 
 /**
- * Виджет «что играет».
+ * Виджет «что играет», в языке Hairline.
  *
- * Состояние берётся не у плеера, а из [WidgetState]: систему просят
- * перерисовать виджет и тогда, когда процесс приложения уже убит, и
- * спросить живой плеер в этот момент не у кого.
+ * Три раскладки по высоте (компактная, средняя, крупная), четыре состояния
+ * (играет, пауза, тишина, ошибка), акцент приложения и системная светлая или
+ * тёмная тема. Состояние берётся не у плеера, а из [WidgetState]: систему
+ * просят перерисовать виджет и тогда, когда процесс приложения уже убит.
  */
 class W0yWidget : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
-    ) {
-        val views = build(context)
-        appWidgetIds.forEach { id -> appWidgetManager.updateAppWidget(id, views) }
-    }
+    ) = render(context, appWidgetManager, appWidgetIds)
+
+    /** Растянули или сжали виджет — раскладка может смениться. */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle?,
+    ) = render(context, appWidgetManager, intArrayOf(appWidgetId))
 
     internal companion object {
         /** Перерисовать все размещённые виджеты по последнему состоянию. */
@@ -38,36 +47,85 @@ class W0yWidget : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context) ?: return
             val ids = manager.getAppWidgetIds(ComponentName(context, W0yWidget::class.java))
             if (ids.isEmpty()) return
-            val views = build(context)
-            ids.forEach { id -> manager.updateAppWidget(id, views) }
+            render(context, manager, ids)
         }
 
-        private fun build(context: Context): RemoteViews {
+        private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            if (ids.isEmpty()) return
+            // Состояние и обложка читаются один раз на все виджеты.
             val state = WidgetState.read(context)
-            val views = RemoteViews(context.packageName, R.layout.widget_player)
+            val cover = coverBitmap(state)
+            ids.forEach { id ->
+                val height = manager.getAppWidgetOptions(id)?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+                manager.updateAppWidget(id, build(context, state, cover, WidgetSize.forHeightDp(height)))
+            }
+        }
 
-            if (state.controllable) {
-                views.setTextViewText(R.id.widget_title, state.title)
-                views.setTextViewText(R.id.widget_artist, state.artist)
-                views.setViewVisibility(R.id.widget_artist, View.VISIBLE)
-                views.setViewVisibility(R.id.widget_controls, View.VISIBLE)
-                views.setImageViewResource(
-                    R.id.widget_toggle,
-                    if (state.playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play,
+        private var coverCache: Triple<String, Long, Bitmap>? = null
+
+        /** Обложка с диска; одна и та же не декодируется заново, пока файл не менялся. */
+        private fun coverBitmap(state: WidgetState): Bitmap? {
+            val file = state.coverPath?.let { File(it) }?.takeIf { it.exists() } ?: return null
+            coverCache?.let { (path, modified, bitmap) -> if (path == file.path && modified == file.lastModified()) return bitmap }
+            val bitmap = BitmapFactory.decodeFile(file.path) ?: return null
+            coverCache = Triple(file.path, file.lastModified(), bitmap)
+            return bitmap
+        }
+
+        private fun build(context: Context, state: WidgetState, cover: Bitmap?, size: WidgetSize): RemoteViews {
+            val layout =
+                when (size) {
+                    WidgetSize.COMPACT -> R.layout.widget_compact
+                    WidgetSize.MEDIUM -> R.layout.widget_medium
+                    WidgetSize.LARGE -> R.layout.widget_large
+                }
+            val views = RemoteViews(context.packageName, layout)
+            val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+            val accent =
+                WidgetColors.accentOn(
+                    state.accent,
+                    card = if (night) NIGHT_CARD else DAY_CARD,
+                    text = if (night) NIGHT_TEXT else DAY_TEXT,
                 )
-            } else {
-                // Честное пустое состояние: играть нечего или плеер с тех
-                // пор перезапускался — кнопки, которые ничего не сделают,
-                // здесь не рисуются.
-                views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_idle))
-                views.setViewVisibility(R.id.widget_artist, View.GONE)
-                views.setViewVisibility(R.id.widget_controls, View.GONE)
+            val kind = state.kind()
+
+            views.setTextColor(R.id.widget_state, accent)
+            views.setInt(R.id.widget_toggle, "setColorFilter", accent)
+            views.setTextViewText(
+                R.id.widget_state,
+                context.getString(
+                    when (kind) {
+                        WidgetKind.PLAYING -> R.string.widget_state_playing
+                        WidgetKind.PAUSED -> R.string.widget_state_paused
+                        WidgetKind.IDLE -> R.string.widget_state_idle
+                        WidgetKind.ERROR -> R.string.widget_state_error
+                    },
+                ),
+            )
+            when (kind) {
+                WidgetKind.IDLE -> {
+                    // Честное пустое состояние: играть нечего или плеер с тех
+                    // пор перезапускался — кнопки, которые ничего не сделают,
+                    // здесь не рисуются.
+                    views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_idle))
+                    views.setViewVisibility(R.id.widget_artist, View.GONE)
+                    views.setViewVisibility(R.id.widget_controls, View.GONE)
+                }
+
+                else -> {
+                    views.setTextViewText(R.id.widget_title, state.title)
+                    views.setTextViewText(R.id.widget_artist, state.artist)
+                    views.setViewVisibility(R.id.widget_artist, View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_controls, View.VISIBLE)
+                    views.setImageViewResource(
+                        R.id.widget_toggle,
+                        if (kind == WidgetKind.PLAYING) R.drawable.ic_widget_pause else R.drawable.ic_widget_play,
+                    )
+                }
             }
 
-            val cover = state.coverPath?.let { path -> File(path).takeIf { it.exists() } }
-            val bitmap = cover?.let { BitmapFactory.decodeFile(it.path) }
-            if (bitmap != null) {
-                views.setImageViewBitmap(R.id.widget_cover, bitmap)
+            if (cover != null && kind != WidgetKind.IDLE) {
+                views.setImageViewBitmap(R.id.widget_cover, cover)
             } else {
                 views.setImageViewResource(R.id.widget_cover, R.drawable.widget_cover)
             }
@@ -78,6 +136,12 @@ class W0yWidget : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_next, transport(context, KeyEvent.KEYCODE_MEDIA_NEXT))
             return views
         }
+
+        // Токены Hairline: карточка и текст в тёмной и светлой темах (как в res/values*/colors.xml).
+        private const val NIGHT_CARD = 0xFF121116.toInt()
+        private const val NIGHT_TEXT = 0xFFF4F2F7.toInt()
+        private const val DAY_CARD = 0xFFF8F7FA.toInt()
+        private const val DAY_TEXT = 0xFF16141B.toInt()
 
         private fun openApp(context: Context): PendingIntent =
             PendingIntent.getActivity(

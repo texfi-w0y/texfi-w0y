@@ -939,4 +939,11 @@
     <string name="taste_reset">ZRESETUJ GUST</string>
     <string name="taste_reset_title">Zresetować gust?</string>
     <string name="taste_reset_text">Liczniki odtworzeń wrócą do zera (jak reset statystyk), pamięć pokazanych zostanie wyczyszczona.</string>
+    <string name="widget_state_playing">GRA</string>
+    <string name="widget_state_paused">PAUZA</string>
+    <string name="widget_state_idle">CISZA</string>
+    <string name="widget_state_error">NIE UDAŁO SIĘ ODTWORZYĆ</string>
+    <string name="widget_preview_title">Nocna droga</string>
+    <string name="widget_preview_artist">Twój wykonawca</string>
+    <string name="widget_idle_hint">Nic nie gra — otwórz w0y</string>
 </resources>

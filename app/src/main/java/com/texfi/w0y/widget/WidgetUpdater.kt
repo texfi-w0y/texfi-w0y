@@ -38,24 +38,46 @@ class WidgetUpdater @Inject constructor(
         artist: String,
         playing: Boolean,
         coverUrl: String?,
+        accent: Int = WidgetState.DEFAULT_ACCENT,
     ) {
         // Сначала текст и состояние кнопки — они должны появиться сразу,
         // не дожидаясь сети за обложкой.
         val previous = WidgetState.read(context)
-        WidgetState.write(
-            context,
+        val next =
             WidgetState(
                 title = title,
                 artist = artist,
                 playing = playing,
                 coverPath = previous.coverPath,
                 pid = android.os.Process.myPid(),
-            ),
-        )
-        W0yWidget.refresh(context)
+                accent = accent,
+                // Ошибка снимается, как только пошёл звук или сменился трек.
+                error = previous.error && !playing && previous.title == title,
+            )
+        // Экономно: если ничего не изменилось, систему не трогаем.
+        if (next != previous) {
+            WidgetState.write(context, next)
+            W0yWidget.refresh(context)
+        }
         if (coverUrl == lastCoverUrl) return
         lastCoverUrl = coverUrl
         scope.launch { updateCover(coverUrl) }
+    }
+
+    /** Плеер сообщил об ошибке: виджет честно говорит, что не вышло. */
+    fun markError() {
+        val state = WidgetState.read(context)
+        if (state.error || !state.hasSong) return
+        WidgetState.write(context, state.copy(error = true, playing = false))
+        W0yWidget.refresh(context)
+    }
+
+    /** Акцент приложения сменился — виджет перекрашивается. */
+    fun setAccent(accent: Int) {
+        val state = WidgetState.read(context)
+        if (state.accent == accent) return
+        WidgetState.write(context, state.copy(accent = accent))
+        W0yWidget.refresh(context)
     }
 
     /**
@@ -95,13 +117,29 @@ class WidgetUpdater @Inject constructor(
                 .allowHardware(false)
                 .build()
         val result = SingletonImageLoader.get(context).execute(request)
-        return (result.image as? BitmapImage)?.bitmap?.let { Thumbnails.squareOf(it, url) }
+        return (result.image as? BitmapImage)?.bitmap?.let { rounded(Thumbnails.squareOf(it, url)) }
+    }
+
+    /** Скруглённые углы вшиты в картинку: RemoteViews не умеет обрезать по контуру. */
+    private fun rounded(source: Bitmap): Bitmap {
+        val size = source.width
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val radius = size * CORNER_SHARE
+        canvas.drawRoundRect(0f, 0f, size.toFloat(), size.toFloat(), radius, radius, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(source, 0f, 0f, paint)
+        return out
     }
 
     private companion object {
         const val COVER_FILE = "widget_cover.png"
 
-        /** Больше не нужно: виджет рисует обложку в 56dp. */
-        const val COVER_PX = 192
+        /** Хватает крупной раскладке: обложка там до ~140 dp. */
+        const val COVER_PX = 384
+
+        /** Радиус скругления обложки — доля стороны. */
+        const val CORNER_SHARE = 0.14f
     }
 }

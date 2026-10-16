@@ -939,4 +939,11 @@
     <string name="taste_reset">СБРОСИТЬ ВКУС</string>
     <string name="taste_reset_title">Сбросить вкус?</string>
     <string name="taste_reset_text">Счётчики прослушивания обнулятся (как сброс итогов), память показанного очистится.</string>
+    <string name="widget_state_playing">ИГРАЕТ</string>
+    <string name="widget_state_paused">ПАУЗА</string>
+    <string name="widget_state_idle">ТИШИНА</string>
+    <string name="widget_state_error">НЕ УДАЛОСЬ ВКЛЮЧИТЬ</string>
+    <string name="widget_preview_title">Ночная дорога</string>
+    <string name="widget_preview_artist">Твой исполнитель</string>
+    <string name="widget_idle_hint">Ничего не играет — открыть w0y</string>
 </resources>

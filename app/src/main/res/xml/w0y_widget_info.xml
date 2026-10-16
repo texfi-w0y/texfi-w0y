@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Размер по умолчанию — четыре клетки в ширину и одна в высоту: строка
-     с обложкой и управлением ровно в ту полосу, где на домашнем экране
-     обычно и стоит плеер. Меняется по горизонтали, по вертикали нет —
-     растягивать строку некуда. -->
+<!-- Виджет Hairline. По умолчанию 4×1; меняется по обеим осям, и раскладка
+     (компактная, средняя, крупная) выбирается по высоте, которую дал лаунчер. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description"
-    android:initialLayout="@layout/widget_player"
+    android:initialLayout="@layout/widget_compact"
     android:minHeight="70dp"
+    android:minResizeHeight="70dp"
+    android:minResizeWidth="180dp"
     android:minWidth="250dp"
-    android:previewLayout="@layout/widget_player"
-    android:resizeMode="horizontal"
+    android:previewLayout="@layout/widget_preview"
+    android:resizeMode="horizontal|vertical"
     android:targetCellHeight="1"
     android:targetCellWidth="4"
     android:updatePeriodMillis="0"
