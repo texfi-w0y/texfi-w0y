@@ -26,4 +26,13 @@ class StatsViewModel @Inject constructor(
     fun setPeriod(period: StatsPeriod) {
         viewModelScope.launch { _stats.value = repository.stats(period) }
     }
+
+    /** Стирает счётчики и пересчитывает экран; записи «недавнего» остаются. */
+    fun reset() {
+        val period = _stats.value.period
+        viewModelScope.launch {
+            repository.reset()
+            _stats.value = repository.stats(period)
+        }
+    }
 }

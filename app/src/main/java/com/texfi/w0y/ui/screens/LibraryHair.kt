@@ -72,6 +72,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val liked by viewModel.liked.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
+    val weekPlays by viewModel.weekPlays.collectAsStateWithLifecycle()
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val files by viewModel.files.collectAsStateWithLifecycle()
     val signedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
@@ -172,7 +173,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         BentoCard(3, HairGlyph.NOTE, stringResource(R.string.lm_card), files.size, { viewModel.open(LibraryRoute.Files) }, Modifier.weight(1f))
-                        BentoCard(4, HairGlyph.STATS, stringResource(R.string.library_stats), null, { viewModel.open(LibraryRoute.Stats) }, Modifier.weight(1f))
+                        BentoCard(4, HairGlyph.STATS, stringResource(R.string.library_stats), weekPlays?.takeIf { it > 0 }, { viewModel.open(LibraryRoute.Stats) }, Modifier.weight(1f))
                     }
                 }
             }

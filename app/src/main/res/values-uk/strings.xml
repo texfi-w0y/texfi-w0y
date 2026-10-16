@@ -220,8 +220,8 @@
     <string name="start_tab_library">МОЄ</string>
     <string name="start_tab_search">ПОШУК</string>
     <string name="stats_artists">ВИКОНАВЦІ</string>
-    <string name="stats_empty_text">Послухай щось — і тут з\'являться хвилини, улюблені треки й виконавці за вибраний строк.</string>
-    <string name="stats_empty_title">ПОКИ НІЧОГО РАХУВАТИ</string>
+    <string name="stats_empty_text">Хвилини, улюблені треки та виконавці рахуються на цьому телефоні за тим, що справді грало. Нікуди не надсилається.</string>
+    <string name="stats_empty_title">ПОСЛУХАЙ КІЛЬКА ТРЕКІВ — ТУТ З’ЯВИТЬСЯ СТАТИСТИКА</string>
     <string name="stats_minutes">ХВИЛИН</string>
     <string name="stats_period_all">УВЕСЬ ЧАС</string>
     <string name="stats_period_month">МІСЯЦЬ</string>
@@ -818,4 +818,12 @@
     <string name="rm_item_handle">Утримуй і тягни, щоб переставити</string>
     <string name="local_only_tag">ТІЛЬКИ НА ЦЬОМУ ТЕЛЕФОНІ</string>
     <string name="local_file_missing">ФАЙЛ НЕДОСТУПНИЙ</string>
+    <string name="stats_new_artists">НОВІ ВИКОНАВЦІ</string>
+    <string name="stats_peak_hour">УЛЮБЛЕНА ГОДИНА</string>
+    <string name="stats_hourly_title">Час доби</string>
+    <string name="stats_reset">СКИНУТИ СТАТИСТИКУ</string>
+    <string name="stats_reset_title">Скинути статистику?</string>
+    <string name="stats_reset_text">Хвилини, прослуховування й топи почнуться з нуля. Історія в «Нещодавньому» залишиться.</string>
+    <string name="stats_reset_confirm">СКИНУТИ</string>
+    <string name="stats_local_note">Рахується лише на цьому телефоні й нікуди не йде.</string>
 </resources>
