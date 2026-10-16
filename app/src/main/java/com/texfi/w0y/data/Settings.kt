@@ -275,6 +275,7 @@ enum class PlayerLayout(@StringRes val label: Int) {
     MINIMAL(R.string.hl_layout_minimal),
     COMPACT(R.string.hl_layout_compact),
     COVER(R.string.hl_layout_cover),
+    POSTER(R.string.hl_layout_poster),
 }
 
 /** Где текст набирается заглавными. */

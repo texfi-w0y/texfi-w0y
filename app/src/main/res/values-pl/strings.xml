@@ -603,7 +603,8 @@
     <string name="hl_cover_square">Kwadrat</string>
     <string name="hl_layout_ring">Dysk z pierścieniem</string>
     <string name="hl_layout_minimal">Minimum</string>
-    <string name="hl_layout_cover">Okładka na cały ekran</string>
+    <string name="hl_layout_poster">Plakat</string>
+    <string name="hl_layout_cover">Okładka w ramce</string>
     <string name="hl_layout_compact">Kompaktowo</string>
     <string name="hl_caps_titles">Tytuły i etykiety</string>
     <string name="hl_caps_labels">Tylko etykiety</string>

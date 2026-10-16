@@ -259,7 +259,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val cutBars =
         !glassBars &&
             (
-                (
+                settingsOpen ||
+                    (
                         tab == Tab.LIBRARY && browseStack.isEmpty() &&
                             (libraryRoute == LibraryRoute.Downloads || libraryRoute == LibraryRoute.Files || libraryRoute == LibraryRoute.History || libraryRoute == LibraryRoute.Liked)
                     )

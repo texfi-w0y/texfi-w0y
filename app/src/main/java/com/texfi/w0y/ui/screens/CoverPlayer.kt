@@ -28,6 +28,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -92,7 +96,7 @@ import kotlinx.coroutines.launch
  * включённое (повтор, перемешивание, лайк) видно цветом, а не только толщиной.
  */
 @Composable
-private fun overBlurColors() =
+internal fun overBlurColors() =
     LocalW0yColors.current.let { base ->
         base.copy(
             background = Color(0xFF0B0B0E),
@@ -161,7 +165,7 @@ internal fun PlainCover(url: String?, modifier: Modifier = Modifier) {
  * блока — экран собирается ступенью сверху вниз. В Motion Off — сразу на месте.
  */
 @Composable
-private fun Modifier.hairEnter(index: Int): Modifier {
+internal fun Modifier.hairEnter(index: Int): Modifier {
     val moves = hairLook.motion.moves
     val anim = remember { Animatable(if (moves) 0f else 1f) }
     LaunchedEffect(Unit) {
@@ -258,7 +262,13 @@ internal fun CoverPlayerPage(
     onSwipe: (Int) -> Unit,
     onDrag: (Long) -> Unit,
     onDragEnd: () -> Unit,
+    poster: Boolean = false,
 ) {
+    val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
+    if (poster) {
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd)
+        return
+    }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
         val look = hairLook
@@ -310,7 +320,7 @@ internal fun CoverPlayerPage(
                                     },
                                 ) { _, dx -> total += dx }
                             }
-                            .pointerInput(Unit) { detectTapGestures { onCoverTap() } },
+                            .pointerInput(Unit) { detectTapGestures { tapNow.value() } },
                     ) {
                         AnimatedContent(
                             targetState = song.id,
@@ -335,6 +345,143 @@ internal fun CoverPlayerPage(
                 }
                 Box(Modifier.padding(vertical = 4.dp).hairEnter(5)) { transport() }
                 Box(Modifier.padding(top = 4.dp, bottom = 8.dp).hairEnter(6)) { plate() }
+            }
+        }
+    }
+}
+
+/**
+ * Раскладка «постер». Обложка во всю ширину от самого верха экрана и растворяется книзу в
+ * размытом фоне — без рамки, как разворот журнала. Шапка лежит на тёмной вуали поверх неё.
+ * Ниже — короткая акцентная черта, название и блок управления. Ряд действий собран в рамку
+ * 1 dp: на цветном фоне сразу видно, что это кнопки, а не надписи. Высота обложки считается
+ * от того, сколько места осталось над управлением, поэтому на маленьком экране она не лезет
+ * под кнопки. Смахивание вбок — соседний трек (обложка уезжает в ту же сторону), касание —
+ * визуализатор, тяга вниз сворачивает плеер. На паузе обложка тускнеет и чуть приближается.
+ */
+@Composable
+private fun PosterPlayerPage(
+    song: SongItem,
+    isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    stage: @Composable (String?) -> Unit,
+    header: @Composable () -> Unit,
+    titleBlock: @Composable (Modifier) -> Unit,
+    actions: @Composable () -> Unit,
+    transport: @Composable () -> Unit,
+    plate: @Composable () -> Unit,
+    onCoverTap: () -> Unit,
+    onSwipe: (Int) -> Unit,
+    onDrag: (Long) -> Unit,
+    onDragEnd: () -> Unit,
+) {
+    CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
+        val colors = LocalW0yColors.current
+        val look = hairLook
+        val tone = Contrast.ensure(colors.accent, colors.background)
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        var lastSwipe by remember { mutableIntStateOf(1) }
+        var controlsPx by remember { mutableIntStateOf(0) }
+        val inSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.LONG_MS)
+        val outSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.MID_MS)
+        val inFade = hairSpec<Float>(HairTokens.LONG_MS)
+        val outFade = hairSpec<Float>(HairTokens.MID_MS)
+        val rest by animateFloatAsState(if (isPlaying) 0f else 1f, hairSpec(HairTokens.LONG_MS), label = "posterRest")
+        val progressTarget = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+        val progress by animateFloatAsState(progressTarget, tween(480, easing = LinearEasing), label = "posterProgress")
+        BoxWithConstraints(Modifier.fillMaxSize().dragToCollapse()) {
+            PlayerBlurBackdrop(song.thumbnailUrl, isPlaying)
+            // Обложка заходит под управление на величину растворения, но не выше квадрата.
+            val fade = 96.dp
+            val controls = with(density) { controlsPx.toDp() }
+            val coverH = if (controlsPx == 0) maxWidth else (maxHeight - controls + fade).coerceIn(maxWidth * 0.6f, maxWidth * 1.15f)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(coverH)
+                    .hairEnter(0)
+                    .graphicsLayer {
+                        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                        alpha = 1f - 0.28f * rest
+                        val s = 1f + 0.03f * rest
+                        scaleX = s
+                        scaleY = s
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        val f = (fade.toPx() / size.height).coerceIn(0.05f, 0.6f)
+                        drawRect(
+                            Brush.verticalGradient(0f to Color.Black, (1f - f) to Color.Black, 1f to Color.Transparent),
+                            blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                        )
+                    }
+                    .pointerInput(song.id) {
+                        var total = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { total = 0f },
+                            onDragEnd = {
+                                when {
+                                    total <= -SWIPE_PX -> { lastSwipe = 1; onSwipe(1) }
+                                    total >= SWIPE_PX -> { lastSwipe = -1; onSwipe(-1) }
+                                }
+                            },
+                        ) { _, dx -> total += dx }
+                    }
+                    .pointerInput(Unit) { detectTapGestures { onCoverTap() } },
+            ) {
+                AnimatedContent(
+                    targetState = song.id,
+                    transitionSpec = {
+                        val dir = lastSwipe
+                        (slideInHorizontally(inSlide) { it * dir / 4 } + fadeIn(inFade) + scaleIn(inFade, initialScale = 1.06f))
+                            .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 4 } + fadeOut(outFade))
+                    },
+                    label = "posterTrack",
+                ) { _ -> Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } }
+                // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)),
+                )
+            }
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                Box(Modifier.padding(horizontal = 20.dp).hairEnter(1)) { header() }
+                Spacer(Modifier.weight(1f))
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { controlsPx = it.height }
+                        .padding(horizontal = 20.dp),
+                ) {
+                    // Короткая черта прогресса над названием — подпись постера; заполняется по треку.
+                    Box(Modifier.padding(bottom = 12.dp).width(32.dp).height(2.dp).background(colors.outline).hairEnter(2)) {
+                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(tone))
+                    }
+                    Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
+                    Box(
+                        Modifier
+                            .padding(top = 10.dp, bottom = 6.dp)
+                            .hairEnter(3)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(look.cardRadius.coerceIn(3.dp, 12.dp)))
+                            .background(colors.surface)
+                            .border(look.line, colors.border, RoundedCornerShape(look.cardRadius.coerceIn(3.dp, 12.dp))),
+                        contentAlignment = Alignment.Center,
+                    ) { actions() }
+                    Column(Modifier.hairEnter(4)) {
+                        HairSeekLine(positionMs = positionMs, durationMs = durationMs, onDrag = onDrag, onDragEnd = onDragEnd)
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(HairMath.formatTime(positionMs), style = HairLabelStyle, color = tone)
+                            Spacer(Modifier.weight(1f))
+                            Text(HairMath.formatTime(durationMs), style = HairLabelStyle, color = colors.textMuted)
+                        }
+                    }
+                    Box(Modifier.padding(vertical = 4.dp).hairEnter(5)) { transport() }
+                    Box(Modifier.padding(top = 4.dp, bottom = 8.dp).hairEnter(6)) { plate() }
+                }
             }
         }
     }

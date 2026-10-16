@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -315,10 +316,13 @@ fun HairSheetFrame(
 @Composable
 fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
+    // Акцентная линия не перепрыгивает, а едет к выбранной вкладке.
+    val at by androidx.compose.animation.core.animateFloatAsState(selected.toFloat(), hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "tabLine")
     Box(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth()) {
             labels.forEachIndexed { i, label ->
                 val active = i == selected
+                val tone by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "tabTone")
                 Box(
                     Modifier
                         .weight(1f)
@@ -328,24 +332,23 @@ fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modi
                         .clickable { onSelect(i) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        label.asLabel(),
-                        style = HairLabelStyle,
-                        color = if (active) colors.text else colors.textMuted,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                    if (active) {
-                        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(colors.accent))
-                    }
+                    Text(label.asLabel(), style = HairLabelStyle, color = tone, maxLines = 1, softWrap = false)
                 }
             }
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(hairLook.line).background(colors.outline))
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+            val w = maxWidth / labels.size.coerceAtLeast(1)
+            Box(Modifier.offset(x = w * at).width(w).height(2.dp).background(colors.accent))
+        }
     }
 }
 
-/** Панель с вкладками и прокручиваемым списком. [heightFraction] = null — высота по содержимому. */
+/**
+ * Панель с вкладками и прокручиваемым списком. [heightFraction] = null — высота по содержимому.
+ * Смена вкладки — не скачок: новое содержимое въезжает с той стороны, куда переключили, старое
+ * уходит в другую и гаснет; высота панели меняется плавно.
+ */
 @Composable
 private fun TabbedPanel(
     visible: Boolean,
@@ -354,17 +357,34 @@ private fun TabbedPanel(
     selected: Int,
     onSelect: (Int) -> Unit,
     heightFraction: Float?,
-    content: LazyListScope.() -> Unit,
+    content: LazyListScope.(Int) -> Unit,
 ) {
+    val slideIn = hairSpec<IntOffset>(com.texfi.w0y.ui.theme.HairTokens.LONG_MS)
+    val slideOut = hairSpec<IntOffset>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+    val fadeInSpec = hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.LONG_MS)
+    val fadeOutSpec = hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.SHORT_MS)
+    val sizeSpec = hairSpec<androidx.compose.ui.unit.IntSize>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
     HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = heightFraction) {
         PanelTabs(labels, selected, onSelect)
         Spacer(Modifier.height(10.dp))
         val maxBody = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.62f).dp
-        LazyColumn(
-            (if (heightFraction != null) Modifier.weight(1f) else Modifier.heightIn(max = maxBody)).testTag("panel-list"),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        ) {
-            content()
+        androidx.compose.animation.AnimatedContent(
+            targetState = selected,
+            modifier = if (heightFraction != null) Modifier.weight(1f) else Modifier,
+            transitionSpec = {
+                val dir = if (targetState > initialState) 1 else -1
+                (androidx.compose.animation.slideInHorizontally(slideIn) { it * dir / 4 } + fadeIn(fadeInSpec))
+                    .togetherWith(androidx.compose.animation.slideOutHorizontally(slideOut) { -it * dir / 4 } + fadeOut(fadeOutSpec))
+                    .using(androidx.compose.animation.SizeTransform(clip = true) { _, _ -> sizeSpec })
+            },
+            label = "panelTab",
+        ) { tab ->
+            LazyColumn(
+                (if (heightFraction != null) Modifier.fillMaxSize() else Modifier.heightIn(max = maxBody)).testTag("panel-list"),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            ) {
+                content(tab)
+            }
         }
     }
 }
@@ -385,7 +405,7 @@ fun QueuePanel(
         selected = tab.ordinal,
         onSelect = { onTab(QueueTab.entries[it]) },
         heightFraction = 0.85f,
-    ) { content(tab) }
+    ) { i -> content(QueueTab.entries[i]) }
 }
 
 /** Панель «Ещё»: звук, скорость и вид; высота по содержимому. */
@@ -404,7 +424,7 @@ fun MorePanel(
         selected = tab.ordinal,
         onSelect = { onTab(MoreTab.entries[it]) },
         heightFraction = null,
-    ) { content(tab) }
+    ) { i -> content(MoreTab.entries[i]) }
 }
 
 /** Панель таймера сна: только таймер, компактная. */

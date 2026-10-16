@@ -231,10 +231,14 @@ fun PlayerScreen(
     var video by remember(song.id) { mutableStateOf<com.texfi.w0y.data.VideoSource?>(null) }
     var videoLoading by remember(song.id) { mutableStateOf(false) }
     var isVideoTrack by remember(song.id) { mutableStateOf(false) }
+    // Обработчики касаний живут дольше одной перерисовки (pointerInput(Unit)), поэтому читаем
+    // текущий режим через State, а не значение, запомненное при первом кадре: иначе второе
+    // касание снова включало визуализатор вместо того, чтобы его убрать.
+    val artNow = rememberUpdatedState(art)
     val toggleArt: () -> Unit = {
         lyricsOn = false
         videoOn = false
-        viewModel.setPlayerArt(if (art == PlayerArt.COVER) PlayerArt.VISUALIZER else PlayerArt.COVER)
+        viewModel.setPlayerArt(if (artNow.value == PlayerArt.COVER) PlayerArt.VISUALIZER else PlayerArt.COVER)
     }
     LaunchedEffect(song.id) {
         if (com.texfi.w0y.data.LocalMusic.isLocal(song.id)) return@LaunchedEffect
@@ -760,26 +764,38 @@ fun PlayerScreen(
                                 com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp))
                             }
                         }
-                    else -> if (layout == com.texfi.w0y.data.PlayerLayout.COVER) PlainCover(coverUrl, Modifier.fillMaxSize()) else com.texfi.w0y.ui.components.CoverImage(url = coverUrl, px = com.texfi.w0y.data.Thumbnails.HERO, modifier = Modifier.fillMaxSize())
+                    else -> if (layout == com.texfi.w0y.data.PlayerLayout.COVER || layout == com.texfi.w0y.data.PlayerLayout.POSTER) PlainCover(coverUrl, Modifier.fillMaxSize()) else com.texfi.w0y.ui.components.CoverImage(url = coverUrl, px = com.texfi.w0y.data.Thumbnails.HERO, modifier = Modifier.fillMaxSize())
                 }
             }
         }
 
+        // Текст песни опускается сверху, как шторка, а плеер под ним чуть отступает вниз и гаснет;
+        // при закрытии — наоборот: текст уходит вверх, плеер поднимается на место.
+        val lyrIn = com.texfi.w0y.ui.components.hairSpec<androidx.compose.ui.unit.IntOffset>(com.texfi.w0y.ui.theme.HairTokens.LONG_MS)
+        val lyrOut = com.texfi.w0y.ui.components.hairSpec<androidx.compose.ui.unit.IntOffset>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+        val lyrFadeIn = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.LONG_MS)
+        val lyrFadeOut = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
         androidx.compose.animation.AnimatedContent(
             targetState = hair && lyricsOn,
             transitionSpec = {
-                val spec = com.texfi.w0y.ui.theme.HairTokens.EaseOut
-                (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec)) +
-                    androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec)) { it / 12 } +
-                    androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = spec), initialScale = 0.96f))
-                    .togetherWith(
-                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS)) +
-                            androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS), targetScale = 1.04f),
-                    )
+                if (targetState) {
+                    (androidx.compose.animation.slideInVertically(lyrIn) { -it / 4 } + androidx.compose.animation.fadeIn(lyrFadeIn))
+                        .togetherWith(
+                            androidx.compose.animation.slideOutVertically(lyrOut) { it / 12 } + androidx.compose.animation.fadeOut(lyrFadeOut) +
+                                androidx.compose.animation.scaleOut(lyrFadeOut, targetScale = 0.96f),
+                        )
+                } else {
+                    (androidx.compose.animation.slideInVertically(lyrIn) { it / 12 } + androidx.compose.animation.fadeIn(lyrFadeIn) +
+                        androidx.compose.animation.scaleIn(lyrFadeIn, initialScale = 0.96f))
+                        .togetherWith(androidx.compose.animation.slideOutVertically(lyrOut) { -it / 4 } + androidx.compose.animation.fadeOut(lyrFadeOut))
+                }.apply { targetContentZIndex = if (targetState) 1f else 0f }
             },
             label = "lyricsPage",
         ) { lyricsPage ->
             if (lyricsPage) {
+                Box(Modifier.fillMaxSize()) {
+                PlayerBlurBackdrop(song.thumbnailUrl, state.isPlaying)
+                androidx.compose.runtime.CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
                 HairLyricsPage(
                     song = song,
                     lyrics = lyrics,
@@ -829,9 +845,12 @@ fun PlayerScreen(
                         Spacer(Modifier.height(10.dp))
                     },
                 )
-            } else if (hair && layout == com.texfi.w0y.data.PlayerLayout.COVER) {
+                }
+                }
+            } else if (hair && (layout == com.texfi.w0y.data.PlayerLayout.COVER || layout == com.texfi.w0y.data.PlayerLayout.POSTER)) {
                 CoverPlayerPage(
                     song = song,
+                    poster = layout == com.texfi.w0y.data.PlayerLayout.POSTER,
                     isPlaying = state.isPlaying,
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,
@@ -1043,7 +1062,7 @@ fun PlayerScreen(
                         }
 
                     com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
-                    com.texfi.w0y.data.PlayerLayout.COVER -> Unit
+                    com.texfi.w0y.data.PlayerLayout.COVER, com.texfi.w0y.data.PlayerLayout.POSTER -> Unit
                 }
                 if (lyricsOn && lyrics != null) {
                     LyricsLangRow(

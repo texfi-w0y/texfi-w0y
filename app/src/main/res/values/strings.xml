@@ -603,7 +603,8 @@
     <string name="hl_cover_square">Square</string>
     <string name="hl_layout_ring">Disc ring</string>
     <string name="hl_layout_minimal">Minimal</string>
-    <string name="hl_layout_cover">Full cover</string>
+    <string name="hl_layout_poster">Poster</string>
+    <string name="hl_layout_cover">Framed cover</string>
     <string name="hl_layout_compact">Compact</string>
     <string name="hl_caps_titles">Titles + labels</string>
     <string name="hl_caps_labels">Labels only</string>
