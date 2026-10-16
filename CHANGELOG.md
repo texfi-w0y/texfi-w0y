@@ -5,13 +5,14 @@
 Search errors are now visible with a reason, plus Copy debug info and a
 connection test (no data leaves the phone).
 
-Polish pass: the bottom island no longer covers the end of lists; settings are
-ten numbered categories with favourites and search; delete protection (long-press,
-confirm, UNDO) and handle-only reordering; your own files stay in playlists after
-a sync; real numbers on the stats screen; a bottom sheet in the player (queue,
-similar, sound, speed, timer); recommendations that do not repeat and show why;
-a Hairline widget in three sizes.
-
+Polish pass: the bottom island now sits in the layout (the screen ends above it,
+not under it); settings are back to eight tabs with search behind a magnifier; delete
+protection (long-press, confirm, UNDO) and handle-only reordering; your own files stay
+in playlists after a sync; stats update by themselves, count a play after 30 seconds
+and are restored from your history; three separate player panels (sleep timer, queue
+with similar, more) that close without collapsing the player; recommendations that do
+not repeat and show one shared reason; a Hairline widget in three sizes; crashes are
+recorded locally and appear in Copy debug info.
 
 ## v0.0.3 beta-2
 
