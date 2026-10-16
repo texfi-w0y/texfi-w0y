@@ -960,4 +960,5 @@
     <string name="recap_share">Поделиться карточкой</string>
     <string name="recap_private">Посчитано только на этом телефоне. Ничего не ушло наружу.</string>
     <string name="recap_empty">В этом году пока мало музыки. Послушай ещё — итоги соберутся сами.</string>
+    <string name="home_quick_picks">Быстрый выбор</string>
 </resources>

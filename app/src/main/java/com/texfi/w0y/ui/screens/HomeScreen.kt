@@ -195,6 +195,22 @@ fun HomeScreen(
         }
 
         // Подборки по твоему вкусу: каждый блок появляется, только когда в нём есть что показать.
+        // Быстрый выбор — сразу под быстрым набором: своя подборка из радио недавних треков.
+        // Пока истории нет (первый запуск), берём первую ленту треков YouTube Music.
+        run {
+            val own = recBlocks.quickPicks.map { it.song }
+            val quick = own.ifEmpty { shelves.firstOrNull { it.songs.isNotEmpty() }?.songs.orEmpty() }
+            if (quick.isNotEmpty()) {
+                item(key = "quick-picks") {
+                    com.texfi.w0y.ui.components.QuickPicksShelf(
+                        title = stringResource(R.string.home_quick_picks).asLabel(),
+                        songs = quick,
+                        onPlay = { index -> home.play(quick, index) },
+                        modifier = Modifier.padding(top = 18.dp),
+                    )
+                }
+            }
+        }
         recBlockRow(R.string.home_block_discoveries, recBlocks.discoveries, home)
         recBlockRow(R.string.home_block_forgotten, recBlocks.forgotten, home)
         recBlockRow(R.string.home_block_time, recBlocks.timeOfDay, home)

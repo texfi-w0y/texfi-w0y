@@ -206,4 +206,23 @@ class RecEngineTest {
             db.close()
         }
     }
+
+    @Test
+    fun quickPicksComeFromRecentHistory() = runBlocking {
+        val (db, _, engine) = env()
+        try {
+            val dao = db.dao()
+            listOf("h1" to "Aa", "h2" to "Bb").forEachIndexed { i, (id, artist) ->
+                dao.saveSongMeta(SongEntity(id = id, title = id, artist = artist))
+                dao.addHistory(HistoryEntity(songId = id, playedAt = 1000L + i, listenedMs = 200_000, counted = true))
+            }
+            val quick = engine.homeBlocks(force = true).quickPicks
+            assertTrue("подборка есть: ${quick.size}", quick.size >= 8)
+            assertTrue(quick.none { it.song.id == "h1" || it.song.id == "h2" })
+            // Показ на главной не съедает продолжение очереди.
+            assertTrue(engine.continuation(song("h1", "Aa"), exclude = setOf("h1")).size >= 8)
+        } finally {
+            db.close()
+        }
+    }
 }
