@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -212,7 +213,10 @@ fun PlayerScreen(
     var position by remember { mutableLongStateOf(0L) }
     var dragPosition by remember { mutableStateOf<Long?>(null) }
     var showPlaylists by remember { mutableStateOf(false) }
-    var showPlayerMenu by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
+    var sheetTab by remember { mutableStateOf(PlayerSheetMemory.tab) }
+    val similar by viewModel.similar.collectAsStateWithLifecycle()
+    val similarLoading by viewModel.similarLoading.collectAsStateWithLifecycle()
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableStateOf(PlayerTab.QUEUE) }
     var lyricsFull by remember { mutableStateOf(false) }
@@ -321,6 +325,373 @@ fun PlayerScreen(
         label = "coverGlow",
     )
 
+    // Быстрые значения скорости и ручка — вкладка «Скорость» нижней панели.
+    fun LazyListScope.speedItems() {
+        item(key = "sheet-speed") {
+            val quick = listOf(0.75f, 1f, 1.25f, 1.5f)
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(stringResource(R.string.sheet_speed_hint), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                HairDials(
+                    dials = DialSet.SPEED,
+                    sound = effectiveSound,
+                    reverbLabel = { "" },
+                    onSpeed = viewModel::setTrackSpeed,
+                    onPitch = {},
+                    onReverb = {},
+                )
+                MenuChips(
+                    title = stringResource(R.string.sheet_speed),
+                    hint = null,
+                    options = quick.map { com.texfi.w0y.data.NumberText.speed(it) },
+                    selected = quick.indexOfFirst { kotlin.math.abs(it - effectiveSound.speed) < 0.001f },
+                    onSelect = { viewModel.setTrackSpeed(quick[it]) },
+                )
+            }
+        }
+    }
+
+    // Таймер сна, стиль визуализатора и подставка — вкладка «Таймер» нижней панели.
+    fun LazyListScope.timerItems() {
+        item(key = "sheet-timer") {
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                MenuChips(
+                    title = stringResource(R.string.player_sleep_title),
+                    hint = sleepLeft?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" },
+                    options =
+                        listOf(
+                            stringResource(R.string.player_sleep_off),
+                            stringResource(R.string.player_sleep_track),
+                            stringResource(R.string.settings_sleep_minutes, 15),
+                            stringResource(R.string.settings_sleep_minutes, 30),
+                            stringResource(R.string.settings_sleep_minutes, 60),
+                        ),
+                    selected =
+                        when {
+                            sleepAfterTrack -> 1
+                            sleepLeft != null -> -1
+                            else -> 0
+                        },
+                    onSelect = { i ->
+                        when (listOf(null, 0, 15, 30, 60)[i]) {
+                            null -> viewModel.cancelSleepTimer()
+                            0 -> viewModel.sleepAfterTrack()
+                            else -> viewModel.startSleepTimer(listOf(null, 0, 15, 30, 60)[i]!!)
+                        }
+                    },
+                )
+                val styles = com.texfi.w0y.data.VisualizerStyle.entries.filter { it.hair }
+                MenuChips(
+                    title = stringResource(R.string.player_visualizer),
+                    hint = null,
+                    options = styles.map { stringResource(it.label) },
+                    selected = styles.indexOf(settings.visualizerStyle.forUi(settings.uiStyle)),
+                    onSelect = { viewModel.setVisualizerStyle(styles[it]) },
+                )
+                PixelButton(
+                    stringResource(R.string.player_stand),
+                    onClick = { sheetOpen = false; onStand() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+
+    // Содержимое вкладок плеера. Один и тот же код кормит и вкладки под управлением (не Hairline),
+    // и нижнюю панель Hairline.
+    fun LazyListScope.tabItems(tab: PlayerTab, dials: DialSet) {
+            when (tab) {
+                PlayerTab.QUEUE -> {
+                    itemsIndexed(state.queue, key = { index, _ -> queueKeys.getOrElse(index) { "q$index" } }) { index, item ->
+                        val removable = index != state.currentIndex
+                        val protection = com.texfi.w0y.ui.components.LocalDeleteProtection.current
+                        // Смахнуть трек вбок — убрать из очереди; играющий не
+                        // трогаем: это не «убрать из очереди», а «выключить».
+                        SwipeRow(
+                            onSwipeRight = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
+                            rightLabel = stringResource(R.string.swipe_remove),
+                            onSwipeLeft = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
+                            leftLabel = stringResource(R.string.swipe_remove),
+                        ) {
+                            QueueRow(
+                                index = index,
+                                song = item,
+                                active = index == state.currentIndex,
+                                lifted = dragFrom == index,
+                                liftOffset = { if (dragFrom == index) dragOffset else 0f },
+                                onClick = { viewModel.player.playAt(index) },
+                                rowActions =
+                                    if (removable) {
+                                        listOf(
+                                            com.texfi.w0y.ui.components.RowAction(
+                                                label = stringResource(R.string.rm_remove_from_queue),
+                                                undoMessage = stringResource(R.string.rm_removed_from_queue),
+                                                onUndo = { viewModel.insertInQueue(index, item) },
+                                                run = { viewModel.removeFromQueue(index) },
+                                            ),
+                                        )
+                                    } else {
+                                        emptyList()
+                                    },
+                                onMeasured = { rowPx = it },
+                                // Перетаскивать можно только то, что ещё не играло:
+                                // очередь до играющего трека — уже прошлое.
+                                onDragStart = if (index > state.currentIndex) ({ dragFrom = index; dragOffset = 0f }) else null,
+                                onDrag = { dy ->
+                                    dragOffset += dy
+                                    val step = rowPx.coerceAtLeast(1f)
+                                    while (dragOffset > step / 2 && dragFrom + 1 < state.queue.size) {
+                                        viewModel.moveInQueue(dragFrom, dragFrom + 1)
+                                        dragFrom += 1
+                                        dragOffset -= step
+                                    }
+                                    while (dragOffset < -step / 2 && dragFrom - 1 > state.currentIndex) {
+                                        viewModel.moveInQueue(dragFrom, dragFrom - 1)
+                                        dragFrom -= 1
+                                        dragOffset += step
+                                    }
+                                },
+                                onDragEnd = {
+                                    dragFrom = -1
+                                    dragOffset = 0f
+                                },
+                            )
+                        }
+                    }
+                    item {
+                        Spacer(Modifier.height(14.dp))
+                        SectionLabel(stringResource(R.string.player_next_mode))
+                        Spacer(Modifier.height(8.dp))
+                        PixelSegmented(
+                            options = QueueMode.entries.map { stringResource(it.label) },
+                            selectedIndex = QueueMode.entries.indexOf(queueMode),
+                            onSelect = { viewModel.setQueueMode(QueueMode.entries[it]) },
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text =
+                                if (radioLoading) {
+                                    stringResource(R.string.player_finding_similar)
+                                } else {
+                                    stringResource(queueMode.hint)
+                                },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (radioLoading) colors.accent else colors.textMuted,
+                        )
+                        if (!com.texfi.w0y.ui.theme.isHair) {
+                            // Таймер сна живёт здесь, а не в углу шапки: это
+                            // ответ на вопрос «что будет дальше», а дальше —
+                            // тишина. «До конца трека» важнее круглых минут:
+                            // засыпают именно так.
+                            Spacer(Modifier.height(18.dp))
+                            SectionLabel(stringResource(R.string.player_sleep_title))
+                            Spacer(Modifier.height(8.dp))
+                            val sleepOptions = listOf(null, 0, 15, 30, 60)
+                            val selectedSleep =
+                                when {
+                                    sleepAfterTrack -> 1
+                                    sleepLeft != null -> -1
+                                    else -> 0
+                                }
+                            PixelSegmented(
+                                options =
+                                    sleepOptions.map { minutes ->
+                                        when (minutes) {
+                                            null -> stringResource(R.string.player_sleep_off)
+                                            0 -> stringResource(R.string.player_sleep_track)
+                                            else -> stringResource(R.string.settings_sleep_minutes, minutes)
+                                        }
+                                    },
+                                selectedIndex = selectedSleep,
+                                onSelect = { index ->
+                                    when (val minutes = sleepOptions[index]) {
+                                        null -> viewModel.cancelSleepTimer()
+                                        0 -> viewModel.sleepAfterTrack()
+                                        else -> viewModel.startSleepTimer(minutes)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+
+                PlayerTab.LYRICS -> {
+                    val text = lyrics
+                    if (text != null) {
+                        item(key = "lang-chips") {
+                            LyricsLangRow(
+                                selected = lyricsLang,
+                                failed = lyricsLang.isNotBlank() && translation == null && !translating,
+                                onSelect = viewModel::setLyricsLang,
+                            )
+                        }
+                    }
+                    when {
+                        text == null ->
+                            item {
+                                Text(
+                                    text = stringResource(R.string.player_lyrics_none),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textMuted,
+                                )
+                            }
+
+                        text.synced.isNotEmpty() -> {
+                            item(key = "lyrics-view") {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        PixelSegmented(
+                                            options = LyricsSize.entries.map { stringResource(it.label) },
+                                            selectedIndex = settings.lyricsSize.ordinal,
+                                            onSelect = { viewModel.setLyricsSize(LyricsSize.entries[it]) },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Spacer(Modifier.width(14.dp))
+                                        SpriteButton(Sprites.fullscreen, onClick = { lyricsFull = true }, size = 22)
+                                    }
+                                    LyricsView(
+                                        lines = text.synced,
+                                        translation = translation,
+                                        positionProvider = viewModel.player::positionMs,
+                                        playing = state.isPlaying,
+                                        size = settings.lyricsSize,
+                                        onSeek = seekLine,
+                                        modifier = Modifier.fillMaxWidth().height(LYRICS_HEIGHT),
+                                    )
+                                }
+                            }
+                        }
+
+                        else ->
+                            item {
+                                Text(
+                                    text =
+                                        translation?.let { tr ->
+                                            text.plain.orEmpty().lines().mapIndexed { i, l ->
+                                                val t = tr.getOrNull(i).orEmpty()
+                                                if (l.isBlank() || t.isBlank() || t == l) l else "$l\n$t"
+                                            }.joinToString("\n")
+                                        } ?: text.plain.orEmpty(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textMuted,
+                                )
+                            }
+                    }
+                }
+
+                PlayerTab.SOUND ->
+                    item {
+                        Text(
+                            text = stringResource(R.string.player_version_title),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = colors.text,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.player_version_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        PixelSegmented(
+                            options = SoundPreset.entries.map { stringResource(it.label) },
+                            // −1 значит «ни один»: когда скорость подкручена
+                            // руками в настройках, подсвечивать готовый пресет
+                            // было бы враньём.
+                            selectedIndex = SoundPreset.entries.indexOfFirst { it.matches(effectiveSound) },
+                            onSelect = { viewModel.setSoundPreset(SoundPreset.entries[it]) },
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        if (hair) {
+                            val reverbNames = Reverb.entries.associateWith { stringResource(it.label) }
+                            HairDials(
+                                dials = dials,
+                                sound = effectiveSound,
+                                reverbLabel = { reverbNames.getValue(it) },
+                                onSpeed = viewModel::setTrackSpeed,
+                                onPitch = viewModel::setTrackPitch,
+                                onReverb = viewModel::setTrackReverb,
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.player_speed_custom) + "  " + com.texfi.w0y.data.NumberText.speed(effectiveSound.speed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted,
+                            )
+                            PixelSlider(
+                                value = effectiveSound.speed,
+                                range = 0.2f..2.0f,
+                                step = 0.05f,
+                                onValueChange = viewModel::setTrackSpeed,
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text =
+                                    buildString {
+                                        append(
+                                            stringResource(
+                                                R.string.player_sound_speed,
+                                                com.texfi.w0y.data.NumberText.speed(effectiveSound.speed).removeSuffix("\u00d7"),
+                                            ),
+                                        )
+                                        if (effectiveSound.pitch != 1f) {
+                                            append(" ")
+                                            append(
+                                                stringResource(
+                                                    R.string.player_sound_pitch,
+                                                    effectiveSound.pitch.toString(),
+                                                ),
+                                            )
+                                        }
+                                        if (effectiveSound.reverb != Reverb.OFF) {
+                                            append(" ")
+                                            append(
+                                                stringResource(
+                                                    R.string.player_sound_reverb,
+                                                    stringResource(effectiveSound.reverb.label).lowercase(),
+                                                ),
+                                            )
+                                        }
+                                    },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted,
+                                modifier = Modifier.weight(1f),
+                            )
+                            // Кнопка есть только когда есть что снимать:
+                            // «сбросить» при отсутствии версии — пустышка.
+                            if (trackSound != null) {
+                                Spacer(Modifier.width(10.dp))
+                                PixelButton(
+                                    text = stringResource(R.string.player_version_clear),
+                                    onClick = viewModel::clearTrackSound,
+                                    fill = colors.surfaceHigh,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text =
+                                if (trackSound == null) {
+                                    stringResource(R.string.player_version_global)
+                                } else {
+                                    stringResource(R.string.player_version_own)
+                                },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (trackSound == null) colors.textMuted else colors.accent,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.player_sound_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        EditFinder(songId = song.id, edit = edit, onFind = viewModel::findEdit)
+                    }
+            }
+    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -423,7 +794,7 @@ fun PlayerScreen(
                     position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
                     visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
                     onToggleArt = toggleArt,
-                    onMenu = { showPlayerMenu = true },
+                    onMenu = { sheetTab = PlayerSheetMemory.tab; sheetOpen = true },
                     lyricsOn = lyricsOn,
                     onToggleLyrics = { lyricsOn = !lyricsOn; videoOn = false },
                     videoAvailable = isVideoTrack,
@@ -721,7 +1092,7 @@ fun PlayerScreen(
                         onAdd = { showPlaylists = true },
                         onDownload = { viewModel.download(song) },
                         onShare = viewModel::shareCard,
-                        onSleep = { showPlayerMenu = true },
+                        onSleep = { sheetTab = SheetTab.TIMER; sheetOpen = true },
                         onCopyLink = copyLinkAction(song),
                     )
                 } else Row(verticalAlignment = Alignment.CenterVertically) {
@@ -973,7 +1344,25 @@ fun PlayerScreen(
                 )
             }
             if (hair) {
-                item { Box(Modifier.padding(bottom = 10.dp)) { tabsBar() } }
+                item {
+                    val badge =
+                        if (settings.playerStateBadge) {
+                            stateBadge(
+                                effectiveSound.speed,
+                                effectiveSound.pitch,
+                                effectiveSound.reverb != com.texfi.w0y.data.Reverb.OFF,
+                                stringResource(R.string.badge_eq),
+                            )
+                        } else {
+                            null
+                        }
+                    PlayerSheetHandle(
+                        label = stringResource(R.string.sheet_handle_queue, state.queue.size),
+                        badge = badge,
+                        onOpen = { sheetTab = PlayerSheetMemory.tab; sheetOpen = true },
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                }
             } else {
                 stickyHeader {
                     // Липнет к верху: список под ней едет, переключиться можно не возвращаясь наверх.
@@ -981,316 +1370,41 @@ fun PlayerScreen(
                 }
             }
 
-            when (tab) {
-                PlayerTab.QUEUE -> {
-                    itemsIndexed(state.queue, key = { index, _ -> queueKeys.getOrElse(index) { "q$index" } }) { index, item ->
-                        val removable = index != state.currentIndex
-                        val protection = com.texfi.w0y.ui.components.LocalDeleteProtection.current
-                        // Смахнуть трек вбок — убрать из очереди; играющий не
-                        // трогаем: это не «убрать из очереди», а «выключить».
-                        SwipeRow(
-                            onSwipeRight = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
-                            rightLabel = stringResource(R.string.swipe_remove),
-                            onSwipeLeft = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
-                            leftLabel = stringResource(R.string.swipe_remove),
-                        ) {
-                            QueueRow(
-                                index = index,
-                                song = item,
-                                active = index == state.currentIndex,
-                                lifted = dragFrom == index,
-                                liftOffset = { if (dragFrom == index) dragOffset else 0f },
-                                onClick = { viewModel.player.playAt(index) },
-                                rowActions =
-                                    if (removable) {
-                                        listOf(
-                                            com.texfi.w0y.ui.components.RowAction(
-                                                label = stringResource(R.string.rm_remove_from_queue),
-                                                undoMessage = stringResource(R.string.rm_removed_from_queue),
-                                                onUndo = { viewModel.insertInQueue(index, item) },
-                                                run = { viewModel.removeFromQueue(index) },
-                                            ),
-                                        )
-                                    } else {
-                                        emptyList()
-                                    },
-                                onMeasured = { rowPx = it },
-                                // Перетаскивать можно только то, что ещё не играло:
-                                // очередь до играющего трека — уже прошлое.
-                                onDragStart = if (index > state.currentIndex) ({ dragFrom = index; dragOffset = 0f }) else null,
-                                onDrag = { dy ->
-                                    dragOffset += dy
-                                    val step = rowPx.coerceAtLeast(1f)
-                                    while (dragOffset > step / 2 && dragFrom + 1 < state.queue.size) {
-                                        viewModel.moveInQueue(dragFrom, dragFrom + 1)
-                                        dragFrom += 1
-                                        dragOffset -= step
-                                    }
-                                    while (dragOffset < -step / 2 && dragFrom - 1 > state.currentIndex) {
-                                        viewModel.moveInQueue(dragFrom, dragFrom - 1)
-                                        dragFrom -= 1
-                                        dragOffset += step
-                                    }
-                                },
-                                onDragEnd = {
-                                    dragFrom = -1
-                                    dragOffset = 0f
-                                },
-                            )
-                        }
-                    }
-                    item {
-                        Spacer(Modifier.height(14.dp))
-                        SectionLabel(stringResource(R.string.player_next_mode))
-                        Spacer(Modifier.height(8.dp))
-                        PixelSegmented(
-                            options = QueueMode.entries.map { stringResource(it.label) },
-                            selectedIndex = QueueMode.entries.indexOf(queueMode),
-                            onSelect = { viewModel.setQueueMode(QueueMode.entries[it]) },
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text =
-                                if (radioLoading) {
-                                    stringResource(R.string.player_finding_similar)
-                                } else {
-                                    stringResource(queueMode.hint)
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (radioLoading) colors.accent else colors.textMuted,
-                        )
-                        if (!com.texfi.w0y.ui.theme.isHair) {
-                            // Таймер сна живёт здесь, а не в углу шапки: это
-                            // ответ на вопрос «что будет дальше», а дальше —
-                            // тишина. «До конца трека» важнее круглых минут:
-                            // засыпают именно так.
-                            Spacer(Modifier.height(18.dp))
-                            SectionLabel(stringResource(R.string.player_sleep_title))
-                            Spacer(Modifier.height(8.dp))
-                            val sleepOptions = listOf(null, 0, 15, 30, 60)
-                            val selectedSleep =
-                                when {
-                                    sleepAfterTrack -> 1
-                                    sleepLeft != null -> -1
-                                    else -> 0
-                                }
-                            PixelSegmented(
-                                options =
-                                    sleepOptions.map { minutes ->
-                                        when (minutes) {
-                                            null -> stringResource(R.string.player_sleep_off)
-                                            0 -> stringResource(R.string.player_sleep_track)
-                                            else -> stringResource(R.string.settings_sleep_minutes, minutes)
-                                        }
-                                    },
-                                selectedIndex = selectedSleep,
-                                onSelect = { index ->
-                                    when (val minutes = sleepOptions[index]) {
-                                        null -> viewModel.cancelSleepTimer()
-                                        0 -> viewModel.sleepAfterTrack()
-                                        else -> viewModel.startSleepTimer(minutes)
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-
-                PlayerTab.LYRICS -> {
-                    val text = lyrics
-                    if (text != null) {
-                        item(key = "lang-chips") {
-                            LyricsLangRow(
-                                selected = lyricsLang,
-                                failed = lyricsLang.isNotBlank() && translation == null && !translating,
-                                onSelect = viewModel::setLyricsLang,
-                            )
-                        }
-                    }
-                    when {
-                        text == null ->
-                            item {
-                                Text(
-                                    text = stringResource(R.string.player_lyrics_none),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colors.textMuted,
-                                )
-                            }
-
-                        text.synced.isNotEmpty() -> {
-                            item(key = "lyrics-view") {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        PixelSegmented(
-                                            options = LyricsSize.entries.map { stringResource(it.label) },
-                                            selectedIndex = settings.lyricsSize.ordinal,
-                                            onSelect = { viewModel.setLyricsSize(LyricsSize.entries[it]) },
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        Spacer(Modifier.width(14.dp))
-                                        SpriteButton(Sprites.fullscreen, onClick = { lyricsFull = true }, size = 22)
-                                    }
-                                    LyricsView(
-                                        lines = text.synced,
-                                        translation = translation,
-                                        positionProvider = viewModel.player::positionMs,
-                                        playing = state.isPlaying,
-                                        size = settings.lyricsSize,
-                                        onSeek = seekLine,
-                                        modifier = Modifier.fillMaxWidth().height(LYRICS_HEIGHT),
-                                    )
-                                }
-                            }
-                        }
-
-                        else ->
-                            item {
-                                Text(
-                                    text =
-                                        translation?.let { tr ->
-                                            text.plain.orEmpty().lines().mapIndexed { i, l ->
-                                                val t = tr.getOrNull(i).orEmpty()
-                                                if (l.isBlank() || t.isBlank() || t == l) l else "$l\n$t"
-                                            }.joinToString("\n")
-                                        } ?: text.plain.orEmpty(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colors.textMuted,
-                                )
-                            }
-                    }
-                }
-
-                PlayerTab.SOUND ->
-                    item {
-                        Text(
-                            text = stringResource(R.string.player_version_title),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = colors.text,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.player_version_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        PixelSegmented(
-                            options = SoundPreset.entries.map { stringResource(it.label) },
-                            // −1 значит «ни один»: когда скорость подкручена
-                            // руками в настройках, подсвечивать готовый пресет
-                            // было бы враньём.
-                            selectedIndex = SoundPreset.entries.indexOfFirst { it.matches(effectiveSound) },
-                            onSelect = { viewModel.setSoundPreset(SoundPreset.entries[it]) },
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        if (hair) {
-                            val reverbNames = Reverb.entries.associateWith { stringResource(it.label) }
-                            HairDials(
-                                sound = effectiveSound,
-                                reverbLabel = { reverbNames.getValue(it) },
-                                onSpeed = viewModel::setTrackSpeed,
-                                onPitch = viewModel::setTrackPitch,
-                                onReverb = viewModel::setTrackReverb,
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.player_speed_custom) + "  " + com.texfi.w0y.data.NumberText.speed(effectiveSound.speed),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textMuted,
-                            )
-                            PixelSlider(
-                                value = effectiveSound.speed,
-                                range = 0.2f..2.0f,
-                                step = 0.05f,
-                                onValueChange = viewModel::setTrackSpeed,
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text =
-                                    buildString {
-                                        append(
-                                            stringResource(
-                                                R.string.player_sound_speed,
-                                                com.texfi.w0y.data.NumberText.speed(effectiveSound.speed).removeSuffix("\u00d7"),
-                                            ),
-                                        )
-                                        if (effectiveSound.pitch != 1f) {
-                                            append(" ")
-                                            append(
-                                                stringResource(
-                                                    R.string.player_sound_pitch,
-                                                    effectiveSound.pitch.toString(),
-                                                ),
-                                            )
-                                        }
-                                        if (effectiveSound.reverb != Reverb.OFF) {
-                                            append(" ")
-                                            append(
-                                                stringResource(
-                                                    R.string.player_sound_reverb,
-                                                    stringResource(effectiveSound.reverb.label).lowercase(),
-                                                ),
-                                            )
-                                        }
-                                    },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textMuted,
-                                modifier = Modifier.weight(1f),
-                            )
-                            // Кнопка есть только когда есть что снимать:
-                            // «сбросить» при отсутствии версии — пустышка.
-                            if (trackSound != null) {
-                                Spacer(Modifier.width(10.dp))
-                                PixelButton(
-                                    text = stringResource(R.string.player_version_clear),
-                                    onClick = viewModel::clearTrackSound,
-                                    fill = colors.surfaceHigh,
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            text =
-                                if (trackSound == null) {
-                                    stringResource(R.string.player_version_global)
-                                } else {
-                                    stringResource(R.string.player_version_own)
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (trackSound == null) colors.textMuted else colors.accent,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.player_sound_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                        )
-                        Spacer(Modifier.height(20.dp))
-                        EditFinder(songId = song.id, edit = edit, onFind = viewModel::findEdit)
-                    }
-            }
+            // Для Hairline содержимое вкладок живёт в нижней панели, а не под управлением.
+            if (!hair) tabItems(tab, DialSet.ALL)
             item { Spacer(Modifier.height(30.dp)) }
         }
         }
 
-        if (showPlayerMenu) {
-            HairPlayerMenu(
-                sleepLeftMs = sleepLeft,
-                sleepAfterTrack = sleepAfterTrack,
-                style = settings.visualizerStyle.forUi(settings.uiStyle),
-                onSleep = { minutes ->
-                    when (minutes) {
-                        null -> viewModel.cancelSleepTimer()
-                        0 -> viewModel.sleepAfterTrack()
-                        else -> viewModel.startSleepTimer(minutes)
-                    }
-                },
-                onStyle = viewModel::setVisualizerStyle,
-                onStand = onStand,
-                onDismiss = { showPlayerMenu = false },
-            )
+        if (hair) {
+            PlayerSheet(
+                visible = sheetOpen,
+                tab = sheetTab,
+                onTab = { sheetTab = it; PlayerSheetMemory.tab = it },
+                onDismiss = { sheetOpen = false },
+            ) { t ->
+                when (t) {
+                    SheetTab.QUEUE -> tabItems(PlayerTab.QUEUE, DialSet.ALL)
+
+                    SheetTab.SIMILAR ->
+                        similarItems(
+                            set = similar,
+                            loading = similarLoading,
+                            onRefresh = viewModel::refreshSimilar,
+                            onPlay = { viewModel.moreLikeThis(it); sheetOpen = false },
+                            onEnqueue = viewModel::enqueue,
+                            onNext = viewModel::playNextSong,
+                            onMore = { viewModel.moreLikeThis(it); sheetOpen = false },
+                            onLess = viewModel::lessLikeThis,
+                        )
+
+                    SheetTab.SOUND -> tabItems(PlayerTab.SOUND, DialSet.TONE)
+
+                    SheetTab.SPEED -> speedItems()
+
+                    SheetTab.TIMER -> timerItems()
+                }
+            }
         }
         if (showPlaylists) {
             AddToPlaylistPanel(
