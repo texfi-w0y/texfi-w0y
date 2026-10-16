@@ -165,6 +165,19 @@ fun stateBadge(speed: Float, pitch: Float, reverbOn: Boolean, eq: String): Strin
 }
 
 /**
+ * Затемнение под нижней панелью, которое оболочка дорисовывает поверх островка. Панель живёт в
+ * области экрана над островком (иначе он закрывал бы её низ), поэтому её собственная вуаль
+ * обрывалась на его верхнем крае; оболочка продолжает её до самого низа с той же яркостью.
+ */
+class ModalDim {
+    var alpha by androidx.compose.runtime.mutableFloatStateOf(0f)
+    var dismiss: (() -> Unit)? by androidx.compose.runtime.mutableStateOf(null)
+    internal var owner: Any? = null
+}
+
+val LocalModalDim = androidx.compose.runtime.staticCompositionLocalOf<ModalDim?> { null }
+
+/**
  * Каркас нижней панели Hairline: затемнение, панель с контуром 1 dp, ручка.
  *
  * Закрывается жестом вниз (по ручке, по затемнению и тягой вниз за прокрутку, когда список
@@ -199,6 +212,32 @@ fun HairSheetFrame(
         }
     }
     val currentDismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
+    val shown by androidx.compose.animation.core.animateFloatAsState(if (visible) 1f else 0f, hairSpec(), label = "sheetDim")
+    val dim = LocalModalDim.current
+    val dimKey = remember { Any() }
+    val dimAlpha = 0.55f * shown * (1f - (dragPx / heightPx).coerceIn(0f, 1f))
+    androidx.compose.runtime.SideEffect {
+        if (dim != null) {
+            if (dimAlpha > 0.001f) {
+                dim.owner = dimKey
+                dim.alpha = dimAlpha
+                dim.dismiss = { currentDismiss() }
+            } else if (dim.owner === dimKey) {
+                dim.owner = null
+                dim.alpha = 0f
+                dim.dismiss = null
+            }
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(dim) {
+        onDispose {
+            if (dim?.owner === dimKey) {
+                dim.owner = null
+                dim.alpha = 0f
+                dim.dismiss = null
+            }
+        }
+    }
     fun settle(velocityY: Float = 0f) {
         if (dragPx > dismissAt || velocityY > 1600f) {
             // Смахнули: панель доезжает вниз той же рукой, а не пропадает рывком.

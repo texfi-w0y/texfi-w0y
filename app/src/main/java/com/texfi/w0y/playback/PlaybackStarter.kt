@@ -245,15 +245,36 @@ class PlaybackStarter @Inject constructor(
         radioJob =
             scope.launch {
                 _loadingRadio.value = true
-                val played = player.state.value.queue.map { it.id }.toSet()
-                val next =
-                    runCatching {
-                        withContext(Dispatchers.IO) { recommendations.continuation(seed, exclude = played) }
-                    }.onFailure { Timber.w(it, "Рекомендации для ${seed.id} не пришли") }
-                        .getOrDefault(emptyList())
-                        .let(::prepare)
-                if (next.isNotEmpty()) player.replaceUpcoming(next)
+                // Сеть на холодном старте может не ответить с первого раза: одна повторная попытка
+                // через пару секунд, иначе очередь так и оставалась из одного трека.
+                repeat(RADIO_ATTEMPTS) { attempt ->
+                    if (attempt > 0) {
+                        kotlinx.coroutines.delay(RADIO_RETRY_MS)
+                        // Пока ждали, включили другое — продолжение уже не для этого трека.
+                        if (player.state.value.song?.id != seed.id) {
+                            _loadingRadio.value = false
+                            return@launch
+                        }
+                    }
+                    val played = (player.state.value.queue.map { it.id } + seed.id).toSet()
+                    val next =
+                        runCatching {
+                            withContext(Dispatchers.IO) { recommendations.continuation(seed, exclude = played) }
+                        }.onFailure { Timber.w(it, "Рекомендации для ${seed.id} не пришли") }
+                            .getOrDefault(emptyList())
+                            .let(::prepare)
+                    if (next.isNotEmpty()) {
+                        player.replaceUpcoming(next)
+                        _loadingRadio.value = false
+                        return@launch
+                    }
+                }
                 _loadingRadio.value = false
             }
+    }
+
+    private companion object {
+        const val RADIO_ATTEMPTS = 2
+        const val RADIO_RETRY_MS = 2_500L
     }
 }
