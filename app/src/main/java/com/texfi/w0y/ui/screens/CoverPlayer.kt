@@ -1,14 +1,29 @@
 package com.texfi.w0y.ui.screens
 
 import android.os.Build
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,71 +32,92 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.texfi.w0y.R
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.Thumbnails
-import com.texfi.w0y.ui.components.HairIconButton
 import com.texfi.w0y.ui.components.HairMath
-import com.texfi.w0y.ui.icons.HairGlyph
+import com.texfi.w0y.ui.components.hairSpec
+import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.HairLabelStyle
+import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.theme.LocalW0yColors
+import com.texfi.w0y.ui.theme.hairLook
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Палитра страницы поверх размытой обложки: фон всегда тёмный, текст белый — независимо
- * от темы приложения, иначе на тёмном размытии светлая тема давала бы нечитаемый текст.
+ * Палитра поверх размытой обложки: фон тёмный при любой теме, текст светлый, линии заметнее
+ * обычного — на цветном пятне тонкий контур иначе теряется. Акцент остаётся акцентом:
+ * включённое (повтор, перемешивание, лайк) видно цветом, а не только толщиной.
  */
 @Composable
 private fun overBlurColors() =
-    LocalW0yColors.current.copy(
-        background = Color(0xFF0B0B0E),
-        surface = Color.Black.copy(alpha = 0.35f),
-        surfaceHigh = Color.White.copy(alpha = 0.14f),
-        border = Color.White.copy(alpha = 0.18f),
-        lineStrong = Color.White.copy(alpha = 0.38f),
-        text = Color.White,
-        textMuted = Color.White.copy(alpha = 0.68f),
-        progress = Color.White,
-        accentText = Color.White,
-    )
+    LocalW0yColors.current.let { base ->
+        base.copy(
+            background = Color(0xFF0B0B0E),
+            surface = Color(0xFF15151B).copy(alpha = 0.72f),
+            surfaceHigh = Color.White.copy(alpha = 0.12f),
+            border = Color.White.copy(alpha = 0.22f),
+            lineStrong = Color.White.copy(alpha = 0.5f),
+            text = Color.White,
+            textMuted = Color.White.copy(alpha = 0.74f),
+        )
+    }
 
 /**
- * Размытая обложка на весь экран: цвета трека растекаются по фону сами, при смене трека
- * плавно перетекают в новые. С Android 12 размытие настоящее; на старых версиях картинка
- * берётся мелкой и растягивается — получается то же мягкое пятно.
+ * Размытая обложка на весь экран. Цвета трека растекаются по фону сами и при смене трека
+ * перетекают в новые; пока играет — пятно медленно дышит (масштаб и сдвиг, цикл 18 с).
+ * С Android 12 размытие настоящее, на старых версиях — мелкая картинка, растянутая в мягкое пятно.
  */
 @Composable
-fun PlayerBlurBackdrop(url: String?, modifier: Modifier = Modifier) {
+fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val moves = hairLook.motion.moves && playing
+    val drift = rememberInfiniteTransition(label = "blurDrift")
+    val phase by drift.animateFloat(0f, 1f, infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Reverse), label = "blurPhase")
     Box(modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
-        Crossfade(targetState = url, animationSpec = tween(600), label = "blurBackdrop") { current ->
+        Crossfade(targetState = url, animationSpec = tween(700), label = "blurBackdrop") { current ->
             AsyncImage(
                 model = ImageRequest.Builder(context).data(Thumbnails.sized(current, 96)).crossfade(false).build(),
                 contentDescription = null,
@@ -90,18 +126,21 @@ fun PlayerBlurBackdrop(url: String?, modifier: Modifier = Modifier) {
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            // Чуть больше экрана: размытие не оставляет светлой каймы по краям.
-                            scaleX = 1.35f
-                            scaleY = 1.35f
-                            alpha = 0.95f
+                            val p = if (moves) phase else 0.5f
+                            val scale = 1.4f + 0.12f * p
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = (p - 0.5f) * size.width * 0.08f
+                            translationY = (0.5f - p) * size.height * 0.05f
                         }
-                        .then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(56.dp) else Modifier),
+                        .then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(64.dp) else Modifier),
             )
         }
+        // Затемнение сильнее к низу: управление стоит на спокойном тёмном поле.
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.18f), Color.Black.copy(alpha = 0.42f), Color.Black.copy(alpha = 0.72f)))),
+                .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.35f), 0.45f to Color.Black.copy(alpha = 0.45f), 1f to Color.Black.copy(alpha = 0.82f))),
         )
     }
 }
@@ -118,151 +157,184 @@ internal fun PlainCover(url: String?, modifier: Modifier = Modifier) {
 }
 
 /**
- * Плеер «обложка на весь экран»: всё на одном экране, без прокрутки. Сверху обложка от края до
- * края, внизу она растворяется в размытии; ниже — название, полоса, управление и ряд значков:
- * текст песни, звук (скорость, тон), исполнитель, очередь с рекомендациями.
+ * Появление блока при открытии плеера: снизу на 24 dp и из прозрачности, с задержкой по номеру
+ * блока — экран собирается ступенью сверху вниз. В Motion Off — сразу на месте.
+ */
+@Composable
+private fun Modifier.hairEnter(index: Int): Modifier {
+    val moves = hairLook.motion.moves
+    val anim = remember { Animatable(if (moves) 0f else 1f) }
+    LaunchedEffect(Unit) {
+        if (moves) {
+            delay(60L * index)
+            anim.animateTo(1f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut))
+        }
+    }
+    return graphicsLayer {
+        alpha = anim.value
+        translationY = (1f - anim.value) * 24.dp.toPx()
+    }
+}
+
+/**
+ * Тяга вниз по любому месту страницы сворачивает плеер, как в остальных раскладках: страница не
+ * прокручивается, поэтому сама отдаёт жест шторке через вложенную прокрутку.
+ */
+@Composable
+private fun Modifier.dragToCollapse(): Modifier {
+    val dispatcher = remember { NestedScrollDispatcher() }
+    val scope = rememberCoroutineScope()
+    val noop = remember { object : NestedScrollConnection {} }
+    return nestedScroll(noop, dispatcher).pointerInput(Unit) {
+        val tracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onDragStart = { tracker.resetTracking() },
+            onDragEnd = {
+                val v = Velocity(0f, tracker.calculateVelocity().y)
+                scope.launch {
+                    val used = dispatcher.dispatchPreFling(v)
+                    dispatcher.dispatchPostFling(used, v - used)
+                }
+            },
+            onDragCancel = { scope.launch { dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero) } },
+        ) { change, dy ->
+            change.consume()
+            tracker.addPosition(change.uptimeMillis, change.position)
+            val delta = Offset(0f, dy)
+            val pre = dispatcher.dispatchPreScroll(delta, NestedScrollSource.UserInput)
+            dispatcher.dispatchPostScroll(Offset.Zero, delta - pre, NestedScrollSource.UserInput)
+        }
+    }
+}
+
+/**
+ * Рамка обложки Hairline: тонкий контур с зазором, по которому бежит прогресс трека — та же
+ * мысль, что кольцо диска, только по скруглённому квадрату. По углам — короткие засечки,
+ * как на чертёжном листе.
+ */
+private fun Modifier.progressFrame(progress: () -> Float, line: Color, tone: Color, width: Float, radius: Float): Modifier =
+    drawWithContent {
+        drawContent()
+        val inset = width / 2f
+        val path = Path().apply { addRoundRect(RoundRect(inset, inset, size.width - inset, size.height - inset, CornerRadius(radius))) }
+        drawPath(path, line, style = Stroke(width))
+        val p = progress().coerceIn(0f, 1f)
+        if (p > 0f) {
+            val measure = PathMeasure().apply { setPath(path, false) }
+            val seg = Path()
+            measure.getSegment(0f, measure.length * p, seg, true)
+            drawPath(seg, tone, style = Stroke(width * 2.2f, cap = StrokeCap.Round))
+        }
+        val tick = 10.dp.toPx()
+        val out = -6.dp.toPx()
+        listOf(Offset(out, out) to Offset(1f, 1f), Offset(size.width - out, out) to Offset(-1f, 1f), Offset(out, size.height - out) to Offset(1f, -1f), Offset(size.width - out, size.height - out) to Offset(-1f, -1f))
+            .forEach { (c, d) ->
+                drawLine(line, c, c + Offset(tick * d.x, 0f), width)
+                drawLine(line, c, c + Offset(0f, tick * d.y), width)
+            }
+    }
+
+/**
+ * Раскладка «обложка»: своя, Hairline. Всё на одном экране без прокрутки.
  *
- * Содержимое обложки ([stage]) — сама обложка, визуализатор, видео или текст: их выбирает
- * вызывающий, как в остальных раскладках.
+ * Фон — размытая обложка. Сверху та же шапка, что в остальных раскладках (свернуть, номер трека,
+ * текст, эффект, ещё). В центре обложка в тонкой рамке, по которой бежит прогресс; при смене трека
+ * она уезжает в сторону смахивания, на паузе чуть сжимается. Ниже — название, ряд действий,
+ * полоса, управление и плашка очереди. Тяга вниз сворачивает плеер.
  */
 @Composable
 internal fun CoverPlayerPage(
     song: SongItem,
     isPlaying: Boolean,
-    shuffle: Boolean,
-    repeatActive: Boolean,
-    repeatOne: Boolean,
     positionMs: Long,
     durationMs: Long,
-    liked: Boolean,
-    lyricsOn: Boolean,
-    positionLabel: String?,
     stage: @Composable (String?) -> Unit,
+    header: @Composable () -> Unit,
     titleBlock: @Composable (Modifier) -> Unit,
-    onCollapse: () -> Unit,
+    actions: @Composable () -> Unit,
+    transport: @Composable () -> Unit,
+    plate: @Composable () -> Unit,
     onCoverTap: () -> Unit,
     onSwipe: (Int) -> Unit,
     onDrag: (Long) -> Unit,
     onDragEnd: () -> Unit,
-    onShuffle: () -> Unit,
-    onPrevious: () -> Unit,
-    onToggle: () -> Unit,
-    onNext: () -> Unit,
-    onRepeat: () -> Unit,
-    onLike: () -> Unit,
-    onDots: () -> Unit,
-    onLyrics: () -> Unit,
-    onSound: () -> Unit,
-    onArtist: () -> Unit,
-    onQueue: () -> Unit,
 ) {
-    CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalW0yColors provides overBlurColors()) {
+    CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
-        Box(Modifier.fillMaxSize()) {
-            PlayerBlurBackdrop(song.thumbnailUrl)
-            Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-                // Обложка: от края до края, нижняя треть плавно уходит в прозрачность.
-                Box(
+        val look = hairLook
+        val tone = Contrast.ensure(colors.accent, colors.background)
+        var lastSwipe by remember { mutableIntStateOf(1) }
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val lineFrame = with(density) { look.line.toPx() }
+        val inSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.LONG_MS)
+        val outSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.MID_MS)
+        val inFade = hairSpec<Float>(HairTokens.LONG_MS)
+        val outFade = hairSpec<Float>(HairTokens.MID_MS)
+        val progressTarget = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+        val progress by animateFloatAsState(progressTarget, tween(480, easing = LinearEasing), label = "frameProgress")
+        val breathe by animateFloatAsState(if (isPlaying) 1f else 0.94f, spring(dampingRatio = 0.6f, stiffness = 260f), label = "coverBreathe")
+        Box(Modifier.fillMaxSize().dragToCollapse()) {
+            PlayerBlurBackdrop(song.thumbnailUrl, isPlaying)
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+                Box(Modifier.hairEnter(0)) { header() }
+                BoxWithConstraints(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .pointerInput(song.id) {
-                            var total = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = { total = 0f },
-                                onDragEnd = {
-                                    when {
-                                        total <= -SWIPE_PX -> onSwipe(1)
-                                        total >= SWIPE_PX -> onSwipe(-1)
-                                    }
-                                },
-                            ) { _, dx -> total += dx }
-                        }
-                        .pointerInput(Unit) { detectTapGestures { onCoverTap() } }
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(Brush.verticalGradient(0.58f to Color.Black, 1f to Color.Transparent), blendMode = BlendMode.DstIn)
-                        },
+                        .padding(vertical = 10.dp)
+                        .hairEnter(1),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Crossfade(targetState = song.id, animationSpec = tween(260), label = "coverSong") { _ ->
-                        Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) }
+                    val side = minOf(maxWidth, maxHeight) - 16.dp
+                    val radius = look.cardRadius.coerceIn(10.dp, 22.dp)
+                    val framePx = with(density) { (radius + 6.dp).toPx() }
+                    Box(
+                        Modifier
+                            .size(side)
+                            .graphicsLayer {
+                                scaleX = breathe
+                                scaleY = breathe
+                            }
+                            .progressFrame({ progress }, colors.outline, tone, lineFrame, framePx)
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(radius))
+                            .pointerInput(song.id) {
+                                var total = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { total = 0f },
+                                    onDragEnd = {
+                                        when {
+                                            total <= -SWIPE_PX -> { lastSwipe = 1; onSwipe(1) }
+                                            total >= SWIPE_PX -> { lastSwipe = -1; onSwipe(-1) }
+                                        }
+                                    },
+                                ) { _, dx -> total += dx }
+                            }
+                            .pointerInput(Unit) { detectTapGestures { onCoverTap() } },
+                    ) {
+                        AnimatedContent(
+                            targetState = song.id,
+                            transitionSpec = {
+                                val dir = lastSwipe
+                                (slideInHorizontally(inSlide) { it * dir / 3 } + fadeIn(inFade) + scaleIn(inFade, initialScale = 0.92f))
+                                    .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 3 } + fadeOut(outFade))
+                            },
+                            label = "coverTrack",
+                        ) { _ -> Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } }
                     }
                 }
-
-                Column(Modifier.padding(horizontal = 24.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        titleBlock(Modifier.weight(1f))
-                        HairIconButton(
-                            HairGlyph.HEART,
-                            stringResource(R.string.player_cd_like),
-                            onLike,
-                            tint = if (liked) colors.accent else colors.textMuted,
-                            fill = { if (liked) 1f else 0f },
-                        )
-                        Spacer(Modifier.width(2.dp))
-                        Box(
-                            Modifier
-                                .padding(start = 4.dp)
-                                .height(40.dp)
-                                .width(40.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(colors.surfaceHigh)
-                                .clickable(onClick = onDots),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            com.texfi.w0y.ui.icons.HairIcon(HairGlyph.DOTS, colors.text, Modifier.width(20.dp).height(20.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
+                Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
+                Box(Modifier.padding(top = 2.dp).hairEnter(3)) { actions() }
+                Column(Modifier.hairEnter(4)) {
                     HairSeekLine(positionMs = positionMs, durationMs = durationMs, onDrag = onDrag, onDragEnd = onDragEnd)
                     Row(Modifier.fillMaxWidth()) {
-                        Text(HairMath.formatTime(positionMs), style = HairLabelStyle, color = colors.textMuted)
+                        Text(HairMath.formatTime(positionMs), style = HairLabelStyle, color = tone)
                         Spacer(Modifier.weight(1f))
-                        if (positionLabel != null) Text(positionLabel.uppercase(), style = HairLabelStyle, color = colors.textMuted)
-                        Spacer(Modifier.weight(1f))
-                        Text("-" + HairMath.formatTime((durationMs - positionMs).coerceAtLeast(0)), style = HairLabelStyle, color = colors.textMuted)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    HairTransport(
-                        playing = isPlaying,
-                        shuffle = shuffle,
-                        repeatActive = repeatActive,
-                        repeatOne = repeatOne,
-                        onShuffle = onShuffle,
-                        onPrevious = onPrevious,
-                        onToggle = onToggle,
-                        onNext = onNext,
-                        onRepeat = onRepeat,
-                        playSize = 72.dp,
-                    )
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        HairIconButton(HairGlyph.LYRICS, stringResource(R.string.player_lyrics), onLyrics, tint = if (lyricsOn) colors.accent else colors.text)
-                        Row(
-                            Modifier.clip(RoundedCornerShape(24.dp)).background(colors.surfaceHigh),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            HairIconButton(HairGlyph.HEADPHONES, stringResource(R.string.sheet_badge_cd), onSound, tint = colors.text)
-                            Box(Modifier.width(1.dp).height(24.dp).background(colors.border))
-                            HairIconButton(HairGlyph.ARTIST, stringResource(R.string.player_to_artist), onArtist, tint = colors.text)
-                        }
-                        HairIconButton(HairGlyph.QUEUE, stringResource(R.string.sheet_open_cd), onQueue, tint = colors.text)
+                        Text(HairMath.formatTime(durationMs), style = HairLabelStyle, color = colors.textMuted)
                     }
                 }
-            }
-            // Верх: ручка и номер трека поверх обложки.
-            Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier
-                        .clickable(onClick = onCollapse)
-                        .padding(horizontal = 40.dp, vertical = 10.dp),
-                ) {
-                    Box(Modifier.width(40.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.7f)))
-                }
+                Box(Modifier.padding(vertical = 4.dp).hairEnter(5)) { transport() }
+                Box(Modifier.padding(top = 4.dp, bottom = 8.dp).hairEnter(6)) { plate() }
             }
         }
     }

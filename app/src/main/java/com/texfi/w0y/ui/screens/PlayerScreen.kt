@@ -68,8 +68,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.layout
-import com.texfi.w0y.ui.components.RowAction
-import com.texfi.w0y.ui.components.RowActionsMenu
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -221,7 +219,6 @@ fun PlayerScreen(
     var panel by remember { mutableStateOf<PlayerPanel?>(null) }
     var queueTab by remember { mutableStateOf(PlayerPanelMemory.queueTab) }
     var moreTab by remember { mutableStateOf(PlayerPanelMemory.moreTab) }
-    var showActions by remember { mutableStateOf(false) }
     val similar by viewModel.similar.collectAsStateWithLifecycle()
     val similarLoading by viewModel.similarLoading.collectAsStateWithLifecycle()
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
@@ -836,17 +833,72 @@ fun PlayerScreen(
                 CoverPlayerPage(
                     song = song,
                     isPlaying = state.isPlaying,
-                    shuffle = state.shuffle,
-                    repeatActive = state.repeatMode != Player.REPEAT_MODE_OFF,
-                    repeatOne = state.repeatMode == Player.REPEAT_MODE_ONE,
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,
-                    liked = liked,
-                    lyricsOn = lyricsOn,
-                    positionLabel = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
                     stage = stageContent,
-                    titleBlock = { m -> HairTitleBlock(song, layout, trackSound, m) },
-                    onCollapse = onCollapse,
+                    header = {
+                        HairPlayerHeader(
+                            onCollapse = onCollapse,
+                            position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
+                            visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
+                            onToggleArt = toggleArt,
+                            onMenu = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
+                            lyricsOn = lyricsOn,
+                            onToggleLyrics = { lyricsOn = !lyricsOn; videoOn = false },
+                            videoAvailable = isVideoTrack,
+                            videoOn = videoOn,
+                            onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
+                        )
+                    },
+                    titleBlock = { m -> HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m) },
+                    actions = {
+                        HairActionsRow(
+                            song = song,
+                            liked = liked,
+                            pinned = pinned,
+                            sharing = sharing,
+                            sleepLeftMs = sleepLeft,
+                            onLike = { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) },
+                            onPin = { viewModel.togglePin(song) },
+                            onAdd = { showPlaylists = true },
+                            onDownload = { viewModel.download(song) },
+                            onShare = viewModel::shareCard,
+                            onSleep = { panel = PlayerPanel.SLEEP },
+                            onCopyLink = copyLinkAction(song),
+                        )
+                    },
+                    transport = {
+                        HairTransport(
+                            playing = state.isPlaying,
+                            shuffle = state.shuffle,
+                            repeatActive = state.repeatMode != Player.REPEAT_MODE_OFF,
+                            repeatOne = state.repeatMode == Player.REPEAT_MODE_ONE,
+                            onShuffle = viewModel.player::toggleShuffle,
+                            onPrevious = viewModel.player::skipPrevious,
+                            onToggle = viewModel.player::togglePlayPause,
+                            onNext = { viewModel.player.skipNext() },
+                            onRepeat = viewModel.player::cycleRepeat,
+                            playSize = 76.dp,
+                        )
+                    },
+                    plate = {
+                        val badge =
+                            if (settings.playerStateBadge) {
+                                stateBadge(effectiveSound.speed, effectiveSound.pitch, effectiveSound.reverb != com.texfi.w0y.data.Reverb.OFF, stringResource(R.string.badge_eq))
+                            } else {
+                                null
+                            }
+                        PlayerSheetHandle(
+                            label = stringResource(R.string.sheet_handle_queue, state.queue.size),
+                            badge = badge,
+                            onOpen = { queueTab = PlayerPanelMemory.queueTab; panel = PlayerPanel.QUEUE },
+                            onBadge = {
+                                PlayerPanelMemory.moreTab = MoreTab.SPEED
+                                moreTab = MoreTab.SPEED
+                                panel = PlayerPanel.MORE
+                            },
+                        )
+                    },
                     onCoverTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
                     onSwipe = { dir -> haptic(Buzz.TRACK); if (dir > 0) viewModel.player.skipNext() else viewModel.player.skipPrevious() },
                     onDrag = { dragPosition = it },
@@ -854,27 +906,23 @@ fun PlayerScreen(
                         dragPosition?.let(seekNow)
                         dragPosition = null
                     },
-                    onShuffle = viewModel.player::toggleShuffle,
-                    onPrevious = viewModel.player::skipPrevious,
-                    onToggle = viewModel.player::togglePlayPause,
-                    onNext = { viewModel.player.skipNext() },
-                    onRepeat = viewModel.player::cycleRepeat,
-                    onLike = { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) },
-                    onDots = { showActions = true },
-                    onLyrics = { lyricsOn = !lyricsOn; videoOn = false },
-                    onSound = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
-                    onArtist = {
-                        val artist = song.artistLinks().firstOrNull()
-                        if (artist != null) {
-                            onCollapse()
-                            navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
-                        }
-                    },
-                    onQueue = { queueTab = PlayerPanelMemory.queueTab; panel = PlayerPanel.QUEUE },
                 )
             } else androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             LazyColumn(
-            Modifier.weight(1f),
+            // Низ списка растворяется перед закреплённой плашкой очереди, а не обрезается под ней.
+            Modifier
+                .weight(1f)
+                .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    if (hair) {
+                        val fade = 36.dp.toPx()
+                        drawRect(
+                            Brush.verticalGradient(0f to Color.Black, ((size.height - fade) / size.height).coerceIn(0f, 1f) to Color.Black, 1f to Color.Transparent),
+                            blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                        )
+                    }
+                },
             contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 20.dp, end = 20.dp),
         ) {
             if (hair) item {
@@ -1406,23 +1454,6 @@ fun PlayerScreen(
         }
         }
 
-        if (showActions) {
-            RowActionsMenu(
-                title = song.title,
-                actions =
-                    buildList {
-                        add(RowAction(stringResource(R.string.player_cd_playlist)) { showPlaylists = true })
-                        add(RowAction(stringResource(R.string.player_menu_download)) { viewModel.download(song) })
-                        add(RowAction(stringResource(R.string.player_cd_share)) { viewModel.shareCard() })
-                        add(RowAction(stringResource(R.string.player_cd_pin)) { viewModel.togglePin(song) })
-                        add(RowAction(stringResource(R.string.player_cd_sleep)) { panel = PlayerPanel.SLEEP })
-                        add(RowAction(stringResource(R.string.player_menu_sound)) { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE })
-                        copyLinkAction(song)?.let { link -> add(RowAction(stringResource(R.string.copy_link)) { link() }) }
-                    },
-                cancel = stringResource(R.string.library_cancel),
-                onDismiss = { showActions = false },
-            )
-        }
         if (hair) {
             SleepPanel(
                 visible = panel == PlayerPanel.SLEEP,
