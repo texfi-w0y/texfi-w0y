@@ -603,7 +603,8 @@
     <string name="hl_cover_square">Квадрат</string>
     <string name="hl_layout_ring">Диск з кільцем</string>
     <string name="hl_layout_minimal">Мінімум</string>
-    <string name="hl_layout_cover">Обкладинка на весь екран</string>
+    <string name="hl_layout_poster">Постер</string>
+    <string name="hl_layout_cover">Обкладинка в рамці</string>
     <string name="hl_layout_compact">Компактно</string>
     <string name="hl_caps_titles">Заголовки й мітки</string>
     <string name="hl_caps_labels">Лише мітки</string>

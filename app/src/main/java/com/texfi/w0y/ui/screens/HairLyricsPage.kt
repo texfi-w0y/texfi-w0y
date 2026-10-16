@@ -1,6 +1,16 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,8 +67,46 @@ internal fun HairLyricsPage(
 ) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
+    val closeNow = androidx.compose.runtime.rememberUpdatedState(onClose)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val closePx = with(density) { 56.dp.toPx() }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
-        Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Ручка сверху: текст пришёл сверху — туда же его можно смахнуть обратно.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .hairEnter(0)
+                .pointerInput(Unit) {
+                    var total = 0f
+                    detectVerticalDragGestures(onDragStart = { total = 0f }) { _, dy ->
+                        total += dy
+                        if (total < -closePx) { total = 0f; closeNow.value() }
+                    }
+                },
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 8.dp)
+                    .width(36.dp)
+                    .height(2.dp)
+                    .background(colors.outline),
+            )
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .hairEnter(1)
+                .pointerInput(Unit) {
+                    var total = 0f
+                    detectVerticalDragGestures(onDragStart = { total = 0f }) { _, dy ->
+                        total += dy
+                        if (total < -closePx) { total = 0f; closeNow.value() }
+                    }
+                }
+                .padding(top = 10.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             CoverImage(url = song.thumbnailUrl, px = Thumbnails.ROW, modifier = Modifier.size(60.dp))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -81,7 +129,21 @@ internal fun HairLyricsPage(
             }
             HairIconButton(HairGlyph.LYRICS, stringResource(R.string.player_lyrics), onClose, tint = tone)
         }
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        // Края строк растворяются в фоне сверху и снизу, а не обрезаются линейкой.
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .hairEnter(2)
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        Brush.verticalGradient(0f to Color.Transparent, 0.08f to Color.Black, 0.88f to Color.Black, 1f to Color.Transparent),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+        ) {
             when {
                 lyrics != null && lyrics.synced.isNotEmpty() ->
                     LyricsView(
@@ -112,7 +174,7 @@ internal fun HairLyricsPage(
                     )
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) { translate() }
-        controls()
+        Row(Modifier.fillMaxWidth().hairEnter(3), horizontalArrangement = Arrangement.Start) { translate() }
+        Column(Modifier.hairEnter(4)) { controls() }
     }
 }

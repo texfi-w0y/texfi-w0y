@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.dp
@@ -38,10 +39,11 @@ class CoverPlayerTest {
 
     private var expanded by mutableStateOf(true)
     private var collapses = 0
+    private var visualizer by mutableStateOf(false)
 
     private fun block(tag: String, h: Int) = @androidx.compose.runtime.Composable { Box(Modifier.fillMaxWidth().height(h.dp).testTag(tag)) }
 
-    private fun show() {
+    private fun show(poster: Boolean = false) {
         rule.setContent {
             W0yTheme {
                 PlayerSheet(expanded = expanded, onCollapse = { collapses++; expanded = false }) {
@@ -54,7 +56,10 @@ class CoverPlayerTest {
                         actions = block("actions", 48),
                         transport = block("transport", 88),
                         plate = block("plate", 52),
-                        onCoverTap = {}, onSwipe = {}, onDrag = {}, onDragEnd = {},
+                        // Обработчик видит режим, каким он был при перерисовке, — как в настоящем плеере.
+                        onCoverTap = run { val now = visualizer; { visualizer = !now } },
+                        onSwipe = {}, onDrag = {}, onDragEnd = {},
+                        poster = poster,
                     )
                 }
             }
@@ -82,6 +87,49 @@ class CoverPlayerTest {
     @Test
     fun swipeDownCollapsesThePlayer() {
         show()
+        rule.onNodeWithTag("stage").performTouchInput { swipeDown(durationMillis = 150) }
+        rule.waitForIdle()
+        rule.mainClock.advanceTimeBy(1500)
+        assertEquals(1, collapses)
+    }
+
+    @Test
+    fun secondTapOnCoverTurnsVisualizerOff() {
+        show()
+        rule.onNodeWithTag("stage").performClick()
+        rule.waitForIdle()
+        assertTrue("первое касание включает", visualizer)
+        rule.onNodeWithTag("stage").performClick()
+        rule.waitForIdle()
+        assertTrue("второе касание выключает", !visualizer)
+    }
+
+    @Test
+    fun posterFitsAndCoverIsBig() {
+        show(poster = true)
+        rule.mainClock.advanceTimeBy(1500)
+        val h = rule.onRoot().fetchSemanticsNode().boundsInRoot.height
+        assertTrue(rule.onNodeWithTag("plate").fetchSemanticsNode().boundsInRoot.bottom <= h + 1f)
+        assertTrue("обложка постера крупная", rule.onNodeWithTag("stage").fetchSemanticsNode().boundsInRoot.height > h * 0.4f)
+    }
+
+    @Test
+    @Config(sdk = [34], qualifiers = "w360dp-h640dp-xhdpi")
+    fun posterSmallScreenStillFits() {
+        show(poster = true)
+        rule.mainClock.advanceTimeBy(1500)
+        val h = rule.onRoot().fetchSemanticsNode().boundsInRoot.height
+        assertTrue(rule.onNodeWithTag("plate").fetchSemanticsNode().boundsInRoot.bottom <= h + 1f)
+    }
+
+    @Test
+    fun posterSwipeDownCollapsesAndTapToggles() {
+        show(poster = true)
+        rule.onNodeWithTag("stage").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("stage").performClick()
+        rule.waitForIdle()
+        assertTrue(!visualizer)
         rule.onNodeWithTag("stage").performTouchInput { swipeDown(durationMillis = 150) }
         rule.waitForIdle()
         rule.mainClock.advanceTimeBy(1500)
