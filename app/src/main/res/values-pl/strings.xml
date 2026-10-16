@@ -856,4 +856,8 @@
     <string name="sheet_speed_hint">Zapamiętane dla tego utworu. Szybkie wartości:</string>
     <string name="sheet_more_title">Więcej</string>
     <string name="badge_eq">EQ</string>
+    <string name="home_block_discoveries">Odkrycia tygodnia</string>
+    <string name="home_block_releases">Nowe od twoich wykonawców</string>
+    <string name="home_block_forgotten">Zapomniane ulubione</string>
+    <string name="home_block_time">Na tę porę dnia</string>
 </resources>
