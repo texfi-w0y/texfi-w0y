@@ -826,4 +826,7 @@
     <string name="stats_reset_text">Хвилини, прослуховування й топи почнуться з нуля. Історія в «Нещодавньому» залишиться.</string>
     <string name="stats_reset_confirm">СКИНУТИ</string>
     <string name="stats_local_note">Рахується лише на цьому телефоні й нікуди не йде.</string>
+    <string name="rec_end_continue">ПРОДОВЖИТИ СХОЖИМ</string>
+    <string name="rec_end_repeat">ПОВТОРИТИ</string>
+    <string name="rec_end_stop">ЗУПИНИТИСЬ</string>
 </resources>

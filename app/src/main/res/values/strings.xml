@@ -826,4 +826,7 @@
     <string name="stats_reset_text">Minutes, plays and top lists will start from zero. The history in Recent stays.</string>
     <string name="stats_reset_confirm">RESET</string>
     <string name="stats_local_note">Counted on this phone only. Nothing leaves it.</string>
+    <string name="rec_end_continue">CONTINUE WITH SIMILAR</string>
+    <string name="rec_end_repeat">REPEAT</string>
+    <string name="rec_end_stop">STOP</string>
 </resources>

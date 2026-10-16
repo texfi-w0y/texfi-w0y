@@ -519,6 +519,64 @@ interface W0yDao {
     )
     suspend fun playedDurations(since: Long): List<DurationPlays>
 
+    // ---- подборки
+
+    @Query("SELECT songId FROM rec_seen WHERE seenAt >= :since")
+    suspend fun seenSince(since: Long): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun markSeen(rows: List<RecSeenEntity>)
+
+    @Query("DELETE FROM rec_seen WHERE seenAt < :before")
+    suspend fun pruneSeen(before: Long)
+
+    /** Оставляет только [keep] самых свежих записей. */
+    @Query("DELETE FROM rec_seen WHERE songId NOT IN (SELECT songId FROM rec_seen ORDER BY seenAt DESC LIMIT :keep)")
+    suspend fun capSeen(keep: Int)
+
+    @Query("SELECT COUNT(*) FROM rec_seen")
+    suspend fun seenCount(): Int
+
+    @Query("DELETE FROM rec_seen")
+    suspend fun clearSeen()
+
+    /** Последние включения (с повторами исполнителей) — опорные треки для подборки. */
+    @Query("SELECT songs.* FROM history JOIN songs ON songs.id = history.songId ORDER BY history.playedAt DESC LIMIT :limit")
+    suspend fun recentPlays(limit: Int): List<SongEntity>
+
+    /** Любимое, что давно не играло: засчитанных включений не меньше [minPlays], последнее раньше [before]. */
+    @Query(
+        """
+        SELECT songs.* FROM songs JOIN history ON songs.id = history.songId
+        WHERE history.counted = 1 AND songs.id NOT LIKE 'local:%'
+        GROUP BY songs.id
+        HAVING COUNT(history.id) >= :minPlays AND MAX(history.playedAt) < :before
+        ORDER BY COUNT(history.id) DESC, MAX(history.playedAt) ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun forgottenFavorites(before: Long, minPlays: Int, limit: Int): List<SongEntity>
+
+    /** Что чаще играло в эти часы суток (по местному времени). */
+    @Query(
+        """
+        SELECT songs.* FROM songs JOIN history ON songs.id = history.songId
+        WHERE history.counted = 1 AND songs.id NOT LIKE 'local:%'
+          AND CAST(strftime('%H', history.playedAt / 1000, 'unixepoch', 'localtime') AS INTEGER) IN (:hours)
+        GROUP BY songs.id
+        ORDER BY COUNT(history.id) DESC, MAX(history.playedAt) DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun playedAtHours(hours: List<Int>, limit: Int): List<SongEntity>
+
+    /** Исполнители лайкнутых треков — часть вкуса. */
+    @Query("SELECT artist FROM songs WHERE liked = 1 AND artist != ''")
+    suspend fun likedArtists(): List<String>
+
+    @Query("SELECT artistId FROM songs WHERE artist = :artist AND artistId IS NOT NULL LIMIT 1")
+    suspend fun artistIdOf(artist: String): String?
+
     @Query("SELECT MIN(playedAt) FROM history")
     suspend fun firstPlayAt(): Long?
 
