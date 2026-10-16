@@ -471,7 +471,7 @@ data class W0ySettings(
     /** Значок состояния (скорость, эквалайзер) в плеере; при умолчаниях он скрыт сам. */
     val playerStateBadge: Boolean = true,
     /** Закреплённые настройки, ключи через запятую. */
-    val settingsFavorites: String = "",
+    val settingsFavorites: String = SettingsCatalog.DEFAULT_FAVORITES,
 )
 
 @Singleton

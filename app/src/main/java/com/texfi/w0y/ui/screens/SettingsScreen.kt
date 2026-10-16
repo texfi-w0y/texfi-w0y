@@ -93,20 +93,33 @@ import com.texfi.w0y.ui.theme.liquidGlass
 import com.texfi.w0y.ui.theme.screenBackground
 import com.texfi.w0y.ui.theme.PixelSectionLabel
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import com.texfi.w0y.data.SettingsCatalog
+import com.texfi.w0y.data.SettingsCategory
+import com.texfi.w0y.data.SettingsGroup
+import com.texfi.w0y.ui.components.RowAction
+import com.texfi.w0y.ui.components.RowActionsMenu
+import com.texfi.w0y.ui.theme.Contrast
 
 /**
- * Настройки: сначала разделы, потом пункты.
+ * Настройки: десять категорий, избранное и поиск.
  *
- * Раньше это была полоса из восьми вкладок над плоским списком. Вкладки
- * не вмещались, подписи приходилось резать до одного слова, и найти в них
- * нужный пункт можно было только перебором. Теперь сверху одиннадцать
- * разделов с подписью, что внутри, а над ними — поиск по всем пунктам
- * разом: с сорока настройками это единственный способ попасть в нужную
- * с первого раза.
+ * Главная страница — вертикальный список: номер, название и мелкая строка
+ * текущих значений. Над ним — «Избранное» (до шести закреплённых пунктов) и поиск
+ * по названию, пояснению и синонимам. Внутри категории — строки: слева название и
+ * одна строка пояснения, справа значение или переключатель; выбор из вариантов
+ * открывается нижней панелью.
  *
- * Список пунктов один на оба режима (раздел и поиск) и собирается
- * данными, а не разложен по экранам: два списка одних и тех же настроек
- * разошлись бы на первой же правке.
+ * Список пунктов один на все режимы (категория, избранное, поиск) и собирается
+ * данными; к какой категории и группе относится пункт, решает [SettingsCatalog], —
+ * поэтому каждая настройка живёт ровно в одном месте, а в избранном и поиске это
+ * ссылки на ту же строку.
  */
 @Composable
 fun SettingsScreen(
@@ -119,9 +132,14 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var section by rememberSaveable { mutableStateOf<String?>(null) }
+    var categoryName by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
+    var tasteOpen by rememberSaveable { mutableStateOf(false) }
+    // Куда прокрутить и что подсветить после перехода из поиска или избранного.
+    var target by remember { mutableStateOf<String?>(null) }
+    var choiceId by remember { mutableStateOf<String?>(null) }
+    var detailsId by remember { mutableStateOf<String?>(null) }
 
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -190,7 +208,7 @@ fun SettingsScreen(
     }
 
     if (aboutOpen) {
-        val experiments = viewModel.settings.collectAsStateWithLifecycle().value.experiments
+        val experiments = currentSettings.experiments
         BackHandler { aboutOpen = false }
         AboutScreen(
             onBack = { aboutOpen = false },
@@ -200,26 +218,55 @@ fun SettingsScreen(
         return
     }
 
+    if (tasteOpen) {
+        BackHandler { tasteOpen = false }
+        TasteScreen(onBack = { tasteOpen = false })
+        return
+    }
+
     val rows =
         settingsRows(
             viewModel = viewModel,
             onOpenLogin = onOpenLogin,
             onOpenAbout = { aboutOpen = true },
+            onOpenTaste = { tasteOpen = true },
             onFullReset = { resetPending = true },
             onExport = { exportLauncher.launch("w0y-settings.json") },
             onImport = { importLauncher.launch(arrayOf("application/json")) },
             onAutoExport = { on -> if (on) withCopyrightNotice { viewModel.setAutoExport(true) } else viewModel.setAutoExport(false) },
             onPickBackdrop = { backdropLauncher.launch(arrayOf("image/*")) },
-        )
-    val hair = com.texfi.w0y.ui.theme.isHair
-    val current = section?.let { name -> SettingsSection.entries.firstOrNull { it.name == name } }
+        ).filter { SettingsCatalog.entry(it.id) != null }.sortedBy { SettingsCatalog.indexOf(it.id) }
+    val category = categoryName?.let { name -> SettingsCategory.entries.firstOrNull { it.name == name } }
+    val favorites = SettingsCatalog.parseFavorites(currentSettings.settingsFavorites)
 
-    // Внутри раздела «назад» возвращает к списку разделов, а не закрывает
-    // настройки целиком: закрытие с середины ощущается как сбой.
-    if (current != null && !hair) {
-        BackHandler { section = null }
+    // Внутри категории «назад» возвращает к списку категорий, а не закрывает
+    // настройки целиком; при поиске — сначала очищает запрос.
+    BackHandler(enabled = category != null || query.isNotBlank()) {
+        if (query.isNotBlank()) query = "" else categoryName = null
     }
 
+    val favoriteFull = stringResource(R.string.settings_fav_full)
+    val toggleFavorite: (String) -> Unit = { id ->
+        val now = SettingsCatalog.parseFavorites(currentSettings.settingsFavorites)
+        when {
+            id in now -> viewModel.setFavorites(SettingsCatalog.formatFavorites(now - id))
+            now.size >= SettingsCatalog.MAX_FAVORITES -> viewModel.showMessage(favoriteFull)
+            else -> viewModel.setFavorites(SettingsCatalog.formatFavorites(now + id))
+        }
+    }
+    val openRow: (SettingRow) -> Unit = { row ->
+        categoryName = row.category.name
+        query = ""
+        target = row.id
+    }
+    val ctx = RowContext(
+        favorites = favorites,
+        onToggleFavorite = toggleFavorite,
+        onChoose = { choiceId = it },
+        onDetails = { detailsId = it },
+    )
+
+    Box(Modifier.fillMaxSize()) {
     Column(
         Modifier
             .fillMaxSize()
@@ -227,8 +274,8 @@ fun SettingsScreen(
             .statusBarsPadding(),
     ) {
         ScreenTitle(
-            title = stringResource(if (hair) R.string.settings_title else (current?.title ?: R.string.settings_title)),
-            onBack = if (current != null && !hair) ({ section = null }) else onClose,
+            title = category?.let { stringResource(it.titleRes()) } ?: stringResource(R.string.settings_title),
+            onBack = if (category != null) ({ categoryName = null }) else onClose,
         )
         message?.let {
             Text(
@@ -238,188 +285,55 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
-
-        if (current == null || hair) {
+        if (category == null) {
             SettingsSearchField(value = query, onValueChange = { query = it })
-            Spacer(Modifier.height(if (hair) 4.dp else 12.dp))
-        }
-        if (hair && query.isBlank()) {
-            val tabs = listOf<Pair<String?, String>>(null to stringResource(R.string.settings_quick)) +
-                SectionGroup.entries.flatMap { g -> g.sections }.map { it.name to stringResource(it.title) }
-            HairTabStrip(tabs, section) { section = it }
+            Spacer(Modifier.height(8.dp))
         }
 
-        val matches =
-            if ((current != null && !hair) || query.isBlank()) {
-                emptyList()
-            } else {
-                val needle = query.trim().lowercase()
-                rows.filter { row ->
-                    needle in row.title.lowercase() ||
-                        needle in row.description.lowercase() ||
-                        needle in row.keywords.lowercase()
-                }
-            }
-
-        // Под стеклянными панелями список уходит под них, а отступ снизу
-        // докручивает последний пункт над ними; без стекла — над жестами.
-        val barsInset = com.texfi.w0y.ui.components.LocalBottomInset.current
-        val rowPad = if (com.texfi.w0y.ui.theme.isHair) 0.dp else 16.dp
-        val tabOrder = listOf<String?>(null) + SectionGroup.entries.flatMap { g -> g.sections }.map { it.name }
-        androidx.compose.animation.AnimatedContent(
-            targetState = section,
-            transitionSpec = {
-                if (!hair) {
-                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
-                } else {
-                    val dir = if (tabOrder.indexOf(targetState) >= tabOrder.indexOf(initialState)) 1 else -1
-                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260, delayMillis = 60)) +
-                        androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { dir * it / 10 }) togetherWith
-                        (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140)) +
-                            androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { -dir * it / 12 })
-                }
-            },
-            label = "settingsTab",
-        ) { tabKey ->
-        val current = tabKey?.let { name -> SettingsSection.entries.firstOrNull { it.name == name } }
-        LazyColumn(
-            Modifier
-                .fillMaxWidth()
-                .then(if (barsInset > 0.dp) Modifier else Modifier.navigationBarsPadding()),
-            contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-        ) {
-            when {
-                current != null && (!hair || query.isBlank()) -> {
-                    item {
-                        Text(
-                            text = stringResource(current.summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                            modifier = Modifier.padding(bottom = 8.dp),
-                        )
-                    }
-                    if (current == SettingsSection.HAIR) {
-                        item { HairLookPreview(currentSettings) }
-                    }
-                    // Весь раздел — одна группа, строки через черту.
-                    item {
-                        GlassGroup {
-                            if (current == SettingsSection.DEVICES) {
-                                Box(Modifier.padding(horizontal = rowPad)) { DevicesBody(viewModel) }
-                                GroupDivider(start = 16.dp)
-                            }
-                            val inSection = rows.filter { it.section == current }
-                            inSection.forEachIndexed { index, row ->
-                                if (hair) {
-                                    Box(Modifier.padding(bottom = 10.dp).hairStagger(index)) { SettingRowView(row) }
-                                } else {
-                                    Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
-                                    if (index < inSection.lastIndex) GroupDivider(start = 16.dp)
-                                }
-                            }
-                        }
-                    }
-                    item { Spacer(Modifier.height(24.dp)) }
-                }
-
-                query.isNotBlank() ->
-                    if (matches.isEmpty()) {
-                        item {
-                            EmptyState(
-                                sprite = Sprites.search,
-                                title = stringResource(R.string.settings_search_nothing_title),
-                                text = stringResource(R.string.settings_search_nothing_text),
-                            )
-                        }
-                    } else {
-                        item {
-                            GlassGroup {
-                                matches.forEachIndexed { index, row ->
-                                    Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) {
-                                        SettingRowView(row, sectionHint = stringResource(row.section.title))
-                                    }
-                                    if (index < matches.lastIndex) GroupDivider(start = 16.dp)
-                                }
-                            }
-                        }
-                        item { Spacer(Modifier.height(24.dp)) }
-                    }
-
-                else -> {
-                    // Самое нужное — сразу наверху, без заходов в разделы.
-                    val quick = rows.filter { it.quick }
-                    if (quick.isNotEmpty()) {
-                        item(key = "quick") {
-                            Column {
-                                if (!hair) GroupCaption(stringResource(R.string.settings_quick))
-                                GlassGroup {
-                                    quick.forEachIndexed { index, row ->
-                                        if (hair) {
-                                            Box(Modifier.padding(bottom = 10.dp).hairStagger(index)) { SettingRowView(row) }
-                                        } else {
-                                            Box(Modifier.padding(horizontal = rowPad, vertical = 4.dp)) { SettingRowView(row) }
-                                            if (index < quick.lastIndex) GroupDivider(start = 16.dp)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Разделы собраны в группы с подписью — как в iOS, в каждом стиле по-своему.
-                    if (!hair) SectionGroup.entries.forEach { group ->
-                        item(key = group.name) {
-                            Column {
-                                GroupCaption(stringResource(group.title))
-                                GlassGroup {
-                                    group.sections.forEachIndexed { index, entry ->
-                                        GlassSectionRow(entry) { section = entry.name }
-                                        if (index < group.sections.lastIndex) GroupDivider(start = 54.dp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    item {
-                        Text(
-                            text = stringResource(R.string.settings_version, appVersionLabel),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 24.dp),
-                        )
-                    }
-                }
-            }
+        when {
+            query.isNotBlank() -> SearchResults(rows, query, onOpen = openRow)
+            category != null -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
+            else -> SettingsHome(rows, favorites, ctx, onOpenCategory = { categoryName = it.name }, onOpenFavorite = openRow)
         }
+    }
+
+    // Панель остаётся в композиции, чтобы уезжать вниз анимацией; содержимое помнит последнюю строку.
+    val choiceRow = rows.firstOrNull { it.id == choiceId }
+    var lastChoice by remember { mutableStateOf<SettingRow?>(null) }
+    if (choiceRow != null) lastChoice = choiceRow
+    ChoiceSheet(visible = choiceRow != null, row = lastChoice, onDismiss = { choiceId = null })
+    }
+
+    detailsId?.let { id ->
+        rows.firstOrNull { it.id == id }?.let { row ->
+            ConfirmPanel(
+                title = row.title,
+                text = row.description,
+                confirm = stringResource(R.string.common_ok),
+                dismiss = stringResource(R.string.common_cancel),
+                onConfirm = { detailsId = null },
+                onDismiss = { detailsId = null },
+            )
+            BackHandler { detailsId = null }
         }
     }
 }
 
-/**
- * Разделы настроек. У каждого — подпись, что внутри: без неё список
- * названий заставляет открывать разделы по очереди, чтобы понять, где
- * лежит нужное.
- */
-private enum class SettingsSection(
-    @StringRes val title: Int,
-    @StringRes val summary: Int,
-    val sprite: List<String>,
-    val glyph: com.texfi.w0y.ui.icons.HairGlyph,
-) {
-    SOUND(R.string.settings_section_sound, R.string.settings_section_sound_sum, Sprites.wave, com.texfi.w0y.ui.icons.HairGlyph.WAVE),
-    TONE(R.string.settings_section_tone, R.string.settings_section_tone_sum, Sprites.sliders, com.texfi.w0y.ui.icons.HairGlyph.SLIDERS),
-    PLAYER(R.string.settings_section_player, R.string.settings_section_player_sum, Sprites.play, com.texfi.w0y.ui.icons.HairGlyph.PLAY),
-    SPEED(R.string.settings_section_speed, R.string.settings_section_speed_sum, Sprites.rocket, com.texfi.w0y.ui.icons.HairGlyph.ROCKET),
-    STORAGE(R.string.settings_section_storage, R.string.settings_section_storage_sum, Sprites.box, com.texfi.w0y.ui.icons.HairGlyph.BOX),
-    DOWNLOADS(R.string.settings_section_downloads, R.string.settings_section_downloads_sum, Sprites.download, com.texfi.w0y.ui.icons.HairGlyph.DOWNLOAD),
-    SEARCH(R.string.settings_section_search, R.string.settings_section_search_sum, Sprites.search, com.texfi.w0y.ui.icons.HairGlyph.SEARCH),
-    ACCOUNT(R.string.settings_section_account, R.string.settings_section_account_sum, Sprites.sync, com.texfi.w0y.ui.icons.HairGlyph.SYNC),
-    CLEAN(R.string.settings_section_clean, R.string.settings_section_clean_sum, Sprites.shield, com.texfi.w0y.ui.icons.HairGlyph.SHIELD),
-    LOOK(R.string.settings_section_look, R.string.settings_section_look_sum, Sprites.palette, com.texfi.w0y.ui.icons.HairGlyph.PALETTE),
-    HAIR(R.string.hl_sec_title, R.string.hl_sec_sum, Sprites.sliders, com.texfi.w0y.ui.icons.HairGlyph.SLIDERS),
-    DEVICES(R.string.settings_section_devices, R.string.settings_section_devices_sum, Sprites.headphones, com.texfi.w0y.ui.icons.HairGlyph.HEADPHONES),
-    DATA(R.string.settings_section_data, R.string.settings_section_data_sum, Sprites.license, com.texfi.w0y.ui.icons.HairGlyph.LICENSE),
-}
+/** Заголовок категории: список в [SettingsCategory] общий, подписи — ресурсами. */
+@StringRes
+private fun SettingsCategory.titleRes(): Int =
+    when (this) {
+        SettingsCategory.PLAYBACK -> R.string.cat_playback
+        SettingsCategory.SOUND -> R.string.cat_sound
+        SettingsCategory.TONE -> R.string.cat_tone
+        SettingsCategory.TEXT_VIZ -> R.string.cat_text_viz
+        SettingsCategory.STAND -> R.string.cat_stand
+        SettingsCategory.STORAGE -> R.string.cat_storage
+        SettingsCategory.SEARCH_FEEDS -> R.string.cat_search_feeds
+        SettingsCategory.LOOK -> R.string.cat_look
+        SettingsCategory.ACCOUNT -> R.string.cat_account
+        SettingsCategory.DATA -> R.string.cat_data
+    }
 
 /** Чем управляет пункт. Вид строки выбирается по этому, а не задаётся руками. */
 private sealed interface SettingControl {
@@ -445,163 +359,303 @@ private sealed interface SettingControl {
  *
  * Подписи уже разрешены в строки: по ним идёт поиск, и искать нужно по
  * тому языку, который человек видит на экране, а не по именам ресурсов.
+ * Категорию и группу пункта задаёт [SettingsCatalog] по [id].
  */
 private class SettingRow(
-    val section: SettingsSection,
+    val id: String,
     val title: String,
     val description: String,
     val control: SettingControl,
     /** Слова, по которым пункт тоже должен находиться. */
     val keywords: String = "",
-    /** Показывается блоком «Быстро» наверху настроек. */
-    val quick: Boolean = false,
+) {
+    val category: SettingsCategory get() = SettingsCatalog.categoryOf(id) ?: SettingsCategory.DATA
+    val group: SettingsGroup? get() = SettingsCatalog.entry(id)?.group
+}
+
+/** Что нужно строке от экрана: избранное и открытие панелей. */
+private class RowContext(
+    val favorites: List<String>,
+    val onToggleFavorite: (String) -> Unit,
+    val onChoose: (String) -> Unit,
+    val onDetails: (String) -> Unit,
 )
 
-/** Группы разделов на главной странице настроек. */
-private enum class SectionGroup(@StringRes val title: Int, val sections: List<SettingsSection>) {
-    SOUND(R.string.settings_group_sound, listOf(SettingsSection.SOUND, SettingsSection.TONE, SettingsSection.PLAYER)),
-    SPEED(R.string.settings_group_speed, listOf(SettingsSection.SPEED, SettingsSection.STORAGE, SettingsSection.DOWNLOADS)),
-    MUSIC(R.string.settings_group_music, listOf(SettingsSection.SEARCH, SettingsSection.ACCOUNT, SettingsSection.CLEAN)),
-    APP(R.string.settings_group_app, listOf(SettingsSection.LOOK, SettingsSection.HAIR, SettingsSection.DEVICES, SettingsSection.DATA)),
-}
-
-/**
- * Группа строк: одна поверхность, строки внутри — без своих подложек.
- * Smooth — серое стекло с крупным скруглением, Pixel — блок TexFi с
- * рамкой 2 dp и жёсткой тенью без размытия.
- */
+/** Текущее значение пункта одной строкой; у действий и своих виджетов его нет. */
 @Composable
-private fun GlassGroup(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    val colors = LocalW0yColors.current
-    if (com.texfi.w0y.ui.theme.isHair) {
-        // Hairline: без рамки и поверхности — строки идут прямо по фону, между ними тонкая линия.
-        Column(Modifier.fillMaxWidth(), content = content)
-        return
-    }
-    if (!com.texfi.w0y.ui.theme.isSmooth) {
-        Box(Modifier.fillMaxWidth().padding(end = 4.dp, bottom = 4.dp)) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset(4.dp, 4.dp)
-                    .background(colors.shadow),
-            )
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(colors.surface)
-                    .border(2.dp, colors.border)
-                    .padding(vertical = 2.dp),
-                content = content,
-            )
+private fun valueText(row: SettingRow): String? =
+    when (val c = row.control) {
+        is SettingControl.Toggle -> stringResource(if (c.checked) R.string.val_on else R.string.val_off)
+        is SettingControl.Choice<*> -> {
+            @Suppress("UNCHECKED_CAST")
+            val typed = c as SettingControl.Choice<Any?>
+            typed.label(typed.selected)
         }
-        return
+        is SettingControl.Info -> c.value
+        is SettingControl.Action, is SettingControl.Custom -> null
     }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            // В тёмной теме группа — серое стекло, светлее фона, как в iOS:
-            // почти чёрная на чёрном она не читалась бы группой.
-            .liquidGlass(
-                androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
-                tint = if (colors.background.luminance() > 0.5f) null else Color(0xFF2E2E33),
-            ).padding(vertical = 4.dp),
-        content = content,
+
+/** Что показывать справа от категории: значения ключевых пунктов, как на ней задано. */
+private val GLANCE: Map<SettingsCategory, List<String>> =
+    mapOf(
+        SettingsCategory.PLAYBACK to listOf("settings_queue_title", "rec_end_mode", "delete_protection"),
+        SettingsCategory.SOUND to listOf("settings_quality_wifi_title", "settings_quality_mobile_title", "settings_normalize_title"),
+        SettingsCategory.TONE to listOf("settings_speed_title", "settings_pitch_title", "settings_reverb_title"),
+        SettingsCategory.TEXT_VIZ to listOf("settings_lyrics_title", "viz_style_title"),
+        SettingsCategory.STAND to listOf("stand_view_title", "stand_brightness_title"),
+        SettingsCategory.STORAGE to listOf("settings_cache_title", "dl_quality_wifi_title", "settings_wifi_only_title"),
+        SettingsCategory.SEARCH_FEEDS to listOf("rec_novelty", "settings_clean_title", "settings_history_title"),
+        SettingsCategory.LOOK to listOf("settings_theme_title", "settings_style_title", "settings_accent_title"),
+        SettingsCategory.ACCOUNT to listOf("settings_account_title", "settings_sync_playlists_title"),
+        SettingsCategory.DATA to emptyList(),
     )
+
+@Composable
+private fun glanceLine(category: SettingsCategory, rows: List<SettingRow>): String {
+    if (category == SettingsCategory.DATA) return stringResource(R.string.settings_version, appVersionLabel)
+    val parts = ArrayList<String>(3)
+    for (id in GLANCE.getValue(category)) {
+        val row = rows.firstOrNull { it.id == id } ?: continue
+        val v = valueText(row) ?: (if (category == SettingsCategory.ACCOUNT && id == "settings_account_title") row.description else null)
+        if (v != null) parts += v
+    }
+    return parts.joinToString(" · ")
 }
 
-/** Черта между строками группы, с отступом под иконку; в Pixel — сплошная 2 dp. */
 @Composable
-private fun GroupDivider(start: androidx.compose.ui.unit.Dp) {
+private fun SettingsHome(
+    rows: List<SettingRow>,
+    favorites: List<String>,
+    ctx: RowContext,
+    onOpenCategory: (SettingsCategory) -> Unit,
+    onOpenFavorite: (SettingRow) -> Unit,
+) {
     val colors = LocalW0yColors.current
-    val smooth = com.texfi.w0y.ui.theme.isSmooth
-    val hair = com.texfi.w0y.ui.theme.isHair
-    Box(
-        Modifier
-            .padding(start = if (hair) 0.dp else start)
-            .fillMaxWidth()
-            .height(if (hair) com.texfi.w0y.ui.theme.hairLook.line else if (smooth) 0.5.dp else 2.dp)
-            .background(if (hair) colors.border else if (smooth) colors.text.copy(alpha = 0.1f) else colors.border),
-    )
-}
-
-/** Подпись группы: в Smooth мелко и приглушённо, в Pixel — пиксельный заголовок секции. */
-@Composable
-private fun GroupCaption(text: String) {
-    val colors = LocalW0yColors.current
-    if (com.texfi.w0y.ui.theme.isHair) {
-        Text(
-            text = "❯ ${text.uppercase()}",
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.textMuted,
-            modifier = Modifier.padding(start = 2.dp, top = 24.dp, bottom = 10.dp),
-        )
-        return
-    }
-    if (!com.texfi.w0y.ui.theme.isSmooth) {
-        Text(
-            text = "❯ ${text.uppercase()}",
-            style = PixelSectionLabel,
-            color = colors.accent,
-            modifier = Modifier.padding(start = 2.dp, top = 22.dp, bottom = 10.dp),
-        )
-        return
-    }
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
-        color = colors.textMuted,
-        modifier = Modifier.padding(start = 14.dp, top = 22.dp, bottom = 8.dp),
-    )
-}
-
-/** Строка раздела внутри группы: иконка, название, подпись, стрелка. */
-@Composable
-private fun GlassSectionRow(section: SettingsSection, onClick: () -> Unit) {
-    val colors = LocalW0yColors.current
-    if (com.texfi.w0y.ui.theme.isHair) {
-        Row(
-            Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            com.texfi.w0y.ui.icons.HairIcon(section.glyph, colors.textMuted, Modifier.size(22.dp))
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(section.title), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = colors.text, maxLines = 1)
-                Text(stringResource(section.summary), style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1)
+    val favRows = favorites.mapNotNull { id -> rows.firstOrNull { it.id == id } }
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
+    ) {
+        item(key = "fav-head") { MonoHeader(stringResource(R.string.settings_favorites_title)) }
+        if (favRows.isEmpty()) {
+            item(key = "fav-empty") {
+                Text(
+                    stringResource(R.string.settings_fav_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
             }
-            Spacer(Modifier.width(10.dp))
-            com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+        } else {
+            items(favRows, key = { "fav-" + it.id }) { row ->
+                SettingRowItem(row, ctx, highlighted = false, sectionHint = stringResource(row.category.titleRes()))
+                RowDivider()
+            }
         }
-        return
+        item(key = "cats-head") { MonoHeader(stringResource(R.string.settings_categories_title)) }
+        items(SettingsCategory.entries.toList(), key = { "cat-" + it.name }) { cat ->
+            CategoryRow(cat, glanceLine(cat, rows)) { onOpenCategory(cat) }
+            RowDivider()
+        }
+        item(key = "version") {
+            Text(
+                text = stringResource(R.string.settings_version, appVersionLabel),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textMuted,
+                modifier = Modifier.padding(top = 16.dp, bottom = 24.dp),
+            )
+        }
     }
+}
+
+/** Заголовок группы: моно, заглавные, приглушённо. */
+@Composable
+private fun MonoHeader(text: String) {
+    val colors = LocalW0yColors.current
+    Text(
+        text = text.asLabel(),
+        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+        color = colors.textMuted,
+        modifier = Modifier.padding(top = 22.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun RowDivider() {
+    val colors = LocalW0yColors.current
+    Box(Modifier.fillMaxWidth().height(com.texfi.w0y.ui.theme.hairLook.line).background(colors.border))
+}
+
+/** Строка категории: номер, название, мелкая строка значений, стрелка. */
+@Composable
+private fun CategoryRow(category: SettingsCategory, glance: String, onClick: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val title = stringResource(category.titleRes())
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 64.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PixelSprite(
-            rows = section.sprite,
-            color = if (com.texfi.w0y.ui.theme.isSmooth) colors.text else colors.accent,
-            modifier = Modifier.size(22.dp),
+        Text(
+            "%02d".format(category.number),
+            style = com.texfi.w0y.ui.theme.HairLabelStyle,
+            color = colors.textMuted,
+            modifier = Modifier.width(34.dp),
         )
-        Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = stringResource(section.title),
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = colors.text,
-            )
-            Text(
-                text = stringResource(section.summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-            )
+            Text(title.asLabel(), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = colors.text, maxLines = 2)
+            if (glance.isNotBlank()) {
+                Text(
+                    glance.asLabel(),
+                    style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                    color = colors.textMuted,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
         }
         Spacer(Modifier.width(10.dp))
-        PixelSprite(rows = Sprites.chevronRight, color = colors.textMuted, modifier = Modifier.size(14.dp))
+        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+    }
+}
+
+/** Содержимое категории: группы с моно-заголовками, строки; при переходе из поиска — прокрутка и подсветка. */
+@Composable
+private fun CategoryList(
+    category: SettingsCategory,
+    rows: List<SettingRow>,
+    viewModel: SettingsViewModel,
+    settings: com.texfi.w0y.data.W0ySettings,
+    ctx: RowContext,
+    target: String?,
+    onTargetShown: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val inCategory = rows.filter { it.category == category }
+    val groups = inCategory.map { it.group }.distinct()
+    // Элементы списка: заголовок группы (только если групп больше одной) и строки.
+    val entries = ArrayList<Pair<String, SettingRow?>>()
+    var prev: SettingsGroup? = null
+    inCategory.forEachIndexed { i, row ->
+        if (groups.size > 1 && (i == 0 || row.group != prev)) entries += ("g-" + row.group?.name) to null
+        entries += row.id to row
+        prev = row.group
+    }
+    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+    var highlighted by remember { mutableStateOf<String?>(null) }
+    val motionFull = com.texfi.w0y.ui.theme.hairLook.motion == com.texfi.w0y.ui.theme.MotionLevel.FULL
+    LaunchedEffect(target, category) {
+        val id = target ?: return@LaunchedEffect
+        val index = entries.indexOfFirst { it.first == id }
+        if (index >= 0) {
+            // Заголовок группы над строкой тоже должен быть виден.
+            val top = if (index > 0 && entries[index - 1].second == null) index - 1 else index
+            if (motionFull) state.animateScrollToItem(top) else state.scrollToItem(top)
+            highlighted = id
+            onTargetShown()
+            // Контур держится 1,2 секунды; в Motion Lite/Off он появляется и исчезает без анимации.
+            kotlinx.coroutines.delay(1200)
+            highlighted = null
+        } else {
+            onTargetShown()
+        }
+    }
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = state,
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
+    ) {
+        if (category == SettingsCategory.LOOK) {
+            item(key = "look-preview") { HairLookPreview(settings) }
+        }
+        items(entries, key = { it.first }) { (key, row) ->
+            if (row == null) {
+                val g = SettingsGroup.entries.first { "g-" + it.name == key }
+                MonoHeader(stringResource(g.title))
+            } else {
+                SettingRowItem(row, ctx, highlighted = highlighted == row.id)
+                RowDivider()
+            }
+        }
+        item(key = "end") { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+/** Результаты поиска: название, пояснение и категория; нажатие открывает категорию и подсвечивает пункт. */
+@Composable
+private fun SearchResults(rows: List<SettingRow>, query: String, onOpen: (SettingRow) -> Unit) {
+    val colors = LocalW0yColors.current
+    val titles = SettingsCategory.entries.associateWith { stringResource(it.titleRes()) }
+    val found =
+        SettingsSearch.search(
+            query,
+            rows.map { SearchEntry(it.id, it.title, it.description, it.keywords, titles.getValue(it.category)) },
+        ).mapNotNull { e -> rows.firstOrNull { it.id == e.id } }
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
+    ) {
+        if (found.isEmpty()) {
+            item {
+                EmptyState(
+                    sprite = Sprites.search,
+                    title = stringResource(R.string.settings_search_nothing_title),
+                    text = stringResource(R.string.settings_search_nothing_text),
+                )
+            }
+        } else {
+            items(found, key = { "found-" + it.id }) { row ->
+                val open = stringResource(R.string.settings_open_cd, row.title)
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .semantics { contentDescription = open; role = Role.Button }
+                        .clickable { onOpen(row) }
+                        .padding(vertical = 10.dp),
+                ) {
+                    Text(
+                        titles.getValue(row.category).asLabel(),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                        color = Contrast.ensure(colors.accent, colors.background),
+                    )
+                    Text(row.title, style = MaterialTheme.typography.bodyLarge, color = colors.text, maxLines = 2)
+                    Text(row.description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                RowDivider()
+            }
+        }
+    }
+}
+
+/** Выбор из вариантов — нижней панелью; выбранное закрывает её. */
+@Composable
+private fun ChoiceSheet(visible: Boolean, row: SettingRow?, onDismiss: () -> Unit) {
+    val colors = LocalW0yColors.current
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = null) {
+        val control = row?.control as? SettingControl.Choice<*> ?: return@HairSheetFrame
+        @Suppress("UNCHECKED_CAST")
+        val typed = control as SettingControl.Choice<Any?>
+        Column(
+            Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(row.title, style = MaterialTheme.typography.titleMedium, color = colors.text)
+            Text(row.description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+            MenuChips(
+                title = stringResource(R.string.settings_choose),
+                hint = null,
+                options = typed.options.map { typed.label(it) },
+                selected = typed.options.indexOf(typed.selected),
+                onSelect = {
+                    typed.onSelect(typed.options[it])
+                    onDismiss()
+                },
+            )
+        }
     }
 }
 
@@ -650,109 +704,125 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
     }
 }
 
-/** Одна строка настроек. Вид зависит только от того, чем она управляет. */
+/**
+ * Одна строка настроек: слева название и одна строка пояснения, справа значение,
+ * переключатель или кнопка. Долгое нажатие — меню (избранное, подробности).
+ * Выбор из вариантов открывает нижнюю панель. [highlighted] рисует контур акцента.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun SettingRowView(row: SettingRow, sectionHint: String? = null) {
+private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolean, sectionHint: String? = null) {
     val colors = LocalW0yColors.current
-    val control = row.control
-    val hair = com.texfi.w0y.ui.theme.isHair
     val look = com.texfi.w0y.ui.theme.hairLook
-    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(14.dp))
+    val control = row.control
+    val isFavorite = row.id in ctx.favorites
+    var menu by remember { mutableStateOf(false) }
+    val outlineAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (highlighted) 1f else 0f,
+        // Без анимации в Motion Lite/Off: контур просто появляется и пропадает.
+        animationSpec = if (look.motion == com.texfi.w0y.ui.theme.MotionLevel.FULL) androidx.compose.animation.core.tween(220) else androidx.compose.animation.core.snap(),
+        label = "rowOutline",
+    )
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius.coerceAtMost(12.dp))
+    val primary: (() -> Unit)? =
+        when (control) {
+            is SettingControl.Toggle -> ({ control.onChange(!control.checked) })
+            is SettingControl.Choice<*> -> ({ ctx.onChoose(row.id) })
+            is SettingControl.Action -> control.onClick
+            else -> null
+        }
+    if (menu) {
+        RowActionsMenu(
+            title = row.title,
+            actions =
+                listOf(
+                    RowAction(stringResource(if (isFavorite) R.string.settings_fav_remove else R.string.settings_fav_add)) { ctx.onToggleFavorite(row.id) },
+                    RowAction(stringResource(R.string.settings_row_details)) { ctx.onDetails(row.id) },
+                ),
+            cancel = stringResource(R.string.common_cancel),
+            onDismiss = { menu = false },
+        )
+    }
+    val favMark = if (isFavorite) stringResource(R.string.settings_fav_mark) else null
     Column(
         Modifier
             .fillMaxWidth()
-            .then(
-                if (hair) {
-                    Modifier
-                        .clip(cardShape)
-                        .background(colors.surface)
-                        .border(look.line, colors.border, cardShape)
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                } else {
-                    Modifier.padding(vertical = 8.dp)
-                },
-            ),
+            .clip(shape)
+            .then(if (outlineAlpha > 0f) Modifier.border(2.dp, Contrast.ensure(colors.accent, colors.background).copy(alpha = outlineAlpha), shape) else Modifier)
+            .combinedClickable(
+                enabled = primary != null || true,
+                onClick = { primary?.invoke() },
+                onLongClick = { menu = true },
+            )
+            .padding(horizontal = if (outlineAlpha > 0f) 8.dp else 0.dp, vertical = 10.dp)
+            .heightIn(min = 48.dp),
     ) {
         if (sectionHint != null) {
             Text(
-                text = "❯ ${sectionHint.uppercase()}",
-                style = PixelSectionLabel,
-                color = colors.accent,
-                modifier = Modifier.padding(bottom = 6.dp),
+                sectionHint.asLabel(),
+                style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                color = Contrast.ensure(colors.accent, colors.background),
+                modifier = Modifier.padding(bottom = 4.dp),
             )
         }
-        when (control) {
-            is SettingControl.Toggle ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { control.onChange(!control.checked) },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Labels(row, Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    PixelSwitch(checked = control.checked, onCheckedChange = control.onChange)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        row.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.text,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (favMark != null) {
+                        Spacer(Modifier.width(8.dp))
+                        com.texfi.w0y.ui.icons.HairIcon(
+                            com.texfi.w0y.ui.icons.HairGlyph.PIN,
+                            Contrast.ensure(colors.accent, colors.background),
+                            Modifier.size(14.dp),
+                            description = favMark,
+                        )
+                    }
                 }
-
-            is SettingControl.Action ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Labels(row, Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    PixelButton(text = control.button, onClick = control.onClick, fill = colors.surfaceHigh)
-                }
-
-            is SettingControl.Info ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Labels(row, Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    Text(control.value, style = MaterialTheme.typography.bodyLarge, color = colors.accent)
-                }
-
-            is SettingControl.Choice<*> -> {
-                Labels(row, Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
-                ChoiceControl(control)
+                Text(
+                    row.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
             }
+            Spacer(Modifier.width(12.dp))
+            when (control) {
+                is SettingControl.Toggle -> PixelSwitch(checked = control.checked, onCheckedChange = control.onChange)
 
-            is SettingControl.Custom -> {
-                Labels(row, Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
-                control.content()
+                is SettingControl.Choice<*> -> {
+                    Text(
+                        valueText(row).orEmpty().asLabel(),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                        color = Contrast.ensure(colors.accent, colors.background),
+                        maxLines = 2,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        modifier = Modifier.widthIn(max = 150.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+                }
+
+                is SettingControl.Action -> PixelButton(text = control.button, onClick = control.onClick, fill = colors.surfaceHigh)
+
+                is SettingControl.Info ->
+                    Text(control.value.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = Contrast.ensure(colors.accent, colors.background))
+
+                is SettingControl.Custom -> Unit
             }
         }
-    }
-}
-
-/**
- * Обобщённый выбор. Приведение к `Any?` здесь неизбежно: список
- * настроек хранит варианты разных типов в одном месте, а вернуть выбор
- * обратно всё равно можно только тому, кто его отдал.
- */
-@Composable
-private fun ChoiceControl(control: SettingControl.Choice<*>) {
-    @Suppress("UNCHECKED_CAST")
-    val typed = control as SettingControl.Choice<Any?>
-    if (com.texfi.w0y.ui.theme.isHair) {
-        HairChips(
-            options = typed.options.map { typed.label(it) },
-            selectedIndex = typed.options.indexOf(typed.selected),
-            onSelect = { typed.onSelect(typed.options[it]) },
-        )
-        return
-    }
-    PixelSegmented(
-        options = typed.options.map { typed.label(it) },
-        selectedIndex = typed.options.indexOf(typed.selected),
-        onSelect = { typed.onSelect(typed.options[it]) },
-    )
-}
-
-@Composable
-private fun Labels(row: SettingRow, modifier: Modifier) {
-    val colors = LocalW0yColors.current
-    Column(modifier) {
-        Text(row.title, style = MaterialTheme.typography.bodyLarge, color = colors.text)
-        Text(row.description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+        if (control is SettingControl.Custom) {
+            Spacer(Modifier.height(10.dp))
+            control.content()
+        }
     }
 }
 
@@ -832,6 +902,7 @@ private fun settingsRows(
     viewModel: SettingsViewModel,
     onOpenLogin: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenTaste: () -> Unit,
     onFullReset: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
@@ -853,9 +924,8 @@ private fun settingsRows(
         // ЗВУК
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_quality_wifi_title",
                 title = stringResource(R.string.settings_quality_wifi_title),
-                quick = true,
                 description = stringResource(R.string.settings_quality_wifi_desc),
                 keywords = "wifi wi-fi",
                 control =
@@ -869,7 +939,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_quality_mobile_title",
                 title = stringResource(R.string.settings_quality_mobile_title),
                 description = stringResource(R.string.settings_quality_mobile_desc),
                 keywords = "lte 4g 5g",
@@ -884,7 +954,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_normalize_title",
                 title = stringResource(R.string.settings_normalize_title),
                 description = stringResource(R.string.settings_normalize_desc),
                 control = SettingControl.Toggle(settings.normalizeVolume, viewModel::setNormalize),
@@ -892,7 +962,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_skip_silence_title",
                 title = stringResource(R.string.settings_skip_silence_title),
                 description = stringResource(R.string.settings_skip_silence_desc),
                 control = SettingControl.Toggle(settings.skipSilence, viewModel::setSkipSilence),
@@ -901,7 +971,7 @@ private fun settingsRows(
 
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_fallback_title",
                 title = stringResource(R.string.settings_fallback_title),
                 description = stringResource(R.string.settings_fallback_desc),
                 keywords = "fallback piped alternative not loading",
@@ -910,7 +980,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.SOUND,
+                id = "settings_fallback_source_title",
                 title = stringResource(R.string.settings_fallback_source_title),
                 description = stringResource(R.string.settings_fallback_source_desc),
                 keywords = "fallback piped source",
@@ -927,7 +997,7 @@ private fun settingsRows(
         // ЗВУЧАНИЕ
         add(
             SettingRow(
-                section = SettingsSection.TONE,
+                id = "settings_speed_title",
                 title = stringResource(R.string.settings_speed_title),
                 description = stringResource(R.string.settings_speed_desc),
                 keywords = "slowed sped",
@@ -942,7 +1012,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.TONE,
+                id = "settings_pitch_title",
                 title = stringResource(R.string.settings_pitch_title),
                 description = stringResource(R.string.settings_pitch_desc),
                 control =
@@ -956,7 +1026,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.TONE,
+                id = "settings_reverb_title",
                 title = stringResource(R.string.settings_reverb_title),
                 description = stringResource(R.string.settings_reverb_desc),
                 keywords = "reverb",
@@ -973,7 +1043,7 @@ private fun settingsRows(
         // ПЛЕЕР
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_equalizer_title",
                 title = stringResource(R.string.settings_equalizer_title),
                 description = stringResource(R.string.settings_equalizer_desc),
                 keywords = "eq",
@@ -997,7 +1067,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_queue_title",
                 title = stringResource(R.string.settings_queue_title),
                 description = stringResource(R.string.settings_queue_desc),
                 keywords = "radio",
@@ -1012,7 +1082,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_seek_step_title",
                 title = stringResource(R.string.settings_seek_step_title),
                 description = stringResource(R.string.settings_seek_step_desc),
                 control =
@@ -1026,7 +1096,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_cover_glow_title",
                 title = stringResource(R.string.settings_cover_glow_title),
                 description = stringResource(R.string.settings_cover_glow_desc),
                 control = SettingControl.Toggle(settings.playerCoverGlow, viewModel::setPlayerCoverGlow),
@@ -1034,16 +1104,15 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_lyrics_title",
                 title = stringResource(R.string.settings_lyrics_title),
-                quick = true,
                 description = stringResource(R.string.settings_lyrics_desc),
                 control = SettingControl.Toggle(settings.showLyrics, viewModel::setShowLyrics),
             ),
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_pause_headphones_title",
                 title = stringResource(R.string.settings_pause_headphones_title),
                 description = stringResource(R.string.settings_pause_headphones_desc),
                 control = SettingControl.Toggle(settings.pauseOnHeadphonesOut, viewModel::setPauseOnUnplug),
@@ -1051,7 +1120,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_resume_headphones_title",
                 title = stringResource(R.string.settings_resume_headphones_title),
                 description = stringResource(R.string.settings_resume_headphones_desc),
                 control = SettingControl.Toggle(settings.resumeOnHeadphonesIn, viewModel::setResumeOnPlug),
@@ -1059,7 +1128,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_playlist_recs",
                 title = stringResource(R.string.settings_playlist_recs),
                 description = stringResource(R.string.settings_playlist_recs_hint),
                 control = SettingControl.Toggle(settings.showPlaylistRecommendations, viewModel::setShowPlaylistRecommendations),
@@ -1067,9 +1136,8 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "viz_style_title",
                 title = stringResource(R.string.viz_style_title),
-                quick = true,
                 description = stringResource(R.string.viz_style_desc),
                 keywords = "visualizer spectrum",
                 control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { if (settings.uiStyle == com.texfi.w0y.data.UiStyle.HAIRLINE) it.hair else (!it.hair && it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL)) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
@@ -1077,7 +1145,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "viz_sensitivity_title",
                 title = stringResource(R.string.viz_sensitivity_title),
                 description = stringResource(R.string.viz_sensitivity_desc),
                 control = SettingControl.Choice(listOf(0.5f, 1f, 1.5f, 2f), settings.visualizerSensitivity, { com.texfi.w0y.data.NumberText.speed(it) }, viewModel::setVisualizerSensitivity),
@@ -1085,7 +1153,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "viz_fps_title",
                 title = stringResource(R.string.viz_fps_title),
                 description = stringResource(R.string.viz_fps_desc),
                 control = SettingControl.Choice(listOf(30, 60), settings.visualizerFps, { it.toString() }, viewModel::setVisualizerFps),
@@ -1093,7 +1161,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "viz_backdrop_title",
                 title = stringResource(R.string.viz_backdrop_title),
                 description = stringResource(R.string.viz_backdrop_desc),
                 control = SettingControl.Toggle(settings.visualizerCoverBackdrop, viewModel::setVisualizerCoverBackdrop),
@@ -1101,7 +1169,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "lyrics_size_title",
                 title = stringResource(R.string.lyrics_size_title),
                 description = stringResource(R.string.lyrics_size_desc),
                 keywords = "lyrics text",
@@ -1110,9 +1178,8 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "lyrics_delay_title",
                 title = stringResource(R.string.lyrics_delay_title),
-                quick = true,
                 description = stringResource(R.string.lyrics_delay_desc),
                 keywords = "lyrics sync offset delay",
                 control =
@@ -1126,7 +1193,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "lyrics_sources_title",
                 title = stringResource(R.string.lyrics_sources_title),
                 description = stringResource(R.string.lyrics_sources_desc),
                 keywords = "lyrics genius netease search",
@@ -1135,7 +1202,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_clock_title",
                 title = stringResource(R.string.stand_clock_title),
                 description = stringResource(R.string.stand_clock_desc),
                 keywords = "stand clock time",
@@ -1144,7 +1211,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_lyrics_title",
                 title = stringResource(R.string.stand_lyrics_title),
                 description = stringResource(R.string.stand_lyrics_desc),
                 keywords = "stand always on",
@@ -1153,7 +1220,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_viz_title",
                 title = stringResource(R.string.stand_viz_title),
                 description = stringResource(R.string.stand_viz_desc),
                 keywords = "stand always on",
@@ -1162,7 +1229,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_brightness_title",
                 title = stringResource(R.string.stand_brightness_title),
                 description = stringResource(R.string.stand_brightness_desc),
                 keywords = "stand always on",
@@ -1182,11 +1249,10 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "backdrop_title",
                 title = stringResource(R.string.backdrop_title),
                 description = stringResource(R.string.backdrop_desc),
                 keywords = "background wallpaper aurora photo grid black",
-                quick = true,
                 control =
                     SettingControl.Choice(
                         com.texfi.w0y.data.BackdropMode.entries,
@@ -1208,7 +1274,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "backdrop_image_title",
                 title = stringResource(R.string.backdrop_image_title),
                 description = stringResource(R.string.backdrop_image_desc),
                 keywords = "background photo image gallery",
@@ -1217,7 +1283,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "season_title",
                 title = stringResource(R.string.season_title),
                 description = stringResource(R.string.season_desc),
                 keywords = "season events halloween christmas winter new year",
@@ -1241,7 +1307,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_view_title",
                 title = stringResource(R.string.stand_view_title),
                 description = stringResource(R.string.stand_view_desc),
                 keywords = "stand always on cover",
@@ -1256,7 +1322,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_marquee_title",
                 title = stringResource(R.string.stand_marquee_title),
                 description = stringResource(R.string.stand_marquee_desc),
                 keywords = "stand always on marquee",
@@ -1265,7 +1331,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_flip_title",
                 title = stringResource(R.string.stand_flip_title),
                 description = stringResource(R.string.stand_flip_desc),
                 keywords = "stand always on flip upside down rotate",
@@ -1274,7 +1340,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_charging_title",
                 title = stringResource(R.string.stand_charging_title),
                 description = stringResource(R.string.stand_charging_desc),
                 keywords = "stand always on",
@@ -1283,7 +1349,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_max_title",
                 title = stringResource(R.string.stand_max_title),
                 description = stringResource(R.string.stand_max_desc),
                 keywords = "stand always on",
@@ -1292,7 +1358,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "stand_battery_title",
                 title = stringResource(R.string.stand_battery_title),
                 description = stringResource(R.string.stand_battery_desc),
                 keywords = "stand always on",
@@ -1301,7 +1367,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.PLAYER,
+                id = "settings_sleep_title",
                 title = stringResource(R.string.settings_sleep_title),
                 description = stringResource(R.string.settings_sleep_desc),
                 control =
@@ -1317,7 +1383,7 @@ private fun settingsRows(
         // СКОРОСТЬ
         add(
             SettingRow(
-                section = SettingsSection.SPEED,
+                id = "settings_startup_title",
                 title = stringResource(R.string.settings_startup_title),
                 description =
                     stringResource(
@@ -1344,7 +1410,7 @@ private fun settingsRows(
             fun part(stat: com.texfi.w0y.playback.PartStat?) = stat?.let { "${it.median} / ${it.worst}" } ?: "—"
             add(
                 SettingRow(
-                    section = SettingsSection.SPEED,
+                    id = "settings_startup_parts_title",
                     title = stringResource(R.string.settings_startup_parts_title),
                     description =
                         stringResource(
@@ -1362,7 +1428,7 @@ private fun settingsRows(
         }
         add(
             SettingRow(
-                section = SettingsSection.SPEED,
+                id = "settings_preload_title",
                 title = stringResource(R.string.settings_preload_title),
                 description = stringResource(R.string.settings_preload_desc),
                 control = SettingControl.Toggle(settings.preloadNext, viewModel::setPreload),
@@ -1372,7 +1438,7 @@ private fun settingsRows(
         // ПАМЯТЬ
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "settings_wifi_only_title",
                 title = stringResource(R.string.settings_wifi_only_title),
                 description = stringResource(R.string.settings_wifi_only_desc),
                 control = SettingControl.Toggle(settings.downloadOnWifiOnly, viewModel::setDownloadOnWifiOnly),
@@ -1380,7 +1446,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.STORAGE,
+                id = "settings_cache_title",
                 title = stringResource(R.string.settings_cache_title),
                 description = stringResource(R.string.settings_cache_desc, (cacheBytes / 1024 / 1024).toInt()),
                 control =
@@ -1400,7 +1466,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.STORAGE,
+                id = "settings_clear_cache_title",
                 title = stringResource(R.string.settings_clear_cache_title),
                 description = stringResource(R.string.settings_clear_cache_desc),
                 control = SettingControl.Action(stringResource(R.string.settings_clear_cache_button), viewModel::clearCache),
@@ -1408,7 +1474,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "settings_autodownload_title",
                 title = stringResource(R.string.settings_autodownload_title),
                 description = stringResource(R.string.settings_autodownload_desc),
                 control = SettingControl.Toggle(settings.autoDownloadLiked, viewModel::setAutoDownload),
@@ -1416,7 +1482,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_auto_playlists_title",
                 title = stringResource(R.string.dl_auto_playlists_title),
                 description = stringResource(R.string.dl_auto_playlists_desc),
                 control =
@@ -1441,7 +1507,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_quality_wifi_title",
                 title = stringResource(R.string.dl_quality_wifi_title),
                 description = stringResource(R.string.dl_quality_desc),
                 control = SettingControl.Choice(Quality.entries, settings.downloadQualityWifi, { qualityLabel(it) }, viewModel::setDownloadQualityWifi),
@@ -1449,7 +1515,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_quality_mobile_title",
                 title = stringResource(R.string.dl_quality_mobile_title),
                 description = stringResource(R.string.dl_quality_desc),
                 control = SettingControl.Choice(Quality.entries, settings.downloadQualityMobile, { qualityLabel(it) }, viewModel::setDownloadQualityMobile),
@@ -1457,7 +1523,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_format_title",
                 title = stringResource(R.string.dl_format_title),
                 description = stringResource(R.string.dl_format_desc),
                 control = SettingControl.Info(stringResource(R.string.dl_format_value)),
@@ -1465,7 +1531,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_parallel_title",
                 title = stringResource(R.string.dl_parallel_title),
                 description = stringResource(R.string.dl_parallel_desc),
                 control = SettingControl.Choice(listOf(1, 2, 3, 4), settings.downloadParallel, { it.toString() }, viewModel::setDownloadParallel),
@@ -1473,7 +1539,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_speed_limit_title",
                 title = stringResource(R.string.dl_speed_limit_title),
                 description = stringResource(R.string.dl_speed_limit_desc),
                 control =
@@ -1487,7 +1553,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_retries_title",
                 title = stringResource(R.string.dl_retries_title),
                 description = stringResource(R.string.dl_retries_desc),
                 control = SettingControl.Choice(listOf(0, 1, 3, 5), settings.downloadRetries, { it.toString() }, viewModel::setDownloadRetries),
@@ -1495,7 +1561,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_low_battery_title",
                 title = stringResource(R.string.dl_low_battery_title),
                 description = stringResource(R.string.dl_low_battery_desc),
                 control = SettingControl.Toggle(settings.downloadPauseOnLowBattery, viewModel::setDownloadPauseOnLowBattery),
@@ -1503,7 +1569,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_auto_resume_title",
                 title = stringResource(R.string.dl_auto_resume_title),
                 description = stringResource(R.string.dl_auto_resume_desc),
                 control = SettingControl.Toggle(settings.downloadAutoResume, viewModel::setDownloadAutoResume),
@@ -1511,7 +1577,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_notifications_title",
                 title = stringResource(R.string.dl_notifications_title),
                 description = stringResource(R.string.dl_notifications_desc),
                 control = SettingControl.Toggle(settings.downloadNotifications, viewModel::setDownloadNotifications),
@@ -1519,7 +1585,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_auto_export_title",
                 title = stringResource(R.string.dl_auto_export_title),
                 description = stringResource(R.string.dl_auto_export_desc),
                 control = SettingControl.Toggle(settings.autoExport, onAutoExport),
@@ -1527,7 +1593,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_storage_limit_title",
                 title = stringResource(R.string.dl_storage_limit_title),
                 description = stringResource(R.string.dl_storage_limit_desc, (downloadBytes / 1024 / 1024).toInt()),
                 control =
@@ -1541,7 +1607,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_verify_title",
                 title = stringResource(R.string.dl_verify_title),
                 description = stringResource(R.string.dl_verify_desc),
                 control = SettingControl.Action(stringResource(R.string.dl_verify_button), viewModel::verifyDownloads),
@@ -1549,7 +1615,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DOWNLOADS,
+                id = "dl_clear_title",
                 title = stringResource(R.string.dl_clear_title),
                 description = stringResource(R.string.dl_clear_desc),
                 control = SettingControl.Action(stringResource(R.string.dl_clear_button), viewModel::clearDownloads),
@@ -1559,7 +1625,7 @@ private fun settingsRows(
         // ПОИСК
         add(
             SettingRow(
-                section = SettingsSection.SEARCH,
+                id = "settings_suggestions_title",
                 title = stringResource(R.string.settings_suggestions_title),
                 description = stringResource(R.string.settings_suggestions_desc),
                 control = SettingControl.Toggle(settings.searchSuggestions, viewModel::setSearchSuggestions),
@@ -1567,7 +1633,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.SEARCH,
+                id = "settings_search_history_title",
                 title = stringResource(R.string.settings_search_history_title),
                 description = stringResource(R.string.settings_search_history_desc),
                 control = SettingControl.Toggle(settings.saveSearchHistory, viewModel::setSaveSearchHistory),
@@ -1577,7 +1643,7 @@ private fun settingsRows(
         // АККАУНТ
         add(
             SettingRow(
-                section = SettingsSection.ACCOUNT,
+                id = "settings_account_title",
                 title = stringResource(R.string.settings_account_title),
                 description =
                     if (signedIn) {
@@ -1596,7 +1662,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.ACCOUNT,
+                id = "settings_sync_playlists_title",
                 title = stringResource(R.string.settings_sync_playlists_title),
                 description =
                     if (signedIn) {
@@ -1610,7 +1676,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.ACCOUNT,
+                id = "settings_history_title",
                 title = stringResource(R.string.settings_history_title),
                 description = stringResource(R.string.settings_history_desc),
                 control = SettingControl.Toggle(settings.keepHistory, viewModel::setKeepHistory),
@@ -1620,7 +1686,7 @@ private fun settingsRows(
         // БЕЗ МАТА
         add(
             SettingRow(
-                section = SettingsSection.CLEAN,
+                id = "settings_clean_title",
                 title = stringResource(R.string.settings_clean_title),
                 description = stringResource(R.string.settings_clean_desc),
                 control = SettingControl.Toggle(settings.cleanMode, viewModel::setCleanMode),
@@ -1628,7 +1694,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.CLEAN,
+                id = "settings_clean_fallback_title",
                 title = stringResource(R.string.settings_clean_fallback_title),
                 description = stringResource(R.string.settings_clean_fallback_desc),
                 control =
@@ -1642,7 +1708,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.CLEAN,
+                id = "settings_hide_explicit_title",
                 title = stringResource(R.string.settings_hide_explicit_title),
                 description = stringResource(R.string.settings_hide_explicit_desc),
                 control = SettingControl.Toggle(settings.hideExplicit, viewModel::setHideExplicit),
@@ -1650,7 +1716,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.CLEAN,
+                id = "settings_mute_swear_title",
                 title = stringResource(R.string.settings_mute_swear_title),
                 description = stringResource(R.string.settings_mute_swear_desc),
                 control = SettingControl.Toggle(settings.muteSwearLines, viewModel::setMuteSwearLines),
@@ -1663,7 +1729,7 @@ private fun settingsRows(
         // ВИД
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_style_title",
                 title = stringResource(R.string.settings_style_title),
                 description = stringResource(R.string.settings_style_desc),
                 keywords = "pixel smooth",
@@ -1695,7 +1761,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_theme_title",
                 title = stringResource(R.string.settings_theme_title),
                 description = stringResource(R.string.settings_theme_desc),
                 keywords = "oled",
@@ -1712,7 +1778,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_accent_title",
                 title = stringResource(R.string.settings_accent_title),
                 description = stringResource(R.string.settings_accent_desc),
                 keywords = "hex custom colour color swatch",
@@ -1729,7 +1795,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_language_title",
                 title = stringResource(R.string.settings_language_title),
                 description = stringResource(R.string.settings_language_desc),
                 control =
@@ -1750,7 +1816,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_start_tab_title",
                 title = stringResource(R.string.settings_start_tab_title),
                 description = stringResource(R.string.settings_start_tab_desc),
                 control =
@@ -1764,7 +1830,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_shelves_title",
                 title = stringResource(R.string.settings_shelves_title),
                 description = stringResource(R.string.settings_shelves_desc),
                 control = SettingControl.Toggle(settings.showRecommendations, viewModel::setShowRecommendations),
@@ -1772,7 +1838,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_dial_min_title",
                 title = stringResource(R.string.settings_dial_min_title),
                 description = stringResource(R.string.settings_dial_min_desc),
                 keywords = "speed dial plays",
@@ -1787,7 +1853,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_live_background_title",
                 title = stringResource(R.string.settings_live_background_title),
                 description = stringResource(R.string.settings_live_background_desc),
                 control = SettingControl.Toggle(settings.animatedBackground, viewModel::setAnimatedBackground),
@@ -1795,7 +1861,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_compact_title",
                 title = stringResource(R.string.settings_compact_title),
                 description = stringResource(R.string.settings_compact_desc),
                 control = SettingControl.Toggle(settings.compactRows, viewModel::setCompactRows),
@@ -1803,7 +1869,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.LOOK,
+                id = "settings_haptics_title",
                 title = stringResource(R.string.settings_haptics_title),
                 description = stringResource(R.string.settings_haptics_desc),
                 keywords = "vibration",
@@ -1814,7 +1880,7 @@ private fun settingsRows(
         // ДАННЫЕ
         add(
             SettingRow(
-                section = SettingsSection.DATA,
+                id = "settings_export_title",
                 title = stringResource(R.string.settings_export_title),
                 description = stringResource(R.string.settings_export_desc),
                 keywords = "json",
@@ -1823,7 +1889,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DATA,
+                id = "settings_import_title",
                 title = stringResource(R.string.settings_import_title),
                 description = stringResource(R.string.settings_import_desc),
                 keywords = "json",
@@ -1832,7 +1898,7 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DATA,
+                id = "settings_about_title",
                 title = stringResource(R.string.settings_about_title),
                 description = stringResource(R.string.settings_about_desc, appVersionLabel),
                 keywords = "license agpl",
@@ -1841,11 +1907,119 @@ private fun settingsRows(
         )
         add(
             SettingRow(
-                section = SettingsSection.DATA,
+                id = "settings_reset_title",
                 title = stringResource(R.string.settings_reset_title),
                 description = stringResource(R.string.settings_reset_desc),
                 keywords = "reset wipe clear factory",
                 control = SettingControl.Action(stringResource(R.string.settings_reset_button), onFullReset),
+            ),
+        )
+
+        // ВОСПРОИЗВЕДЕНИЕ, ПОИСК И ЛЕНТЫ, ВИД: настройки подборок и защиты
+        add(
+            SettingRow(
+                id = "rec_end_mode",
+                title = stringResource(R.string.rec_end_title),
+                description = stringResource(R.string.rec_end_desc),
+                keywords = "endless autoplay continue repeat stop radio бесконечно автопродолжение",
+                control = SettingControl.Choice(com.texfi.w0y.data.RecEndMode.entries, settings.recEndMode, { stringResource(it.label) }, viewModel::setRecEndMode),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "rec_instead_of_list",
+                title = stringResource(R.string.rec_instead_title),
+                description = stringResource(R.string.rec_instead_desc),
+                keywords = "radio similar instead playlist",
+                control = SettingControl.Toggle(settings.recInsteadOfList, viewModel::setRecInsteadOfList),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "delete_protection",
+                title = stringResource(R.string.delete_protection_title),
+                description = stringResource(R.string.delete_protection_desc),
+                keywords = "delete undo confirm trash accident",
+                control = SettingControl.Toggle(settings.deleteProtection, viewModel::setDeleteProtection),
+            ),
+        )
+        val noveltyOptions = listOf(0, 15, 30, 50, 75, 100)
+        add(
+            SettingRow(
+                id = "rec_novelty",
+                title = stringResource(R.string.rec_novelty_title),
+                description = stringResource(R.string.rec_novelty_desc),
+                keywords = "new familiar discover",
+                control =
+                    SettingControl.Choice(
+                        noveltyOptions,
+                        noveltyOptions.minBy { kotlin.math.abs(it - settings.recNovelty) },
+                        { "$it%" },
+                        viewModel::setRecNovelty,
+                    ),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "taste_learning",
+                title = stringResource(R.string.taste_learning_title),
+                description = stringResource(R.string.taste_learning_desc),
+                keywords = "taste profile learn",
+                control = SettingControl.Toggle(settings.tasteLearning, viewModel::setTasteLearning),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "taste_screen",
+                title = stringResource(R.string.taste_row_title),
+                description = stringResource(R.string.taste_row_desc),
+                keywords = "taste exclude artists reset профиль",
+                control = SettingControl.Action(stringResource(R.string.taste_row_button), onOpenTaste),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "home_rec_blocks",
+                title = stringResource(R.string.home_blocks_title),
+                description = stringResource(R.string.home_blocks_desc),
+                keywords = "home picks discoveries forgotten",
+                control = SettingControl.Toggle(settings.homeRecBlocks, viewModel::setHomeRecBlocks),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "weekly_discovery",
+                title = stringResource(R.string.weekly_title),
+                description = stringResource(R.string.weekly_desc),
+                keywords = "weekly playlist discoveries",
+                control = SettingControl.Toggle(settings.weeklyDiscovery, viewModel::setWeeklyDiscovery),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "player_state_badge",
+                title = stringResource(R.string.badge_title),
+                description = stringResource(R.string.badge_desc),
+                keywords = "badge speed eq",
+                control = SettingControl.Toggle(settings.playerStateBadge, viewModel::setPlayerStateBadge),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "devices",
+                title = stringResource(R.string.settings_section_devices),
+                description = stringResource(R.string.settings_section_devices_sum),
+                keywords = "bluetooth headphones output speaker",
+                control = SettingControl.Custom { DevicesBody(viewModel) },
+            ),
+        )
+        add(
+            SettingRow(
+                id = "diagnostics",
+                title = stringResource(R.string.diag_title),
+                description = stringResource(R.string.diag_settings_desc),
+                keywords = "debug info test connection copy error log",
+                control = SettingControl.Custom { DiagnosticsCard() },
             ),
         )
     }
@@ -1876,6 +2050,7 @@ private fun MutableList<SettingRow>.addHairRows(
     context: android.content.Context,
 ) {
     fun <T> choice(
+        id: String,
         title: Int,
         desc: Int,
         options: List<T>,
@@ -1885,28 +2060,28 @@ private fun MutableList<SettingRow>.addHairRows(
         keywords: String = "",
     ) = add(
         SettingRow(
-            section = SettingsSection.HAIR,
+            id = id,
             title = context.getString(title),
             description = context.getString(desc),
             keywords = keywords,
             control = SettingControl.Choice(options, selected, label, onSelect),
         ),
     )
-    choice(R.string.hl_set_weight, R.string.hl_set_weight_d, com.texfi.w0y.data.LineWeight.entries, settings.lineWeight, { stringResource(it.label) }, viewModel::setLineWeight, "line thickness hairline")
-    choice(R.string.hl_set_corners, R.string.hl_set_corners_d, com.texfi.w0y.data.CornerStyle.entries, settings.corners, { stringResource(it.label) }, viewModel::setCorners, "radius round")
-    choice(R.string.hl_set_cover, R.string.hl_set_cover_d, com.texfi.w0y.data.CoverShape.entries, settings.coverShape, { stringResource(it.label) }, viewModel::setCoverShape, "disc square artwork")
-    choice(R.string.hl_set_layout, R.string.hl_set_layout_d, com.texfi.w0y.data.PlayerLayout.entries, settings.playerLayout, { stringResource(it.label) }, viewModel::setPlayerLayout, "player ring minimal compact")
-    choice(R.string.hl_set_caps, R.string.hl_set_caps_d, com.texfi.w0y.data.CapsMode.entries, settings.caps, { stringResource(it.label) }, viewModel::setCaps, "uppercase capitals")
-    choice(R.string.hl_set_density, R.string.hl_set_density_d, com.texfi.w0y.data.Density.entries, settings.density, { stringResource(it.label) }, viewModel::setDensity, "compact spacing")
-    choice(R.string.hl_set_motion, R.string.hl_set_motion_d, com.texfi.w0y.data.MotionMode.entries, settings.motion, { stringResource(it.label) }, viewModel::setMotion, "animation reduce")
-    choice(R.string.hl_set_haptics, R.string.hl_set_haptics_d, com.texfi.w0y.data.HapticLevel.entries, settings.hapticLevel, { stringResource(it.label) }, viewModel::setHapticLevel, "vibration")
-    choice(R.string.hl_set_iconstyle, R.string.hl_set_iconstyle_d, com.texfi.w0y.data.IconStyle.entries, settings.iconStyle, { stringResource(it.label) }, viewModel::setIconStyle, "icons line filled dots")
-    choice(R.string.dock_shape_title, R.string.dock_shape_desc, com.texfi.w0y.data.DockShape.entries, settings.dockShape, { stringResource(if (it == com.texfi.w0y.data.DockShape.ISLAND) R.string.dock_island else R.string.dock_bar) }, viewModel::setDockShape, "panel dock bottom bar floating")
-    choice(R.string.dock_tint_title, R.string.dock_tint_desc, com.texfi.w0y.data.DockTint.entries, settings.dockTint, { stringResource(when (it) { com.texfi.w0y.data.DockTint.COVER -> R.string.dock_tint_cover; com.texfi.w0y.data.DockTint.ACCENT -> R.string.dock_tint_accent; com.texfi.w0y.data.DockTint.NONE -> R.string.dock_tint_none }) }, viewModel::setDockTint, "panel gradient colour cover")
-    choice(R.string.dock_labels_title, R.string.dock_labels_desc, com.texfi.w0y.data.DockLabels.entries, settings.dockLabels, { stringResource(when (it) { com.texfi.w0y.data.DockLabels.ALL -> R.string.dock_labels_all; com.texfi.w0y.data.DockLabels.ACTIVE -> R.string.dock_labels_active; com.texfi.w0y.data.DockLabels.NONE -> R.string.dock_labels_none }) }, viewModel::setDockLabels, "panel tabs names")
+    choice("hl_set_weight", R.string.hl_set_weight, R.string.hl_set_weight_d, com.texfi.w0y.data.LineWeight.entries, settings.lineWeight, { stringResource(it.label) }, viewModel::setLineWeight, "line thickness hairline")
+    choice("hl_set_corners", R.string.hl_set_corners, R.string.hl_set_corners_d, com.texfi.w0y.data.CornerStyle.entries, settings.corners, { stringResource(it.label) }, viewModel::setCorners, "radius round")
+    choice("hl_set_cover", R.string.hl_set_cover, R.string.hl_set_cover_d, com.texfi.w0y.data.CoverShape.entries, settings.coverShape, { stringResource(it.label) }, viewModel::setCoverShape, "disc square artwork")
+    choice("hl_set_layout", R.string.hl_set_layout, R.string.hl_set_layout_d, com.texfi.w0y.data.PlayerLayout.entries, settings.playerLayout, { stringResource(it.label) }, viewModel::setPlayerLayout, "player ring minimal compact")
+    choice("hl_set_caps", R.string.hl_set_caps, R.string.hl_set_caps_d, com.texfi.w0y.data.CapsMode.entries, settings.caps, { stringResource(it.label) }, viewModel::setCaps, "uppercase capitals")
+    choice("hl_set_density", R.string.hl_set_density, R.string.hl_set_density_d, com.texfi.w0y.data.Density.entries, settings.density, { stringResource(it.label) }, viewModel::setDensity, "compact spacing")
+    choice("hl_set_motion", R.string.hl_set_motion, R.string.hl_set_motion_d, com.texfi.w0y.data.MotionMode.entries, settings.motion, { stringResource(it.label) }, viewModel::setMotion, "animation reduce")
+    choice("hl_set_haptics", R.string.hl_set_haptics, R.string.hl_set_haptics_d, com.texfi.w0y.data.HapticLevel.entries, settings.hapticLevel, { stringResource(it.label) }, viewModel::setHapticLevel, "vibration")
+    choice("hl_set_iconstyle", R.string.hl_set_iconstyle, R.string.hl_set_iconstyle_d, com.texfi.w0y.data.IconStyle.entries, settings.iconStyle, { stringResource(it.label) }, viewModel::setIconStyle, "icons line filled dots")
+    choice("dock_shape_title", R.string.dock_shape_title, R.string.dock_shape_desc, com.texfi.w0y.data.DockShape.entries, settings.dockShape, { stringResource(if (it == com.texfi.w0y.data.DockShape.ISLAND) R.string.dock_island else R.string.dock_bar) }, viewModel::setDockShape, "panel dock bottom bar floating")
+    choice("dock_tint_title", R.string.dock_tint_title, R.string.dock_tint_desc, com.texfi.w0y.data.DockTint.entries, settings.dockTint, { stringResource(when (it) { com.texfi.w0y.data.DockTint.COVER -> R.string.dock_tint_cover; com.texfi.w0y.data.DockTint.ACCENT -> R.string.dock_tint_accent; com.texfi.w0y.data.DockTint.NONE -> R.string.dock_tint_none }) }, viewModel::setDockTint, "panel gradient colour cover")
+    choice("dock_labels_title", R.string.dock_labels_title, R.string.dock_labels_desc, com.texfi.w0y.data.DockLabels.entries, settings.dockLabels, { stringResource(when (it) { com.texfi.w0y.data.DockLabels.ALL -> R.string.dock_labels_all; com.texfi.w0y.data.DockLabels.ACTIVE -> R.string.dock_labels_active; com.texfi.w0y.data.DockLabels.NONE -> R.string.dock_labels_none }) }, viewModel::setDockLabels, "panel tabs names")
     add(
         SettingRow(
-            section = SettingsSection.HAIR,
+            id = "dock_glow_title",
             title = context.getString(R.string.dock_glow_title),
             description = context.getString(R.string.dock_glow_desc),
             keywords = "panel glow breathing light pulse",
@@ -1915,7 +2090,7 @@ private fun MutableList<SettingRow>.addHairRows(
     )
     add(
         SettingRow(
-            section = SettingsSection.HAIR,
+            id = "hl_set_swipe",
             title = context.getString(R.string.hl_set_swipe),
             description = context.getString(R.string.hl_set_swipe_d),
             keywords = "mini player dismiss gesture",
@@ -1924,7 +2099,7 @@ private fun MutableList<SettingRow>.addHairRows(
     )
     add(
         SettingRow(
-            section = SettingsSection.HAIR,
+            id = "hl_set_appicon",
             title = context.getString(R.string.hl_set_appicon),
             description = context.getString(R.string.hl_set_appicon_d),
             keywords = "launcher icon home screen",
@@ -1933,7 +2108,7 @@ private fun MutableList<SettingRow>.addHairRows(
     )
     add(
         SettingRow(
-            section = SettingsSection.HAIR,
+            id = "hl_set_reset",
             title = context.getString(R.string.hl_set_reset),
             description = context.getString(R.string.hl_set_reset_d),
             control = SettingControl.Action(context.getString(R.string.hl_reset_btn), viewModel::resetLook),
@@ -2063,92 +2238,3 @@ private fun AppIconPicker(selected: com.texfi.w0y.data.AppIcon, onPick: (com.tex
 
 /** Фон значка, как в ресурсе icon_bg: превью рисует маску поверх него. */
 private const val ICON_BG = 0xFF0A090CL
-
-/** Много вариантов в ряд не помещаются сегментами — переносим плашками. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-private fun HairChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
-    val colors = LocalW0yColors.current
-    val look = com.texfi.w0y.ui.theme.hairLook
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEachIndexed { index, label ->
-            val active = index == selectedIndex
-            Box(
-                Modifier
-                    .heightIn(min = 40.dp)
-                    .clip(shape)
-                    .background(if (active) colors.text else androidx.compose.ui.graphics.Color.Transparent)
-                    .then(if (active) Modifier else Modifier.border(look.line, colors.outline, shape))
-                    .clickable { onSelect(index) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label.asLabel(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (active) colors.background else colors.text,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-/** Вкладки настроек Hairline: подписи моно, под активной скользит акцентная линия; выбранная вкладка сама подъезжает в видимую часть. */
-@Composable
-private fun HairTabStrip(tabs: List<Pair<String?, String>>, selected: String?, onSelect: (String?) -> Unit) {
-    val colors = LocalW0yColors.current
-    val look = com.texfi.w0y.ui.theme.hairLook
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val scroll = androidx.compose.foundation.rememberScrollState()
-    val spots = remember { androidx.compose.runtime.mutableStateMapOf<String, Pair<Int, Int>>() }
-    val key = selected ?: ""
-    val spot = spots[key]
-    val spec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
-    val x by androidx.compose.animation.core.animateFloatAsState(spot?.first?.toFloat() ?: 0f, spec, label = "tabX")
-    val w by androidx.compose.animation.core.animateFloatAsState(spot?.second?.toFloat() ?: 0f, spec, label = "tabW")
-    androidx.compose.runtime.LaunchedEffect(spot, scroll.maxValue) {
-        spot ?: return@LaunchedEffect
-        val target = (spot.first - 60).coerceIn(0, scroll.maxValue)
-        scroll.animateScrollTo(target, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-    }
-    Box(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
-            Row {
-                Spacer(Modifier.width(18.dp))
-                tabs.forEach { (tabKey, label) ->
-                    val active = tabKey == selected
-                    val tone by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, androidx.compose.animation.core.tween(200), label = "tabTone")
-                    Box(
-                        Modifier
-                            .heightIn(min = 48.dp)
-                            .onGloballyPositioned { spots[tabKey ?: ""] = it.positionInParent().x.toInt() to it.size.width }
-                            .clickable { onSelect(tabKey) }
-                            .padding(horizontal = 11.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = tone, maxLines = 1)
-                    }
-                }
-                Spacer(Modifier.width(18.dp))
-            }
-            if (spot != null) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .offset { androidx.compose.ui.unit.IntOffset(x.toInt(), 0) }
-                        .width(with(density) { w.toDp() })
-                        .padding(horizontal = 11.dp)
-                        .height(2.dp)
-                        .background(colors.accent),
-                )
-            }
-        }
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(look.line).background(colors.border))
-    }
-    Spacer(Modifier.height(14.dp))
-}

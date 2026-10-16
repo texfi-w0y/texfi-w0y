@@ -86,22 +86,13 @@ fun AboutScreen(
         Modifier
             .fillMaxSize()
             .screenBackground()
-            .statusBarsPadding()
-            .padding(horizontal = 18.dp),
+            .statusBarsPadding(),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SpriteButton(Sprites.chevronLeft, onClick = onBack)
-            Spacer(Modifier.width(12.dp))
-            Text(stringResource(R.string.about_title), style = PixelTitle, color = colors.text)
-        }
+        // Та же шапка, что у всех экранов настроек: назад слева, крупный заголовок, линия.
+        com.texfi.w0y.ui.components.ScreenTitle(title = stringResource(R.string.about_title), onBack = onBack)
 
         LazyColumn(
-            Modifier.then(if (com.texfi.w0y.ui.components.LocalBottomInset.current > 0.dp) Modifier else Modifier.navigationBarsPadding()),
+            Modifier.padding(horizontal = 18.dp).then(if (com.texfi.w0y.ui.components.LocalBottomInset.current > 0.dp) Modifier else Modifier.navigationBarsPadding()),
             contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -163,8 +154,6 @@ fun AboutScreen(
             item { NumberedSection("04", stringResource(R.string.about_section_support)) }
             item { DonateCard(onClick = { open(DONATE_URL) }) }
 
-            item { NumberedSection("05", stringResource(R.string.about_section_diagnostics)) }
-            item { DiagnosticsCard() }
         }
     }
 }

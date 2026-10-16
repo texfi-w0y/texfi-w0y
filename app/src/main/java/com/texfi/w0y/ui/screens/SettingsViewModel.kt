@@ -169,6 +169,29 @@ class SettingsViewModel @Inject constructor(
 
     fun setIconStyle(value: com.texfi.w0y.data.IconStyle) = update { repository.setIconStyle(value) }
 
+    fun setRecEndMode(value: com.texfi.w0y.data.RecEndMode) = update { repository.setRecEndMode(value) }
+
+    fun setRecInsteadOfList(value: Boolean) = update { repository.setRecInsteadOfList(value) }
+
+    fun setDeleteProtection(value: Boolean) = update { repository.setDeleteProtection(value) }
+
+    fun setRecNovelty(value: Int) = update { repository.setRecNovelty(value) }
+
+    fun setTasteLearning(value: Boolean) = update { repository.setTasteLearning(value) }
+
+    fun setHomeRecBlocks(value: Boolean) = update { repository.setHomeRecBlocks(value) }
+
+    fun setWeeklyDiscovery(value: Boolean) = update { repository.setWeeklyDiscovery(value) }
+
+    fun setPlayerStateBadge(value: Boolean) = update { repository.setPlayerStateBadge(value) }
+
+    fun setFavorites(value: String) = update { repository.setSettingsFavorites(value) }
+
+    /** Короткая плашка над списком настроек. */
+    fun showMessage(text: String) {
+        _message.value = text
+    }
+
     fun setSwipeDismiss(value: Boolean) = update { repository.setSwipeDismiss(value) }
 
     fun resetLook() = update { repository.resetLook() }
