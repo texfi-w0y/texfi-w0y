@@ -874,6 +874,7 @@ fun PlayerScreen(
                     song = song,
                     poster = layout == com.texfi.w0y.data.PlayerLayout.POSTER,
                     visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
+                    coverShown = stage == 0,
                     isPlaying = state.isPlaying,
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,

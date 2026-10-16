@@ -484,7 +484,7 @@ private fun HairMiniDisc(url: String?, progress: () -> Float, onClick: () -> Uni
             .padding(6.dp),
     ) {
         Box(Modifier.fillMaxSize().clip(shape)) {
-            CoverImage(url = url, px = Thumbnails.ROW, modifier = Modifier.fillMaxSize())
+            CoverImage(url = url, px = Thumbnails.ROW, modifier = Modifier.fillMaxSize().coverFlightMini(LocalCoverFlight.current, 40.dp))
         }
     }
 }
@@ -592,7 +592,7 @@ fun HairMiniPlayer(
                         CoverImage(
                             url = song.thumbnailUrl,
                             px = Thumbnails.ROW,
-                            modifier = Modifier.size(44.dp).clickable(onClick = onExpand),
+                            modifier = Modifier.size(44.dp).coverFlightMini(LocalCoverFlight.current, 44.dp).clickable(onClick = onExpand),
                         )
                     } else {
                         HairMiniDisc(song.thumbnailUrl, progress, onExpand)
