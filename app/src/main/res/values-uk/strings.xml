@@ -773,4 +773,27 @@
     <string name="dock_labels_none">Сховати</string>
     <string name="dock_glow_title">Нижня панель: сяйво</string>
     <string name="dock_glow_desc">Поки грає музика, світло навколо панелі дихає, а всередині пливе кольорова пляма.</string>
+
+    <!-- Диагностика поиска и соединения -->
+    <string name="search_error_title">ПОШУК НЕ СПРАЦЮВАВ</string>
+    <string name="search_error_offline">Немає з\'єднання.</string>
+    <string name="search_error_timeout">Сервер надто довго відповідає.</string>
+    <string name="search_error_dns">Не вдалося знайти сервер (DNS).</string>
+    <string name="search_error_tls">Захищене з\'єднання не встановилося.</string>
+    <string name="search_error_http">Сервер відхилив запит.</string>
+    <string name="search_error_rate">Забагато запитів. Зачекай трохи й повтори.</string>
+    <string name="search_error_parse">Сервер відповів не так, як очікувалося.</string>
+    <string name="search_error_auth">Вхід відхилено. Спробуй увійти знову.</string>
+    <string name="search_error_unknown">Щось пішло не так.</string>
+    <string name="search_error_network_hint">Перевір Wi-Fi або мобільні дані. Завадити можуть VPN, Private DNS, DNS із блокуванням реклами чи економія трафіку.</string>
+    <string name="search_error_retry">ПОВТОРИТИ</string>
+    <string name="search_error_copy">СКОПІЮВАТИ ЗВІТ</string>
+    <string name="about_section_diagnostics">Діагностика</string>
+    <string name="diag_title">З\'ЄДНАННЯ</string>
+    <string name="diag_text">Нічого нікуди не надсилається. Запусти перевірку, скопіюй текст і надішли його сам, якщо потрібна допомога.</string>
+    <string name="diag_test">ПЕРЕВІРИТИ З\'ЄДНАННЯ</string>
+    <string name="diag_copy">СКОПІЮВАТИ ЗВІТ</string>
+    <string name="diag_clear">ОЧИСТИТИ ЖУРНАЛ</string>
+    <string name="diag_copied">Звіт скопійовано.</string>
+    <string name="diag_cleared">Журнал очищено.</string>
 </resources>

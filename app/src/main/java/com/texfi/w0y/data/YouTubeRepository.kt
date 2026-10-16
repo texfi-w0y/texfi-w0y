@@ -40,6 +40,7 @@ class YouTubeRepository @Inject constructor(
     private val innerTube: InnerTube,
     private val extractor: InnerTubeExtractor,
     private val settings: SettingsRepository,
+    private val transport: SearchTransport,
     @param:dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
 ) {
     /**
@@ -51,6 +52,7 @@ class YouTubeRepository @Inject constructor(
      */
     fun applyAppLocale() {
         innerTube.locale = YouTubeLocaleResolver.forApp(context)
+        transport.resetLocaleFallback()
     }
 
     private val streams = ConcurrentHashMap<String, ExtractedStream>()
@@ -66,15 +68,14 @@ class YouTubeRepository @Inject constructor(
     private val streamOrder = java.util.Collections.synchronizedList(mutableListOf<String>())
     private val prefetchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    /** Один поисковый запрос через транспорт: статус и форма ответа проверены до разбора. */
+    private suspend fun searchRaw(kind: String, query: String, params: String?): JsonObject =
+        transport.execute(kind) { setLogin ->
+            innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = params, setLogin = setLogin)
+        }
+
     suspend fun searchSongs(query: String): List<SongItem> = withContext(Dispatchers.IO) {
-        val response =
-            innerTube
-                .search(
-                    client = YouTubeClient.WEB_REMIX,
-                    query = query,
-                    params = SONGS_FILTER,
-                ).body<JsonObject>()
-        YtJson.songs(response)
+        YtJson.songs(searchRaw("SEARCH SONGS", query, SONGS_FILTER))
     }
 
     /**
@@ -82,14 +83,7 @@ class YouTubeRepository @Inject constructor(
      * роликом, а не треком. Играют они так же — только звуком.
      */
     suspend fun searchVideos(query: String): List<SongItem> = withContext(Dispatchers.IO) {
-        val response =
-            innerTube
-                .search(
-                    client = YouTubeClient.WEB_REMIX,
-                    query = query,
-                    params = VIDEOS_FILTER,
-                ).body<JsonObject>()
-        YtJson.songs(response)
+        YtJson.songs(searchRaw("SEARCH VIDEOS", query, VIDEOS_FILTER))
     }
 
     /**
@@ -212,20 +206,12 @@ class YouTubeRepository @Inject constructor(
 
     /** Альбомы в выдаче поиска. */
     suspend fun searchAlbums(query: String): List<PlaylistCard> = withContext(Dispatchers.IO) {
-        val response =
-            innerTube
-                .search(client = YouTubeClient.WEB_REMIX, query = query, params = ALBUMS_FILTER)
-                .body<JsonObject>()
-        YtJson.playlistCards(response)
+        YtJson.playlistCards(searchRaw("SEARCH ALBUMS", query, ALBUMS_FILTER))
     }
 
     /** Артисты в выдаче поиска. */
     suspend fun searchArtists(query: String): List<ArtistCard> = withContext(Dispatchers.IO) {
-        val response =
-            innerTube
-                .search(client = YouTubeClient.WEB_REMIX, query = query, params = ARTISTS_FILTER)
-                .body<JsonObject>()
-        YtJson.artistCards(response)
+        YtJson.artistCards(searchRaw("SEARCH ARTISTS", query, ARTISTS_FILTER))
     }
 
     /** Страница артиста: треки, релизы, похожие. */
@@ -321,10 +307,11 @@ class YouTubeRepository @Inject constructor(
      * тот, у кого есть их индекс.
      */
     suspend fun searchSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+        // Подсказки — удобство, а не результат: без повтора и без требования к форме.
         val response =
-            innerTube
-                .getSearchSuggestions(YouTubeClient.WEB_REMIX, query, false)
-                .body<JsonObject>()
+            transport.execute("SUGGEST", requireContents = false, retry = false) {
+                innerTube.getSearchSuggestions(YouTubeClient.WEB_REMIX, query, false)
+            }
         YtJson.searchSuggestions(response).take(SUGGESTION_LIMIT)
     }
 
@@ -336,11 +323,7 @@ class YouTubeRepository @Inject constructor(
      * приходит смешанным, а разбираем мы его по типам сами.
      */
     suspend fun searchEverything(query: String): MixedResults = withContext(Dispatchers.IO) {
-        val response =
-            innerTube
-                .search(client = YouTubeClient.WEB_REMIX, query = query)
-                .body<JsonObject>()
-        YtJson.mixed(response)
+        YtJson.mixed(searchRaw("SEARCH ALL", query, null))
     }
 
     /**

@@ -161,6 +161,9 @@ fun AboutScreen(
 
             item { NumberedSection("04", stringResource(R.string.about_section_support)) }
             item { DonateCard(onClick = { open(DONATE_URL) }) }
+
+            item { NumberedSection("05", stringResource(R.string.about_section_diagnostics)) }
+            item { DiagnosticsCard() }
             item { Spacer(Modifier.height(18.dp)) }
         }
     }

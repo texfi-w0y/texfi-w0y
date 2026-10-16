@@ -773,4 +773,27 @@
     <string name="dock_labels_none">Скрыть</string>
     <string name="dock_glow_title">Нижняя панель: свечение</string>
     <string name="dock_glow_desc">Пока играет музыка, свет вокруг панели дышит, а внутри плывёт цветное пятно.</string>
+
+    <!-- Диагностика поиска и соединения -->
+    <string name="search_error_title">ПОИСК НЕ СРАБОТАЛ</string>
+    <string name="search_error_offline">Нет соединения.</string>
+    <string name="search_error_timeout">Сервер слишком долго отвечает.</string>
+    <string name="search_error_dns">Не удалось найти сервер (DNS).</string>
+    <string name="search_error_tls">Защищённое соединение не установилось.</string>
+    <string name="search_error_http">Сервер отклонил запрос.</string>
+    <string name="search_error_rate">Слишком много запросов. Подожди немного и повтори.</string>
+    <string name="search_error_parse">Сервер ответил не так, как ожидалось.</string>
+    <string name="search_error_auth">Вход отклонён. Попробуй войти заново.</string>
+    <string name="search_error_unknown">Что-то пошло не так.</string>
+    <string name="search_error_network_hint">Проверь Wi-Fi или мобильные данные. Помешать могут VPN, Private DNS, DNS с блокировкой рекламы или экономия трафика.</string>
+    <string name="search_error_retry">ПОВТОРИТЬ</string>
+    <string name="search_error_copy">СКОПИРОВАТЬ ОТЧЁТ</string>
+    <string name="about_section_diagnostics">Диагностика</string>
+    <string name="diag_title">СОЕДИНЕНИЕ</string>
+    <string name="diag_text">Ничего никуда не отправляется. Запусти проверку, скопируй текст и отправь его сам, если нужна помощь.</string>
+    <string name="diag_test">ПРОВЕРИТЬ СОЕДИНЕНИЕ</string>
+    <string name="diag_copy">СКОПИРОВАТЬ ОТЧЁТ</string>
+    <string name="diag_clear">ОЧИСТИТЬ ЖУРНАЛ</string>
+    <string name="diag_copied">Отчёт скопирован.</string>
+    <string name="diag_cleared">Журнал очищен.</string>
 </resources>

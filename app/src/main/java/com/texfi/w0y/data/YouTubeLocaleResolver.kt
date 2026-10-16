@@ -42,8 +42,8 @@ object YouTubeLocaleResolver {
         chosenLanguage: String? = null,
     ): YouTubeLocale {
         val language =
-            chosenLanguage?.lowercase(Locale.ROOT)?.takeIf { it.isNotBlank() }
-                ?: system.language.lowercase(Locale.ROOT).takeIf { it.isNotBlank() }
+            chosenLanguage?.lowercase(Locale.ROOT)?.takeIf(::validLanguage)
+                ?: system.language.lowercase(Locale.ROOT).takeIf(::validLanguage)
                 ?: LANG_FALLBACK
         val country =
             (listOf(system.country) + countryCandidates)
@@ -52,6 +52,9 @@ object YouTubeLocaleResolver {
                 ?: COUNTRY_FALLBACK
         return YouTubeLocale(gl = country, hl = language)
     }
+
+    /** Код языка: две-три латинские буквы; `und`, пустая строка и мусор не годятся. */
+    private fun validLanguage(code: String): Boolean = code != "und" && code.length in 2..3 && code.all { it in 'a'..'z' }
 
     /** Английский — язык, который YouTube принимает всегда. */
     private const val LANG_FALLBACK = "en"
