@@ -837,6 +837,8 @@
     <string name="sheet_open_cd">Otwórz kolejkę i podobne</string>
     <string name="sheet_look">Wygląd</string>
     <string name="sheet_badge_cd">Otwórz prędkość i dźwięk</string>
+    <string name="player_menu_download">Pobierz</string>
+    <string name="player_menu_sound">Dźwięk, prędkość, wygląd</string>
     <string name="sheet_close_cd">Zamknij panel</string>
     <string name="sheet_handle_queue">KOLEJKA · %1$d</string>
     <string name="similar_refresh">ODŚWIEŻ</string>

@@ -73,7 +73,7 @@
 | 5. ВИД | Line weight (`hl_set_weight`) | `hl_line_weight` | THIN |  |
 | 5. ВИД | Corners (`hl_set_corners`) | `hl_corners` | SHARP |  |
 | 5. ВИД | Cover shape (`hl_set_cover`) | `hl_cover_shape` | ROUNDED |  |
-| 5. ВИД | Player layout (`hl_set_layout`) | `hl_player_layout` | RING |  |
+| 5. ВИД | Player layout (`hl_set_layout`) | `hl_player_layout` | COVER |  |
 | 5. ВИД | Capitals (`hl_set_caps`) | `hl_caps` | TITLES_LABELS |  |
 | 5. ВИД | Density (`hl_set_density`) | `hl_density` | COMFORTABLE |  |
 | 5. ВИД | Motion (`hl_set_motion`) | `hl_motion` | AUTO |  |

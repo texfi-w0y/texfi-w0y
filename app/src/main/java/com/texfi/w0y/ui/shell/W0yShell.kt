@@ -252,10 +252,19 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // список кончается над ними, и под непрозрачной панелью ничего не прячется.
     val glassBars = com.texfi.w0y.ui.theme.isSmooth && com.texfi.w0y.ui.theme.styleTokens.glass
     val barBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
-    // Остров стоит В ПОТОКЕ разметки (Column: контент с weight(1f), под ним остров),
-    // поэтому экран физически не может зайти под него и ни одному списку не нужен
-    // свой нижний отступ. Парит поверх контента только стекло Smooth.
-    val overlayBars = glassBars
+    // Остров парит над экраном: на Главной, в поиске и в корне «Моё» экран идёт под ним до самого низа
+    // (последняя строка достаётся отступом). А в «Скачанном», «Моих файлах», «Истории», «Лайках» и в
+    // настройках экран обрезается по острову: он занимает место, и список физически кончается над ним.
+    val overlayBars = true
+    val cutBars =
+        !glassBars &&
+            (
+                settingsOpen ||
+                    (
+                        tab == Tab.LIBRARY && browseStack.isEmpty() &&
+                            (libraryRoute == LibraryRoute.Downloads || libraryRoute == LibraryRoute.Files || libraryRoute == LibraryRoute.History || libraryRoute == LibraryRoute.Liked)
+                    )
+            )
     androidx.compose.runtime.SideEffect {
         com.texfi.w0y.data.CrashReporter.screen = when {
             standOpen -> "STAND"
@@ -369,13 +378,13 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         } else {
             Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
         }
-        com.texfi.w0y.ui.components.IslandLayout(
+        Box(
             Modifier
                 .fillMaxSize()
-                .statusBarsPadding(),
-            island = { if (!overlayBars) bars(Modifier) },
+                .statusBarsPadding()
+                .padding(bottom = if (cutBars) barsHeight else 0.dp),
         ) {
-            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (overlayBars) barsHeight else 0.dp) {
+            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (cutBars) 0.dp else barsHeight) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
                 Box(Modifier.fillMaxSize().softEnter(tab)) {
@@ -408,6 +417,18 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 SettingsLayer(settingsOpen, onClose = { settingsOpen = false }, onOpenLogin = { loginOpen = true })
             }
         }
+        }
+        if (hair && !cutBars) {
+            // Экран идёт под островом; полоса под ним и у жестовой планки гаснет в фон, чтобы строки не торчали из-под острова.
+            val fade = com.texfi.w0y.ui.theme.LocalW0yColors.current.background
+            val inset = androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(inset + 28.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, fade.copy(alpha = 0.92f)))),
+            )
         }
         if (overlayBars) bars(Modifier.align(Alignment.BottomCenter))
 

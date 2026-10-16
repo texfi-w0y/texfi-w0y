@@ -68,6 +68,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.layout
+import com.texfi.w0y.ui.components.RowAction
+import com.texfi.w0y.ui.components.RowActionsMenu
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -219,6 +221,7 @@ fun PlayerScreen(
     var panel by remember { mutableStateOf<PlayerPanel?>(null) }
     var queueTab by remember { mutableStateOf(PlayerPanelMemory.queueTab) }
     var moreTab by remember { mutableStateOf(PlayerPanelMemory.moreTab) }
+    var showActions by remember { mutableStateOf(false) }
     val similar by viewModel.similar.collectAsStateWithLifecycle()
     val similarLoading by viewModel.similarLoading.collectAsStateWithLifecycle()
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
@@ -696,6 +699,75 @@ fun PlayerScreen(
                 )
             },
     ) {
+        // Содержимое диска: обложка, видео, текст или визуализатор — сменяются плавно.
+        val stage = when {
+            videoOn -> 3
+            lyricsOn -> 2
+            art == PlayerArt.VISUALIZER -> 1
+            else -> 0
+        }
+        val stageContent: @Composable (String?) -> Unit = { coverUrl ->
+            androidx.compose.animation.Crossfade(targetState = stage, animationSpec = com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "discStage") { s ->
+                when (s) {
+                    1 ->
+                        Visualizer(
+                            bus = viewModel.spectrum,
+                            style = settings.visualizerStyle.forUi(settings.uiStyle),
+                            playing = state.isPlaying,
+                            sensitivity = settings.visualizerSensitivity,
+                            fps = settings.visualizerFps,
+                            backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
+                            modifier = Modifier.fillMaxSize().background(colors.surface),
+                        )
+                    2 ->
+                        Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.92f))) {
+                            val text = lyrics
+                            if (text != null && text.synced.isNotEmpty()) {
+                                LyricsView(
+                                    lines = text.synced,
+                                    translation = translation,
+                                    positionProvider = viewModel.player::positionMs,
+                                    playing = state.isPlaying,
+                                    size = LyricsSize.SMALL,
+                                    onSeek = seekLine,
+                                    centered = true,
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                )
+                            } else {
+                                Text(
+                                    text = text?.plain ?: stringResource(R.string.hl_lyrics_none),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textMuted,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.Center).padding(20.dp).then(if (text?.plain != null) Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()) else Modifier),
+                                )
+                            }
+                        }
+                    3 ->
+                        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                            val source = video
+                            if (source != null) {
+                                com.texfi.w0y.ui.components.HairVideoSurface(
+                                    source = source,
+                                    sabrFactory = remember { viewModel.videoFactory() },
+                                    playing = state.isPlaying,
+                                    positionProvider = viewModel.player::positionMs,
+                                    modifier = Modifier.fillMaxSize(),
+                                    onError = {
+                                        videoOn = false
+                                        video = null
+                                        android.widget.Toast.makeText(context, videoFailed, android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                )
+                            } else if (videoLoading) {
+                                com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp))
+                            }
+                        }
+                    else -> if (layout == com.texfi.w0y.data.PlayerLayout.COVER) PlainCover(coverUrl, Modifier.fillMaxSize()) else com.texfi.w0y.ui.components.CoverImage(url = coverUrl, px = com.texfi.w0y.data.Thumbnails.HERO, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+
         androidx.compose.animation.AnimatedContent(
             targetState = hair && lyricsOn,
             transitionSpec = {
@@ -760,11 +832,49 @@ fun PlayerScreen(
                         Spacer(Modifier.height(10.dp))
                     },
                 )
-            } else LazyColumn(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+            } else if (hair && layout == com.texfi.w0y.data.PlayerLayout.COVER) {
+                CoverPlayerPage(
+                    song = song,
+                    isPlaying = state.isPlaying,
+                    shuffle = state.shuffle,
+                    repeatActive = state.repeatMode != Player.REPEAT_MODE_OFF,
+                    repeatOne = state.repeatMode == Player.REPEAT_MODE_ONE,
+                    positionMs = dragPosition ?: position,
+                    durationMs = knownDuration,
+                    liked = liked,
+                    lyricsOn = lyricsOn,
+                    positionLabel = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
+                    stage = stageContent,
+                    titleBlock = { m -> HairTitleBlock(song, layout, trackSound, m) },
+                    onCollapse = onCollapse,
+                    onCoverTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
+                    onSwipe = { dir -> haptic(Buzz.TRACK); if (dir > 0) viewModel.player.skipNext() else viewModel.player.skipPrevious() },
+                    onDrag = { dragPosition = it },
+                    onDragEnd = {
+                        dragPosition?.let(seekNow)
+                        dragPosition = null
+                    },
+                    onShuffle = viewModel.player::toggleShuffle,
+                    onPrevious = viewModel.player::skipPrevious,
+                    onToggle = viewModel.player::togglePlayPause,
+                    onNext = { viewModel.player.skipNext() },
+                    onRepeat = viewModel.player::cycleRepeat,
+                    onLike = { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) },
+                    onDots = { showActions = true },
+                    onLyrics = { lyricsOn = !lyricsOn; videoOn = false },
+                    onSound = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
+                    onArtist = {
+                        val artist = song.artistLinks().firstOrNull()
+                        if (artist != null) {
+                            onCollapse()
+                            navigator.open(BrowseRoute.Artist(artist.id, artist.name, song.thumbnailUrl))
+                        }
+                    },
+                    onQueue = { queueTab = PlayerPanelMemory.queueTab; panel = PlayerPanel.QUEUE },
+                )
+            } else androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            LazyColumn(
+            Modifier.weight(1f),
             contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 20.dp, end = 20.dp),
         ) {
             if (hair) item {
@@ -844,74 +954,6 @@ fun PlayerScreen(
 
             if (hair) item {
                 val progressNow = { if (state.durationMs > 0) ((dragPosition ?: position).toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f }
-                // Содержимое диска: обложка, видео, текст или визуализатор — сменяются плавно.
-                val stage = when {
-                    videoOn -> 3
-                    lyricsOn -> 2
-                    art == PlayerArt.VISUALIZER -> 1
-                    else -> 0
-                }
-                val stageContent: @Composable (String?) -> Unit = { coverUrl ->
-                    androidx.compose.animation.Crossfade(targetState = stage, animationSpec = com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "discStage") { s ->
-                        when (s) {
-                            1 ->
-                                Visualizer(
-                                    bus = viewModel.spectrum,
-                                    style = settings.visualizerStyle.forUi(settings.uiStyle),
-                                    playing = state.isPlaying,
-                                    sensitivity = settings.visualizerSensitivity,
-                                    fps = settings.visualizerFps,
-                                    backdropUrl = song.thumbnailUrl.takeIf { settings.visualizerCoverBackdrop },
-                                    modifier = Modifier.fillMaxSize().background(colors.surface),
-                                )
-                            2 ->
-                                Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.92f))) {
-                                    val text = lyrics
-                                    if (text != null && text.synced.isNotEmpty()) {
-                                        LyricsView(
-                                            lines = text.synced,
-                                            translation = translation,
-                                            positionProvider = viewModel.player::positionMs,
-                                            playing = state.isPlaying,
-                                            size = LyricsSize.SMALL,
-                                            onSeek = seekLine,
-                                            centered = true,
-                                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                                        )
-                                    } else {
-                                        Text(
-                                            text = text?.plain ?: stringResource(R.string.hl_lyrics_none),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = colors.textMuted,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                            modifier = Modifier.align(Alignment.Center).padding(20.dp).then(if (text?.plain != null) Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()) else Modifier),
-                                        )
-                                    }
-                                }
-                            3 ->
-                                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                                    val source = video
-                                    if (source != null) {
-                                        com.texfi.w0y.ui.components.HairVideoSurface(
-                                            source = source,
-                                            sabrFactory = remember { viewModel.videoFactory() },
-                                            playing = state.isPlaying,
-                                            positionProvider = viewModel.player::positionMs,
-                                            modifier = Modifier.fillMaxSize(),
-                                            onError = {
-                                                videoOn = false
-                                                video = null
-                                                android.widget.Toast.makeText(context, videoFailed, android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                        )
-                                    } else if (videoLoading) {
-                                        com.texfi.w0y.ui.components.HairLoader(Modifier.size(44.dp))
-                                    }
-                                }
-                            else -> com.texfi.w0y.ui.components.CoverImage(url = coverUrl, px = com.texfi.w0y.data.Thumbnails.HERO, modifier = Modifier.fillMaxSize())
-                        }
-                    }
-                }
                 val visualizer: (@Composable (String?) -> Unit)? = stageContent
                 when (layout) {
                     com.texfi.w0y.data.PlayerLayout.RING ->
@@ -953,38 +995,7 @@ fun PlayerScreen(
                         }
 
                     com.texfi.w0y.data.PlayerLayout.MINIMAL -> Spacer(Modifier.height(18.dp))
-
-                    // Обложка на весь экран: от края до края, внизу растворяется в фоне; смахивание вбок — смена трека.
-                    com.texfi.w0y.data.PlayerLayout.COVER -> {
-                        val fade = colors.background
-                        Box(
-                            Modifier
-                                .layout { measurable, constraints ->
-                                    val bleed = 40.dp.roundToPx()
-                                    val w = constraints.maxWidth + bleed
-                                    val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, w))
-                                    layout(constraints.maxWidth, w) { placeable.place(-bleed / 2, 0) }
-                                }
-                                .pointerInput(song.id) {
-                                    var total = 0f
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { total = 0f },
-                                        onDragEnd = {
-                                            when {
-                                                total <= -SWIPE_THRESHOLD_PX -> { haptic(Buzz.TRACK); viewModel.player.skipNext() }
-                                                total >= SWIPE_THRESHOLD_PX -> { haptic(Buzz.TRACK); viewModel.player.skipPrevious() }
-                                            }
-                                        },
-                                    ) { _, dragAmount -> total += dragAmount }
-                                }
-                                .pointerInput(Unit) { detectTapGestures { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() } }
-                                .drawWithContent {
-                                    drawContent()
-                                    drawRect(Brush.verticalGradient(0.55f to Color.Transparent, 1f to fade))
-                                },
-                        ) { stageContent(song.thumbnailUrl) }
-                        Spacer(Modifier.height(4.dp))
-                    }
+                    com.texfi.w0y.data.PlayerLayout.COVER -> Unit
                 }
                 if (lyricsOn && lyrics != null) {
                     LyricsLangRow(
@@ -1354,8 +1365,20 @@ fun PlayerScreen(
                     onSelect = { tab = tabs[it] },
                 )
             }
+            if (!hair) {
+                stickyHeader {
+                    // Липнет к верху: список под ней едет, переключиться можно не возвращаясь наверх.
+                    Box(Modifier.background(colors.background).padding(bottom = 10.dp)) { tabsBar() }
+                }
+            }
+
+            // Для Hairline содержимое вкладок живёт в нижней панели, а не под управлением.
+            if (!hair) tabItems(tab, DialSet.ALL)
+            item { Spacer(Modifier.height(30.dp)) }
+        }
+            // Плашка очереди закреплена внизу: до очереди и рекомендаций не нужно листать экран.
             if (hair) {
-                item {
+                Box(Modifier.padding(horizontal = 20.dp)) {
                     val badge =
                         if (settings.playerStateBadge) {
                             stateBadge(
@@ -1379,19 +1402,27 @@ fun PlayerScreen(
                         modifier = Modifier.padding(bottom = 10.dp),
                     )
                 }
-            } else {
-                stickyHeader {
-                    // Липнет к верху: список под ней едет, переключиться можно не возвращаясь наверх.
-                    Box(Modifier.background(colors.background).padding(bottom = 10.dp)) { tabsBar() }
-                }
             }
-
-            // Для Hairline содержимое вкладок живёт в нижней панели, а не под управлением.
-            if (!hair) tabItems(tab, DialSet.ALL)
-            item { Spacer(Modifier.height(30.dp)) }
         }
         }
 
+        if (showActions) {
+            RowActionsMenu(
+                title = song.title,
+                actions =
+                    buildList {
+                        add(RowAction(stringResource(R.string.player_cd_playlist)) { showPlaylists = true })
+                        add(RowAction(stringResource(R.string.player_menu_download)) { viewModel.download(song) })
+                        add(RowAction(stringResource(R.string.player_cd_share)) { viewModel.shareCard() })
+                        add(RowAction(stringResource(R.string.player_cd_pin)) { viewModel.togglePin(song) })
+                        add(RowAction(stringResource(R.string.player_cd_sleep)) { panel = PlayerPanel.SLEEP })
+                        add(RowAction(stringResource(R.string.player_menu_sound)) { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE })
+                        copyLinkAction(song)?.let { link -> add(RowAction(stringResource(R.string.copy_link)) { link() }) }
+                    },
+                cancel = stringResource(R.string.library_cancel),
+                onDismiss = { showActions = false },
+            )
+        }
         if (hair) {
             SleepPanel(
                 visible = panel == PlayerPanel.SLEEP,
