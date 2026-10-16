@@ -833,11 +833,11 @@
     <string name="sheet_similar">Similar</string>
     <string name="sheet_sound">Sound</string>
     <string name="sheet_speed">Speed</string>
-    <string name="sheet_timer">Timer</string>
-    <string name="sheet_open_cd">Open queue, sound, speed and timer</string>
+    <string name="sheet_open_cd">Open queue and similar tracks</string>
+    <string name="sheet_look">Look</string>
+    <string name="sheet_badge_cd">Open speed and sound</string>
     <string name="sheet_close_cd">Close panel</string>
     <string name="sheet_handle_queue">QUEUE · %1$d</string>
-    <string name="sheet_more">More</string>
     <string name="similar_refresh">REFRESH</string>
     <string name="similar_loading">Looking for something close…</string>
     <string name="similar_empty">Nothing new to suggest right now. Try REFRESH a bit later.</string>
@@ -854,7 +854,6 @@
     <string name="why_forgotten">HAVEN\'T HEARD IN A WHILE</string>
     <string name="why_time_of_day">FOR THIS TIME OF DAY</string>
     <string name="sheet_speed_hint">Remembered for this track. Quick values:</string>
-    <string name="sheet_more_title">More</string>
     <string name="badge_eq">EQ</string>
     <string name="home_block_discoveries">Discoveries of the week</string>
     <string name="home_block_releases">Recent releases from your artists</string>

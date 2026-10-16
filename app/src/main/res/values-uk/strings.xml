@@ -833,11 +833,11 @@
     <string name="sheet_similar">Схоже</string>
     <string name="sheet_sound">Звук</string>
     <string name="sheet_speed">Швидкість</string>
-    <string name="sheet_timer">Таймер</string>
-    <string name="sheet_open_cd">Відкрити чергу, звук, швидкість і таймер</string>
+    <string name="sheet_open_cd">Відкрити чергу та схоже</string>
+    <string name="sheet_look">Вигляд</string>
+    <string name="sheet_badge_cd">Відкрити швидкість і звук</string>
     <string name="sheet_close_cd">Закрити панель</string>
     <string name="sheet_handle_queue">ЧЕРГА · %1$d</string>
-    <string name="sheet_more">Ще</string>
     <string name="similar_refresh">ОНОВИТИ</string>
     <string name="similar_loading">Шукаю схоже за звучанням…</string>
     <string name="similar_empty">Нових пропозицій поки немає. Спробуй ОНОВИТИ трохи пізніше.</string>
@@ -854,7 +854,6 @@
     <string name="why_forgotten">ДАВНО НЕ СЛУХАВ</string>
     <string name="why_time_of_day">ДЛЯ ЦІЄЇ ПОРИ ДОБИ</string>
     <string name="sheet_speed_hint">Запам’ятовується для цього треку. Швидкі значення:</string>
-    <string name="sheet_more_title">Ще</string>
     <string name="badge_eq">EQ</string>
     <string name="home_block_discoveries">Відкриття тижня</string>
     <string name="home_block_releases">Нове від твоїх виконавців</string>

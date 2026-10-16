@@ -25,6 +25,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,18 +76,35 @@ import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
 
-/** Вкладки нижней панели плеера. */
-enum class SheetTab(@StringRes val label: Int) {
+/** Три отдельные панели плеера: у каждой своя тема, свои вкладки и свой жест закрытия. */
+enum class PlayerPanel { SLEEP, QUEUE, MORE }
+
+/** Вкладки панели очереди. */
+enum class QueueTab(@StringRes val label: Int) {
     QUEUE(R.string.sheet_queue),
     SIMILAR(R.string.sheet_similar),
-    SOUND(R.string.sheet_sound),
-    SPEED(R.string.sheet_speed),
-    TIMER(R.string.sheet_timer),
 }
 
-/** Последняя открытая вкладка помнится, пока приложение живо. */
-object PlayerSheetMemory {
-    var tab: SheetTab = SheetTab.QUEUE
+/** Вкладки панели «Ещё». */
+enum class MoreTab(@StringRes val label: Int) {
+    SOUND(R.string.sheet_sound),
+    SPEED(R.string.sheet_speed),
+    LOOK(R.string.sheet_look),
+}
+
+/** Выбор таймера сна: без `!!` и без индексов в списке с null. */
+enum class SleepChoice(val minutes: Int?) {
+    OFF(null),
+    TRACK(0),
+    M15(15),
+    M30(30),
+    M60(60),
+}
+
+/** Последние открытые вкладки помнятся, пока приложение живо. */
+object PlayerPanelMemory {
+    var queueTab: QueueTab = QueueTab.QUEUE
+    var moreTab: MoreTab = MoreTab.SOUND
 }
 
 /**
@@ -89,7 +112,7 @@ object PlayerSheetMemory {
  * Нажать или потянуть вверх — открыть панель.
  */
 @Composable
-fun PlayerSheetHandle(label: String, badge: String?, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+fun PlayerSheetHandle(label: String, badge: String?, onOpen: () -> Unit, modifier: Modifier = Modifier, onBadge: (() -> Unit)? = null) {
     val colors = LocalW0yColors.current
     val look = hairLook
     val description = stringResource(R.string.sheet_open_cd)
@@ -116,7 +139,17 @@ fun PlayerSheetHandle(label: String, badge: String?, onOpen: () -> Unit, modifie
         Spacer(Modifier.width(10.dp))
         Text(label.asLabel(), style = HairLabelStyle, color = colors.text, modifier = Modifier.weight(1f))
         if (badge != null) {
-            Text(badge.asLabel(), style = HairLabelStyle, color = Contrast.ensure(colors.accent, colors.background))
+            val badgeCd = stringResource(R.string.sheet_badge_cd)
+            Box(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .semantics { contentDescription = badgeCd; role = Role.Button }
+                    .then(if (onBadge != null) Modifier.clickable(onClick = onBadge) else Modifier)
+                    .padding(start = 8.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text(badge.asLabel(), style = HairLabelStyle, color = Contrast.ensure(colors.accent, colors.background))
+            }
         }
     }
 }
@@ -131,7 +164,12 @@ fun stateBadge(speed: Float, pitch: Float, reverbOn: Boolean, eq: String): Strin
 
 /**
  * Каркас нижней панели Hairline: затемнение, панель с контуром 1 dp, ручка.
- * Закрывается жестом вниз по ручке, кнопкой «назад» и нажатием по фону.
+ *
+ * Закрывается жестом вниз (по ручке, по затемнению и тягой вниз за прокрутку, когда список
+ * уже наверху), кнопкой «назад» и нажатием по затемнению. Тяга вниз целиком остаётся у панели:
+ * остаток жеста не уходит выше, поэтому плеер под панелью не сворачивается.
+ * Содержимое панели должно прокручиваться (список или `verticalScroll`) — тогда жест
+ * доходит до этого каркаса.
  */
 @Composable
 fun HairSheetFrame(
@@ -144,12 +182,71 @@ fun HairSheetFrame(
     val look = hairLook
     if (visible) BackHandler(onBack = onDismiss)
     val close = stringResource(R.string.sheet_close_cd)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val dismissAt = with(density) { 96.dp.toPx() }
+    var dragPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.compose.runtime.LaunchedEffect(visible) { if (!visible) dragPx = 0f }
+    val currentDismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
+    fun settle(velocityY: Float = 0f) {
+        if (dragPx > dismissAt || velocityY > 1600f) {
+            currentDismiss()
+        } else {
+            scope.launch { androidx.compose.animation.core.animate(dragPx, 0f) { v, _ -> dragPx = v } }
+        }
+    }
+    val connection =
+        remember {
+            object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                    if (dragPx > 0f && available.y < 0f) {
+                        val next = (dragPx + available.y).coerceAtLeast(0f)
+                        val used = next - dragPx
+                        dragPx = next
+                        return androidx.compose.ui.geometry.Offset(0f, used)
+                    }
+                    return androidx.compose.ui.geometry.Offset.Zero
+                }
+
+                override fun onPostScroll(
+                    consumed: androidx.compose.ui.geometry.Offset,
+                    available: androidx.compose.ui.geometry.Offset,
+                    source: androidx.compose.ui.input.nestedscroll.NestedScrollSource,
+                ): androidx.compose.ui.geometry.Offset {
+                    // Список уже наверху: оставшаяся тяга вниз двигает панель и дальше не уходит.
+                    if (available.y > 0f) {
+                        dragPx += available.y
+                        return androidx.compose.ui.geometry.Offset(0f, available.y)
+                    }
+                    return androidx.compose.ui.geometry.Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                    if (dragPx <= 0f) return androidx.compose.ui.unit.Velocity.Zero
+                    settle(available.y)
+                    return available
+                }
+
+                override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity =
+                    // Остаток броска вниз не передаётся плееру под панелью.
+                    available
+            }
+        }
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible = visible, enter = fadeIn(hairSpec()), exit = fadeOut(hairSpec())) {
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f))
+                    .testTag("panel-scrim")
+                    .pointerInput(Unit) {
+                        var drag = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { drag = 0f },
+                            onVerticalDrag = { _, dy -> drag += dy },
+                            onDragEnd = { if (drag > 48.dp.toPx()) currentDismiss() },
+                        )
+                    }
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
             )
         }
@@ -162,11 +259,14 @@ fun HairSheetFrame(
             val shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
             Column(
                 Modifier
+                    .offset { IntOffset(0, dragPx.toInt()) }
+                    .nestedScroll(connection)
                     .fillMaxWidth()
                     .then(if (heightFraction != null) Modifier.fillMaxHeight(heightFraction) else Modifier)
                     .clip(shape)
                     .background(colors.surface)
                     .border(look.line, colors.outline, shape)
+                    .testTag("panel")
                     .navigationBarsPadding(),
             ) {
                 Box(
@@ -175,11 +275,11 @@ fun HairSheetFrame(
                         .heightIn(min = 32.dp)
                         .semantics { contentDescription = close }
                         .pointerInput(Unit) {
-                            var drag = 0f
                             detectVerticalDragGestures(
-                                onDragStart = { drag = 0f },
-                                onVerticalDrag = { _, dy -> drag += dy },
-                                onDragEnd = { if (drag > 48.dp.toPx()) onDismiss() },
+                                onDragStart = { },
+                                onVerticalDrag = { _, dy -> dragPx = (dragPx + dy).coerceAtLeast(0f) },
+                                onDragEnd = { settle() },
+                                onDragCancel = { settle() },
                             )
                         }
                         .clickable(onClick = onDismiss),
@@ -193,48 +293,144 @@ fun HairSheetFrame(
     }
 }
 
-/** Нижняя панель плеера: вкладки и список содержимого. */
+/**
+ * Полоса вкладок панели: 2–3 вкладки делят ширину поровну, без прокрутки и без усечения;
+ * под активной — акцентная линия, под всей полосой — тонкая.
+ */
 @Composable
-fun PlayerSheet(
-    visible: Boolean,
-    tab: SheetTab,
-    onTab: (SheetTab) -> Unit,
-    onDismiss: () -> Unit,
-    content: LazyListScope.(SheetTab) -> Unit,
-) {
+fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
-    val look = hairLook
-    HairSheetFrame(visible = visible, onDismiss = onDismiss) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SheetTab.entries.forEach { t ->
-                val active = t == tab
-                val chip = RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
+    Box(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            labels.forEachIndexed { i, label ->
+                val active = i == selected
                 Box(
                     Modifier
+                        .weight(1f)
                         .heightIn(min = 48.dp)
-                        .clip(chip)
-                        .background(if (active) colors.text else Color.Transparent)
-                        .then(if (active) Modifier else Modifier.border(look.line, colors.outline, chip))
-                        .clickable { onTab(t) }
-                        .semantics { role = Role.Tab }
-                        .padding(horizontal = 14.dp),
+                        .testTag("panel-tab-$i")
+                        .semantics { role = Role.Tab; this.selected = active }
+                        .clickable { onSelect(i) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(t.label).asLabel(),
+                        label.asLabel(),
                         style = HairLabelStyle,
-                        color = if (active) colors.background else colors.text,
+                        color = if (active) colors.text else colors.textMuted,
                         maxLines = 1,
+                        softWrap = false,
                     )
+                    if (active) {
+                        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(colors.accent))
+                    }
                 }
             }
         }
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(hairLook.line).background(colors.outline))
+    }
+}
+
+/** Панель с вкладками и прокручиваемым списком. [heightFraction] = null — высота по содержимому. */
+@Composable
+private fun TabbedPanel(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    labels: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    heightFraction: Float?,
+    content: LazyListScope.() -> Unit,
+) {
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = heightFraction) {
+        PanelTabs(labels, selected, onSelect)
         Spacer(Modifier.height(10.dp))
-        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
-            content(tab)
+        val maxBody = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.62f).dp
+        LazyColumn(
+            (if (heightFraction != null) Modifier.weight(1f) else Modifier.heightIn(max = maxBody)).testTag("panel-list"),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        ) {
+            content()
+        }
+    }
+}
+
+/** Панель очереди: вкладки «Очередь» и «Похожее», высокая (~85% экрана). */
+@Composable
+fun QueuePanel(
+    visible: Boolean,
+    tab: QueueTab,
+    onTab: (QueueTab) -> Unit,
+    onDismiss: () -> Unit,
+    content: LazyListScope.(QueueTab) -> Unit,
+) {
+    TabbedPanel(
+        visible = visible,
+        onDismiss = onDismiss,
+        labels = QueueTab.entries.map { stringResource(it.label) },
+        selected = tab.ordinal,
+        onSelect = { onTab(QueueTab.entries[it]) },
+        heightFraction = 0.85f,
+    ) { content(tab) }
+}
+
+/** Панель «Ещё»: звук, скорость и вид; высота по содержимому. */
+@Composable
+fun MorePanel(
+    visible: Boolean,
+    tab: MoreTab,
+    onTab: (MoreTab) -> Unit,
+    onDismiss: () -> Unit,
+    content: LazyListScope.(MoreTab) -> Unit,
+) {
+    TabbedPanel(
+        visible = visible,
+        onDismiss = onDismiss,
+        labels = MoreTab.entries.map { stringResource(it.label) },
+        selected = tab.ordinal,
+        onSelect = { onTab(MoreTab.entries[it]) },
+        heightFraction = null,
+    ) { content(tab) }
+}
+
+/** Панель таймера сна: только таймер, компактная. */
+@Composable
+fun SleepPanel(
+    visible: Boolean,
+    remainingMs: Long?,
+    afterTrack: Boolean,
+    onChoose: (SleepChoice) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = null) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+                .testTag("sleep-panel"),
+        ) {
+            MenuChips(
+                title = stringResource(R.string.player_sleep_title),
+                hint = remainingMs?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" },
+                options =
+                    listOf(
+                        stringResource(R.string.player_sleep_off),
+                        stringResource(R.string.player_sleep_track),
+                        stringResource(R.string.settings_sleep_minutes, 15),
+                        stringResource(R.string.settings_sleep_minutes, 30),
+                        stringResource(R.string.settings_sleep_minutes, 60),
+                    ),
+                selected =
+                    when {
+                        afterTrack -> SleepChoice.TRACK.ordinal
+                        remainingMs != null -> -1
+                        else -> SleepChoice.OFF.ordinal
+                    },
+                onSelect = {
+                    onChoose(SleepChoice.entries[it])
+                    onDismiss()
+                },
+            )
         }
     }
 }
@@ -261,6 +457,7 @@ fun RecRow(
     onMore: () -> Unit,
     onLess: () -> Unit,
     modifier: Modifier = Modifier,
+    showWhy: Boolean = true,
 ) {
     val colors = LocalW0yColors.current
     var menu by remember { mutableStateOf(false) }
@@ -291,13 +488,15 @@ fun RecRow(
         Column(Modifier.weight(1f)) {
             Text(rec.song.title, style = MaterialTheme.typography.bodyLarge, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(rec.song.artist, style = HairLabelStyle, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                whyLabel(rec.why).asLabel(),
-                style = HairLabelStyle,
-                color = Contrast.ensure(colors.accent, colors.surface),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (showWhy) {
+                Text(
+                    whyLabel(rec.why).asLabel(),
+                    style = HairLabelStyle,
+                    color = Contrast.ensure(colors.accent, colors.surface),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         val play = stringResource(R.string.similar_play_cd, rec.song.title)
         Box(
@@ -347,6 +546,18 @@ fun LazyListScope.similarItems(
         }
     }
     val rows = set?.items.orEmpty().distinctBy { it.song.id }
+    // Общая причина («ПОХОЖЕ НА …») стоит один раз над списком; у строк остаётся только то, что отличается.
+    val shared = SimilarReasons.shared(rows.map { it.why })
+    if (shared != null) {
+        item(key = "similar-reason") {
+            Text(
+                whyLabel(shared).asLabel(),
+                style = HairLabelStyle,
+                color = Contrast.ensure(LocalW0yColors.current.accent, LocalW0yColors.current.surface),
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
+    }
     if (rows.isEmpty() && !loading) {
         item(key = "similar-empty") {
             Text(
@@ -365,6 +576,16 @@ fun LazyListScope.similarItems(
             onNext = { onNext(rec.song) },
             onMore = { onMore(rec.song) },
             onLess = { onLess(rec.song) },
+            showWhy = shared == null || rec.why != shared,
         )
+    }
+}
+
+/** Какая причина общая для подборки: одна и та же у большинства строк, иначе её нет. */
+object SimilarReasons {
+    fun shared(reasons: List<Why>): Why? {
+        if (reasons.size < 2) return null
+        val top = reasons.groupingBy { it }.eachCount().maxByOrNull { it.value } ?: return null
+        return top.key.takeIf { top.value >= 2 && top.value * 2 > reasons.size }
     }
 }
