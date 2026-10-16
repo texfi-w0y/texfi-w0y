@@ -24,7 +24,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +73,12 @@ fun SongRow(
     onLongClick: (() -> Unit)? = null,
     /** Кадр 16:9 вместо квадрата — для выдачи видео, как в YouTube Music. */
     wideCover: Boolean = false,
+    /**
+     * Действия по долгому нажатию (удалить из списка и т. п.): вместо видимых
+     * кнопок-корзин. Если заданы, долгое нажатие открывает их меню; общее меню
+     * трека доступно из него строкой «ещё».
+     */
+    rowActions: List<RowAction> = emptyList(),
     actions: @Composable () -> Unit = {},
 ) {
     val colors = LocalW0yColors.current
@@ -80,7 +88,19 @@ fun SongRow(
     val actionsHost = LocalSongActions.current
     // Свой обработчик сильнее общего меню: экран, которому нужно другое
     // действие по долгому нажатию, по-прежнему может его задать.
-    val longClick = onLongClick ?: actionsHost?.let { host -> { host.openMenu(song) } }
+    var rowMenuOpen by remember { mutableStateOf(false) }
+    val moreLabel = stringResource(R.string.row_menu_more)
+    val withMore =
+        if (actionsHost != null && rowActions.isNotEmpty()) rowActions + RowAction(moreLabel) { actionsHost.openMenu(song) } else rowActions
+    val longClick =
+        if (rowActions.isNotEmpty()) {
+            { rowMenuOpen = true }
+        } else {
+            onLongClick ?: actionsHost?.let { host -> { host.openMenu(song) } }
+        }
+    if (rowMenuOpen) {
+        RowActionsMenu(title = song.title, actions = withMore, cancel = stringResource(R.string.library_cancel), onDismiss = { rowMenuOpen = false })
+    }
     SwipeRow(
         modifier = modifier.fillMaxWidth(),
         onSwipeRight = actionsHost?.let { host -> { host.playNext(song) } },

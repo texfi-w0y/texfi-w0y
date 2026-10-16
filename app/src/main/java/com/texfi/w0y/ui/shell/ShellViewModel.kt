@@ -91,6 +91,11 @@ class ShellViewModel @Inject constructor(
             .map { it.hapticLevel }
             .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.HapticLevel.FULL)
 
+    val deleteProtection: StateFlow<Boolean> =
+        settings.settings
+            .map { it.deleteProtection }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     val swipeDismiss: StateFlow<Boolean> =
         settings.settings
             .map { it.swipeDismiss }

@@ -397,6 +397,13 @@ class LibraryViewModel @Inject constructor(
     fun renamePlaylist(id: Long, name: String) = viewModelScope.launch { library.renamePlaylist(id, name) }
 
     /** Новый порядок плейлиста: в базу и, если плейлист в аккаунте, туда же. */
+    /** Возвращает трек в плейлист на прежнее место (UNDO после «убрать»). */
+    fun restoreToPlaylist(playlistId: Long, song: SongItem, orderIds: List<String>) =
+        viewModelScope.launch {
+            library.addToPlaylist(playlistId, song)
+            library.reorderPlaylist(playlistId, orderIds)
+        }
+
     fun reorderPlaylist(playlistId: Long, songIds: List<String>) =
         viewModelScope.launch { library.reorderPlaylist(playlistId, songIds) }
 

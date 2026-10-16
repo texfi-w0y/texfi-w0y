@@ -796,4 +796,24 @@
     <string name="diag_clear">ОЧИСТИТИ ЖУРНАЛ</string>
     <string name="diag_copied">Звіт скопійовано.</string>
     <string name="diag_cleared">Журнал очищено.</string>
+
+    <!-- Защита от случайного удаления -->
+    <string name="row_menu_more">ЩЕ…</string>
+    <string name="rm_remove_from_playlist">ПРИБРАТИ З ПЛЕЙЛИСТА</string>
+    <string name="rm_removed_from_playlist">Прибрано з плейлиста</string>
+    <string name="rm_remove_from_queue">ПРИБРАТИ З ЧЕРГИ</string>
+    <string name="rm_removed_from_queue">Прибрано з черги</string>
+    <string name="rm_remove_download">ВИДАЛИТИ ЗАВАНТАЖЕННЯ</string>
+    <string name="rm_remove_download_text">Видалити завантажену копію «%1$s»? Її можна завантажити знову.</string>
+    <string name="rm_select_several">ОБРАТИ КІЛЬКА</string>
+    <string name="rm_remove_file">ВИДАЛИТИ ФАЙЛ З ТЕЛЕФОНА</string>
+    <string name="rm_remove_file_text">Видалити «%1$s» з цього телефона? Файл буде видалено назавжди, повернути його не можна.</string>
+    <string name="rm_remove_file_button">ВИДАЛИТИ ФАЙЛ</string>
+    <string name="rm_clear_history_title">ОЧИСТИТИ ІСТОРІЮ</string>
+    <string name="rm_clear_history_text">Очистити всю історію прослуховування (%1$d треків)? За нею рахуються статистика й рекомендації.</string>
+    <string name="rm_clear_button">ОЧИСТИТИ</string>
+    <string name="rm_delete_downloads_title">ВИДАЛИТИ ЗАВАНТАЖЕННЯ</string>
+    <string name="rm_delete_downloads_text">Видалити завантажені треки (%1$d)? Їх можна завантажити знову.</string>
+    <string name="rm_delete_button">ВИДАЛИТИ</string>
+    <string name="rm_item_handle">Утримуй і тягни, щоб переставити</string>
 </resources>

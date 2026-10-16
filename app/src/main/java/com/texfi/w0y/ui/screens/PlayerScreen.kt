@@ -19,6 +19,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -94,6 +95,7 @@ import com.texfi.w0y.ui.components.AddToPlaylistPanel
 import com.texfi.w0y.ui.components.CoverImage
 import com.texfi.w0y.ui.components.ExplicitBadge
 import com.texfi.w0y.ui.components.PixelButton
+import com.texfi.w0y.ui.components.holdToDrag
 import com.texfi.w0y.ui.components.PixelSegmented
 import com.texfi.w0y.ui.components.PixelSprite
 import com.texfi.w0y.ui.components.PlayPauseButton
@@ -983,12 +985,13 @@ fun PlayerScreen(
                 PlayerTab.QUEUE -> {
                     itemsIndexed(state.queue, key = { index, _ -> queueKeys.getOrElse(index) { "q$index" } }) { index, item ->
                         val removable = index != state.currentIndex
+                        val protection = com.texfi.w0y.ui.components.LocalDeleteProtection.current
                         // Смахнуть трек вбок — убрать из очереди; играющий не
                         // трогаем: это не «убрать из очереди», а «выключить».
                         SwipeRow(
-                            onSwipeRight = if (removable) ({ viewModel.removeFromQueue(index) }) else null,
+                            onSwipeRight = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
                             rightLabel = stringResource(R.string.swipe_remove),
-                            onSwipeLeft = if (removable) ({ viewModel.removeFromQueue(index) }) else null,
+                            onSwipeLeft = if (removable && !protection) ({ viewModel.removeFromQueue(index) }) else null,
                             leftLabel = stringResource(R.string.swipe_remove),
                         ) {
                             QueueRow(
@@ -998,7 +1001,19 @@ fun PlayerScreen(
                                 lifted = dragFrom == index,
                                 liftOffset = { if (dragFrom == index) dragOffset else 0f },
                                 onClick = { viewModel.player.playAt(index) },
-                                onRemove = if (removable) ({ viewModel.removeFromQueue(index) }) else null,
+                                rowActions =
+                                    if (removable) {
+                                        listOf(
+                                            com.texfi.w0y.ui.components.RowAction(
+                                                label = stringResource(R.string.rm_remove_from_queue),
+                                                undoMessage = stringResource(R.string.rm_removed_from_queue),
+                                                onUndo = { viewModel.insertInQueue(index, item) },
+                                                run = { viewModel.removeFromQueue(index) },
+                                            ),
+                                        )
+                                    } else {
+                                        emptyList()
+                                    },
                                 onMeasured = { rowPx = it },
                                 // Перетаскивать можно только то, что ещё не играло:
                                 // очередь до играющего трека — уже прошлое.
@@ -1301,6 +1316,7 @@ fun PlayerScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QueueRow(
     index: Int,
@@ -1309,7 +1325,7 @@ private fun QueueRow(
     lifted: Boolean,
     liftOffset: () -> Float,
     onClick: () -> Unit,
-    onRemove: (() -> Unit)?,
+    rowActions: List<com.texfi.w0y.ui.components.RowAction>,
     onMeasured: (Float) -> Unit,
     onDragStart: (() -> Unit)?,
     onDrag: (Float) -> Unit,
@@ -1318,6 +1334,15 @@ private fun QueueRow(
     val colors = LocalW0yColors.current
     val hair = com.texfi.w0y.ui.theme.isHair
     val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+    var menuOpen by remember { mutableStateOf(false) }
+    if (menuOpen) {
+        com.texfi.w0y.ui.components.RowActionsMenu(
+            title = song.title,
+            actions = rowActions,
+            cancel = stringResource(R.string.library_cancel),
+            onDismiss = { menuOpen = false },
+        )
+    }
     Column(Modifier.fillMaxWidth().graphicsLayer { translationY = liftOffset() }) {
     Row(
         Modifier
@@ -1325,7 +1350,7 @@ private fun QueueRow(
             .onSizeChanged { onMeasured(it.height.toFloat()) }
             // Поднятая строка едет за пальцем и заметно светлее соседей.
             .background(if (lifted) colors.surfaceHigh else Color.Transparent)
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = if (rowActions.isNotEmpty()) ({ menuOpen = true }) else null)
             .padding(vertical = if (hair) com.texfi.w0y.ui.theme.hairLook.rowPad else 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1377,10 +1402,6 @@ private fun QueueRow(
             Spacer(Modifier.width(6.dp))
             DragGrip(onStart = start, onDrag = onDrag, onEnd = onDragEnd)
         }
-        onRemove?.let {
-            Spacer(Modifier.width(6.dp))
-            SpriteButton(Sprites.close, onClick = it, size = 16)
-        }
     }
     if (hair) {
         Box(Modifier.fillMaxWidth().height(com.texfi.w0y.ui.theme.hairLook.line).background(colors.border.copy(alpha = 0.6f)))
@@ -1398,17 +1419,7 @@ private fun DragGrip(onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> 
     Box(
         Modifier
             .size(36.dp)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { start() },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        drag(amount.y)
-                    },
-                    onDragEnd = { end() },
-                    onDragCancel = { end() },
-                )
-            },
+            .holdToDrag(key = Unit, onStart = { start() }, onDrag = { drag(it) }, onEnd = { end() }),
         contentAlignment = Alignment.Center,
     ) {
         if (com.texfi.w0y.ui.theme.isHair) {

@@ -796,4 +796,24 @@
     <string name="diag_clear">WYCZYŚĆ DZIENNIK</string>
     <string name="diag_copied">Raport skopiowany.</string>
     <string name="diag_cleared">Dziennik wyczyszczony.</string>
+
+    <!-- Защита от случайного удаления -->
+    <string name="row_menu_more">WIĘCEJ…</string>
+    <string name="rm_remove_from_playlist">USUŃ Z PLAYLISTY</string>
+    <string name="rm_removed_from_playlist">Usunięto z playlisty</string>
+    <string name="rm_remove_from_queue">USUŃ Z KOLEJKI</string>
+    <string name="rm_removed_from_queue">Usunięto z kolejki</string>
+    <string name="rm_remove_download">USUŃ POBRANIE</string>
+    <string name="rm_remove_download_text">Usunąć pobraną kopię „%1$s”? Możesz pobrać ją ponownie.</string>
+    <string name="rm_select_several">ZAZNACZ KILKA</string>
+    <string name="rm_remove_file">USUŃ PLIK Z TELEFONU</string>
+    <string name="rm_remove_file_text">Usunąć „%1$s” z tego telefonu? Plik zostanie usunięty na stałe i nie da się go przywrócić.</string>
+    <string name="rm_remove_file_button">USUŃ PLIK</string>
+    <string name="rm_clear_history_title">WYCZYŚĆ HISTORIĘ</string>
+    <string name="rm_clear_history_text">Wyczyścić całą historię słuchania (%1$d utworów)? Korzystają z niej statystyki i rekomendacje.</string>
+    <string name="rm_clear_button">WYCZYŚĆ</string>
+    <string name="rm_delete_downloads_title">USUŃ POBRANIA</string>
+    <string name="rm_delete_downloads_text">Usunąć pobrane utwory (%1$d)? Możesz pobrać je ponownie.</string>
+    <string name="rm_delete_button">USUŃ</string>
+    <string name="rm_item_handle">Przytrzymaj i przeciągnij, aby zmienić kolejność</string>
 </resources>

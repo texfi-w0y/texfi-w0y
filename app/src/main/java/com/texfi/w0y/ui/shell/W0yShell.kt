@@ -203,6 +203,14 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             )
         }
 
+    val deleteProtection by viewModel.deleteProtection.collectAsStateWithLifecycle()
+    val undoController = remember { com.texfi.w0y.ui.components.UndoController() }
+    val generalUndo by undoController.current.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(generalUndo?.id) {
+        val item = generalUndo ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(com.texfi.w0y.ui.components.UndoController.VISIBLE_MS)
+        undoController.dismiss(item.id)
+    }
     CompositionLocalProvider(
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
@@ -213,6 +221,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         LocalPlayingSongId provides playerState.song?.id,
         com.texfi.w0y.ui.components.LocalIsPlaying provides playerState.isPlaying,
         LocalSongActions provides songActions,
+        com.texfi.w0y.ui.components.LocalDeleteProtection provides deleteProtection,
+        com.texfi.w0y.ui.components.LocalUndo provides undoController,
     ) {
     com.texfi.w0y.ui.theme.ProvideBackdrop(backdropMode, playerState.song?.thumbnailUrl, backdropImage) {
     val haptic = rememberHaptics()
@@ -415,6 +425,21 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     undoVisible = false
                     viewModel.player.undoDismiss()
                 },
+            )
+        }
+
+        // «Убрано · Вернуть» после лёгкого удаления: над островом, ~6 секунд.
+        AnimatedVisibility(
+            visible = generalUndo != null,
+            enter = fadeIn(tween(W0yMotion.FAST_MS)),
+            exit = fadeOut(tween(W0yMotion.FAST_MS)),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = barsHeight + 12.dp + if (undoVisible) 56.dp else 0.dp),
+        ) {
+            val item = generalUndo
+            com.texfi.w0y.ui.components.HairSnack(
+                message = item?.message.orEmpty(),
+                action = stringResource(R.string.hl_undo),
+                onAction = undoController::undo,
             )
         }
 
