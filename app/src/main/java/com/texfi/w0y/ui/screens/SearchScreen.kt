@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,11 +44,15 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.texfi.w0y.R
+import com.texfi.w0y.data.SearchError
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.Thumbnails
 import com.texfi.w0y.ui.components.SectionHeader
@@ -208,7 +213,8 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                     repeat(if (localResults.isEmpty()) 6 else 3) { SkeletonRow() }
                 }
 
-            is SearchState.Failed ->
+            SearchState.Empty ->
+                // Запрос прошёл и ничего не вернул: это не ошибка, и выглядит иначе.
                 Column {
                     if (localResults.isNotEmpty()) {
                         LocalBlock(
@@ -217,36 +223,43 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                         )
                         Spacer(Modifier.height(14.dp))
                     }
-                    Hint(current.message)
-                    current.detail?.let {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.secondary,
+                    EmptyState(
+                        sprite = Sprites.search,
+                        title = stringResource(R.string.search_nothing_title),
+                        text = stringResource(R.string.search_nothing_text),
+                    )
+                }
+
+            is SearchState.Error ->
+                Column {
+                    if (localResults.isNotEmpty()) {
+                        LocalBlock(
+                            songs = localResults,
+                            onPlay = { index -> viewModel.playFrom(localResults, index) },
                         )
+                        Spacer(Modifier.height(14.dp))
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Row {
-                        PixelButton(
-                            text = stringResource(R.string.common_retry),
-                            onClick = viewModel::retry,
-                        )
-                        Spacer(Modifier.width(12.dp))
+                    SearchErrorBlock(
+                        error = current.error,
+                        onRetry = viewModel::retry,
+                        onCopy = { viewModel.debugInfoText() },
+                    )
+                    if (com.texfi.w0y.BuildConfig.DEBUG) {
+                        Spacer(Modifier.height(12.dp))
                         PixelButton(
                             text = stringResource(R.string.search_diagnostics),
                             onClick = viewModel::diagnose,
                             fill = colors.surfaceHigh,
                         )
-                    }
-                    diagnosis?.let { text ->
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.text,
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
-                        )
+                        diagnosis?.let { text ->
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.text,
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                            )
+                        }
                     }
                 }
 
@@ -571,3 +584,73 @@ private const val RANDOM_MIN = 3
 
 /** Сколько артистов пускать в смешанную выдачу перед треками. */
 private const val ARTISTS_IN_MIX = 3
+
+
+/**
+ * Блок ошибки поиска на месте результатов: что случилось простыми словами,
+ * короткая метка с кодом и два действия. Пустая выдача сюда не попадает.
+ */
+@Composable
+private fun SearchErrorBlock(
+    error: SearchError,
+    onRetry: () -> Unit,
+    onCopy: suspend () -> String,
+) {
+    val colors = LocalW0yColors.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val reason =
+        stringResource(
+            when (error) {
+                SearchError.Offline -> R.string.search_error_offline
+                SearchError.Timeout -> R.string.search_error_timeout
+                SearchError.Dns -> R.string.search_error_dns
+                SearchError.Tls -> R.string.search_error_tls
+                is SearchError.Http -> R.string.search_error_http
+                SearchError.RateLimited -> R.string.search_error_rate
+                is SearchError.Parse -> R.string.search_error_parse
+                SearchError.Auth -> R.string.search_error_auth
+                else -> R.string.search_error_unknown
+            },
+        )
+    val hint =
+        when (error) {
+            SearchError.Offline, SearchError.Dns, SearchError.Tls, SearchError.Timeout -> stringResource(R.string.search_error_network_hint)
+            else -> null
+        }
+    val retryLabel = stringResource(R.string.search_error_retry)
+    val copyLabel = stringResource(R.string.search_error_copy)
+    val copied = stringResource(R.string.diag_copied)
+    com.texfi.w0y.ui.components.PixelCard(
+        modifier = Modifier.fillMaxWidth(),
+        label = stringResource(R.string.search_error_title),
+    ) {
+        Text(text = reason, style = MaterialTheme.typography.bodyLarge, color = colors.text)
+        Spacer(Modifier.height(6.dp))
+        Text(text = error.tag, style = PixelSectionLabel, color = colors.textMuted)
+        hint?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(text = it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+        }
+        Spacer(Modifier.height(16.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PixelButton(
+                text = retryLabel,
+                onClick = onRetry,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .semantics { contentDescription = retryLabel },
+            )
+            PixelButton(
+                text = copyLabel,
+                onClick = { scope.launch { copyToClipboard(context, "w0y debug info", onCopy(), copied) } },
+                fill = colors.surfaceHigh,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .semantics { contentDescription = copyLabel },
+            )
+        }
+    }
+}

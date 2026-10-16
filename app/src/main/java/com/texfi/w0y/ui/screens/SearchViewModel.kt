@@ -6,7 +6,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.annotation.StringRes
 import com.texfi.w0y.R
 import com.texfi.w0y.BuildConfig
+import com.texfi.w0y.data.DebugInfoCollector
 import com.texfi.w0y.data.Diagnostics
+import com.texfi.w0y.data.NetworkInfo
+import com.texfi.w0y.data.SearchError
+import com.texfi.w0y.data.SearchErrors
 import com.texfi.w0y.data.ArtistCard
 import com.texfi.w0y.data.LibraryRepository
 import com.texfi.w0y.data.PlaylistCard
@@ -71,7 +75,11 @@ sealed interface SearchState {
         val isEmpty: Boolean get() = songs.isEmpty() && albums.isEmpty() && artists.isEmpty()
     }
 
-    data class Failed(val message: String, val detail: String? = null) : SearchState
+    /** Запрос прошёл, но ничего не нашёл: не ошибка. */
+    data object Empty : SearchState
+
+    /** Запрос не удался: причина типизирована, пустой результат сюда не попадает. */
+    data class Error(val error: SearchError) : SearchState
 }
 
 @HiltViewModel
@@ -79,6 +87,8 @@ class SearchViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val repository: YouTubeRepository,
     private val diagnostics: Diagnostics,
+    private val debugInfo: DebugInfoCollector,
+    private val networkInfo: NetworkInfo,
     private val library: LibraryRepository,
     private val downloads: DownloadsRepository,
     private val history: SearchHistoryRepository,
@@ -178,6 +188,9 @@ class SearchViewModel @Inject constructor(
     private val _state = MutableStateFlow<SearchState>(SearchState.Idle)
     val state: StateFlow<SearchState> = _state.asStateFlow()
 
+    /** Счётчик ручных повторов: запрос с теми же словами обходит distinctUntilChanged. */
+    private val retryTick = MutableStateFlow(0)
+
     private val _filter = MutableStateFlow(SearchFilter.SONGS)
     val filter: StateFlow<SearchFilter> = _filter.asStateFlow()
 
@@ -209,7 +222,8 @@ class SearchViewModel @Inject constructor(
             // идёт мимо паузы.
             merge(_query.debounce(SEARCH_DEBOUNCE_MS), submitted).distinctUntilChanged(),
             _filter,
-        ) { query, filter -> query to filter }
+            retryTick,
+        ) { query, filter, _ -> query to filter }
             // flatMapLatest отменяет устаревший запрос: пользователь видит
             // результат по тому, что набрано сейчас, а не три буквы назад.
             .flatMapLatest { (query, filter) ->
@@ -223,64 +237,46 @@ class SearchViewModel @Inject constructor(
                         return@flow
                     }
                     emit(SearchState.Loading)
-                    val result =
-                        runCatching {
-                            when (filter) {
-                                SearchFilter.ALL ->
-                                    repository.searchEverything(query).let {
-                                        SearchState.Results(
-                                            songs = it.songs,
-                                            albums = it.albums,
-                                            artists = it.artists,
-                                        )
-                                    }
-
-                                SearchFilter.SONGS -> SearchState.Results(songs = repository.searchSongs(query))
-                                SearchFilter.VIDEOS -> SearchState.Results(songs = repository.searchVideos(query), videos = true)
-                                SearchFilter.ALBUMS -> SearchState.Results(albums = repository.searchAlbums(query))
-                                SearchFilter.ARTISTS -> SearchState.Results(artists = repository.searchArtists(query))
-                            }
-                        }
-                    emit(
-                        result.fold(
-                            onSuccess = {
-                                cache[query to filter] = it
-                                it
-                            },
-                            onFailure = { error ->
-                                Timber.w(error, "Поиск «$query» не удался")
-                                SearchState.Failed(
-                                    message = context.getString(R.string.search_failed),
-                                    // В debug показываем настоящую причину прямо
-                                    // на экране: телефон у пользователя, логи
-                                    // читать неоткуда, а «проверь сеть» скрывает
-                                    // любую ошибку кода под видом проблем связи.
-                                    detail =
-                                        if (BuildConfig.DEBUG) {
-                                            buildString {
-                                                append(error::class.qualifiedName)
-                                                error.message?.let {
-                                                    append(": ")
-                                                    append(it.take(300))
-                                                }
-                                                error.cause?.let {
-                                                    append("\n← ")
-                                                    append(it::class.simpleName)
-                                                    append(": ")
-                                                    append(it.message?.take(200).orEmpty())
-                                                }
-                                            }
-                                        } else {
-                                            null
-                                        },
-                                )
-                            },
-                        ),
-                    )
+                    emit(runSearch(query, filter))
                 }
             }.onEach { _state.value = it }
             .launchIn(viewModelScope)
     }
+
+    /**
+     * Один поиск до конца: успех, «ничего не найдено» или типизированная ошибка.
+     * Отмена не превращается в ошибку: её просто пропускаем дальше.
+     */
+    private suspend fun runSearch(query: String, filter: SearchFilter): SearchState =
+        try {
+            val results =
+                when (filter) {
+                    SearchFilter.ALL ->
+                        repository.searchEverything(query).let {
+                            SearchState.Results(songs = it.songs, albums = it.albums, artists = it.artists)
+                        }
+
+                    SearchFilter.SONGS -> SearchState.Results(songs = repository.searchSongs(query))
+                    SearchFilter.VIDEOS -> SearchState.Results(songs = repository.searchVideos(query), videos = true)
+                    SearchFilter.ALBUMS -> SearchState.Results(albums = repository.searchAlbums(query))
+                    SearchFilter.ARTISTS -> SearchState.Results(artists = repository.searchArtists(query))
+                }
+            if (results.isEmpty) {
+                SearchState.Empty
+            } else {
+                cache[query to filter] = results
+                results
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            if (e is kotlinx.coroutines.TimeoutCancellationException) SearchState.Error(SearchError.Timeout) else throw e
+        } catch (e: Throwable) {
+            val error = SearchErrors.classify(e, online = networkInfo.isOnline())
+            Timber.w("Поиск не удался: ${error.tag}")
+            SearchState.Error(error)
+        }
+
+    /** Текст для буфера обмена: версия, устройство, сеть, журнал. Без запросов и аккаунта. */
+    suspend fun debugInfoText(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { debugInfo.collect() }
 
     fun onFilterChange(value: SearchFilter) {
         _filter.value = value
@@ -314,9 +310,7 @@ class SearchViewModel @Inject constructor(
     /** Повтор того же запроса: сеть на телефоне отваливается чаще, чем код. */
     fun retry() {
         cache.remove(_query.value to _filter.value)
-        val current = _query.value
-        _query.value = ""
-        _query.value = current
+        retryTick.value += 1
     }
 
     fun playFrom(songs: List<SongItem>, index: Int) = playback.play(songs, index)

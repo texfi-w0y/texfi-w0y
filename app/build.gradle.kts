@@ -22,6 +22,14 @@ android {
         // сборку с меньшим кодом поверх установленной, и пришлось бы стирать данные.
         versionCode = 12
         versionName = "0.0.3-beta-2"
+        // Короткий хеш коммита для «Copy debug info»: по нему видно, из какого кода собран APK.
+        val commit =
+            runCatching {
+                providers
+                    .exec { commandLine("git", "rev-parse", "--short", "HEAD") }
+                    .standardOutput.asText.get().trim()
+            }.getOrDefault("").ifBlank { "unknown" }
+        buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
     }
 
     // Подпись берётся из переменных окружения — так один и тот же файл

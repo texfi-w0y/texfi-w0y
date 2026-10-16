@@ -773,4 +773,27 @@
     <string name="dock_labels_none">Ukryte</string>
     <string name="dock_glow_title">Dolny panel: blask</string>
     <string name="dock_glow_desc">Gdy gra muzyka, światło wokół panelu oddycha, a w środku dryfuje plama koloru.</string>
+
+    <!-- Диагностика поиска и соединения -->
+    <string name="search_error_title">WYSZUKIWANIE NIE DZIAŁA</string>
+    <string name="search_error_offline">Brak połączenia.</string>
+    <string name="search_error_timeout">Serwer odpowiada zbyt długo.</string>
+    <string name="search_error_dns">Nie znaleziono serwera (DNS).</string>
+    <string name="search_error_tls">Nie udało się nawiązać bezpiecznego połączenia.</string>
+    <string name="search_error_http">Serwer odrzucił zapytanie.</string>
+    <string name="search_error_rate">Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.</string>
+    <string name="search_error_parse">Nieoczekiwana odpowiedź serwera.</string>
+    <string name="search_error_auth">Logowanie zostało odrzucone. Zaloguj się ponownie.</string>
+    <string name="search_error_unknown">Coś poszło nie tak.</string>
+    <string name="search_error_network_hint">Sprawdź Wi-Fi lub dane komórkowe. Przeszkadzać mogą VPN, Private DNS, DNS blokujący reklamy lub oszczędzanie danych.</string>
+    <string name="search_error_retry">PONÓW</string>
+    <string name="search_error_copy">SKOPIUJ RAPORT</string>
+    <string name="about_section_diagnostics">Diagnostyka</string>
+    <string name="diag_title">POŁĄCZENIE</string>
+    <string name="diag_text">Nic nie jest nigdzie wysyłane. Uruchom test, skopiuj tekst i wyślij go sam, jeśli potrzebujesz pomocy.</string>
+    <string name="diag_test">PRZETESTUJ POŁĄCZENIE</string>
+    <string name="diag_copy">SKOPIUJ RAPORT</string>
+    <string name="diag_clear">WYCZYŚĆ DZIENNIK</string>
+    <string name="diag_copied">Raport skopiowany.</string>
+    <string name="diag_cleared">Dziennik wyczyszczony.</string>
 </resources>

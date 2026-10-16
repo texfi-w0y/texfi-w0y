@@ -773,4 +773,27 @@
     <string name="dock_labels_none">Hidden</string>
     <string name="dock_glow_title">Bottom panel: glow</string>
     <string name="dock_glow_desc">The light around the panel breathes and a colour spot drifts inside while music plays.</string>
+
+    <!-- Диагностика поиска и соединения -->
+    <string name="search_error_title">SEARCH FAILED</string>
+    <string name="search_error_offline">No connection.</string>
+    <string name="search_error_timeout">The server took too long to answer.</string>
+    <string name="search_error_dns">Couldn\'t find the server (DNS).</string>
+    <string name="search_error_tls">The secure connection failed.</string>
+    <string name="search_error_http">The server refused the request.</string>
+    <string name="search_error_rate">Too many requests. Wait a moment and try again.</string>
+    <string name="search_error_parse">Unexpected response from the server.</string>
+    <string name="search_error_auth">Your sign-in was rejected. Try signing in again.</string>
+    <string name="search_error_unknown">Something went wrong.</string>
+    <string name="search_error_network_hint">Check Wi-Fi or mobile data. A VPN, Private DNS, an ad-blocking DNS or data saver can also get in the way.</string>
+    <string name="search_error_retry">RETRY</string>
+    <string name="search_error_copy">COPY DEBUG INFO</string>
+    <string name="about_section_diagnostics">Diagnostics</string>
+    <string name="diag_title">CONNECTION</string>
+    <string name="diag_text">Nothing is sent anywhere. Run the test, copy the text and share it yourself if you want help.</string>
+    <string name="diag_test">TEST CONNECTION</string>
+    <string name="diag_copy">COPY DEBUG INFO</string>
+    <string name="diag_clear">CLEAR LOG</string>
+    <string name="diag_copied">Debug info copied.</string>
+    <string name="diag_cleared">Log cleared.</string>
 </resources>

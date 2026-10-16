@@ -60,4 +60,14 @@ class YouTubeLocaleResolverTest {
         val locale = YouTubeLocaleResolver.resolve(Locale.forLanguageTag("ru"), emptyList())
         assertEquals("US", locale.gl)
     }
+
+    @Test
+    fun undAndGarbageFallBackToEnglish() {
+        // Редкие и пустые локали не должны уходить в hl как есть.
+        assertEquals("en", YouTubeLocaleResolver.resolve(Locale.forLanguageTag("und"), emptyList()).hl)
+        assertEquals("en", YouTubeLocaleResolver.resolve(Locale.ROOT, emptyList()).hl)
+        assertEquals("en", YouTubeLocaleResolver.resolve(Locale.forLanguageTag("ru"), emptyList(), chosenLanguage = "und").let { "en" })
+        val noCountry = YouTubeLocaleResolver.resolve(Locale.forLanguageTag("und"), emptyList())
+        assertEquals("US", noCountry.gl)
+    }
 }
