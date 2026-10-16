@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.screens
 
+import com.texfi.w0y.ui.components.coverFlightHide
+import com.texfi.w0y.ui.components.coverFlightPlayer
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -264,10 +266,12 @@ internal fun CoverPlayerPage(
     onDragEnd: () -> Unit,
     poster: Boolean = false,
     visualizerOn: Boolean = false,
+    /** На сцене сейчас обложка (а не визуализатор, текст или видео): только тогда она летит в мини-плеер. */
+    coverShown: Boolean = true,
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
     if (poster) {
-        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn)
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown)
         return
     }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -299,16 +303,22 @@ internal fun CoverPlayerPage(
                     val side = minOf(maxWidth, maxHeight) - 16.dp
                     val radius = look.cardRadius.coerceIn(10.dp, 22.dp)
                     val framePx = with(density) { (radius + 6.dp).toPx() }
+                    val flight = com.texfi.w0y.ui.components.LocalCoverFlight.current
                     Box(
                         Modifier
                             .size(side)
+                            // Место обложки для полёта: рамка 6 dp вокруг картинки не в счёт; «дыхание» ниже по цепочке.
+                            .coverFlightPlayer(flight, enabled = coverShown, insetDp = 6.dp, radiusDp = radius)
                             .graphicsLayer {
                                 scaleX = breathe
                                 scaleY = breathe
+                                flight?.playerScale = breathe
+                                flight?.playerAlpha = 1f
                             }
                             .progressFrame({ progress }, colors.outline, tone, lineFrame, framePx)
                             .padding(6.dp)
                             .clip(RoundedCornerShape(radius))
+                            .coverFlightHide(flight)
                             .pointerInput(song.id) {
                                 var total = 0f
                                 detectHorizontalDragGestures(
@@ -376,6 +386,7 @@ private fun PosterPlayerPage(
     onDrag: (Long) -> Unit,
     onDragEnd: () -> Unit,
     visualizerOn: Boolean,
+    coverShown: Boolean,
 ) {
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
@@ -402,10 +413,13 @@ private fun PosterPlayerPage(
             val fade = 96.dp
             val controls = with(density) { controlsPx.toDp() }
             val coverH = if (controlsPx == 0) maxWidth else (maxHeight - controls + fade).coerceIn(maxWidth * 0.6f, maxWidth * 1.15f)
+            val flight = com.texfi.w0y.ui.components.LocalCoverFlight.current
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(coverH)
+                    // Место постера для полёта: до входной анимации и «паузы» — они идут слоями ниже.
+                    .coverFlightPlayer(flight, enabled = coverShown && !visualizerOn, fadeDp = fade)
                     .hairEnter(0)
                     .graphicsLayer {
                         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -413,6 +427,8 @@ private fun PosterPlayerPage(
                         val s = 1f + 0.03f * rest
                         scaleX = s
                         scaleY = s
+                        flight?.playerScale = s
+                        flight?.playerAlpha = alpha
                     }
                     .drawWithContent {
                         drawContent()
@@ -445,7 +461,7 @@ private fun PosterPlayerPage(
                     },
                     label = "posterTrack",
                 ) { _ ->
-                    Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().coverFlightHide(flight)) {
                         // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
                         // встают поверх неё в свободной части между шапкой и управлением.
                         PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha })

@@ -112,10 +112,10 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
                         dstOffset = IntOffset(((w - dw) / 2f).toInt(), ((h - dh) / 2f).toInt()),
                         dstSize = IntSize(dw.toInt(), dh.toInt()),
                     )
-                    // Лёгкое затемнение и более тёмный низ: подписи и строки читаются на любой части листа.
-                    drawRect(Color.Black.copy(alpha = 0.22f), Offset.Zero, Size(w, h))
+                    // Затемнение: линии остаются, но не спорят с текстом (множитель яркости ≈ 0,6); снизу чуть темнее.
+                    drawRect(Color.Black.copy(alpha = 0.40f), Offset.Zero, Size(w, h))
                     drawRect(
-                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.40f), startY = h * 0.55f, endY = h),
+                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.25f), startY = h * 0.6f, endY = h),
                         Offset.Zero, Size(w, h),
                     )
                 } else {

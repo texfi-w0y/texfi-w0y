@@ -55,7 +55,10 @@ fun PlayerSheet(
     val hair = com.texfi.w0y.ui.theme.isHair
     val moves = com.texfi.w0y.ui.theme.hairLook.motion.moves
     val scope = rememberCoroutineScope()
-    var openness by remember { mutableFloatStateOf(if (expanded) 1f else 0f) }
+    // Раскрытость живёт в общем держателе: по ней летит обложка между плеером и мини-плеером.
+    val flight = com.texfi.w0y.ui.components.LocalCoverFlight.current ?: remember { com.texfi.w0y.ui.components.CoverFlight() }
+    remember(flight) { if (flight.openness == 0f && expanded) flight.openness = 1f; flight }
+    var openness by flight::openness
     var job by remember { mutableStateOf<Job?>(null) }
     var firstRun by remember { mutableStateOf(true) }
     val travelHolder = remember { floatArrayOf(1f) }
@@ -145,10 +148,14 @@ fun PlayerSheet(
                 travelHolder[0] = travel
                 val closed = 1f - openness
                 translationY = closed * travel
+                flight.curtainW = size.width
+                flight.curtainH = size.height
                 // Hairline: при тяге плеер сжимается к мини-плееру и скругляется, а не просто едет вниз.
                 val scale = 1f - (if (hair) 0.16f else 0.1f) * closed.coerceIn(0f, 1f)
                 scaleX = scale
                 scaleY = scale
+                flight.curtainTy = translationY
+                flight.curtainScale = scale
                 transformOrigin = TransformOrigin(0.5f, 1f)
                 alpha = if (hair) (1f - closed * 0.9f).coerceIn(0f, 1f).let { if (closed < 0.3f) 1f else it } else (openness * 2.4f).coerceIn(0f, 1f)
                 clip = true

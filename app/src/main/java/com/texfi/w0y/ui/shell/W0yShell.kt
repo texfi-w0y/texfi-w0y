@@ -216,7 +216,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         undoController.dismiss(item.id)
     }
     val modalDim = remember { com.texfi.w0y.ui.screens.ModalDim() }
+    val coverFlight = remember { com.texfi.w0y.ui.components.CoverFlight() }
     CompositionLocalProvider(
+        com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
@@ -487,6 +489,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         ) {
             PlayerScreen(onCollapse = { playerExpanded = false }, onStand = { standOpen = true })
         }
+        // Обложка перелетает между плеером и мини-плеером, пока шторка едет.
+        com.texfi.w0y.ui.components.CoverFlightLayer(coverFlight, playerState.song?.thumbnailUrl)
 
         menuSong?.let { song ->
             val close = {
