@@ -2,7 +2,9 @@ package com.texfi.w0y.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,7 +15,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.searchStore: DataStore<Preferences> by preferencesDataStore("searches")
+// Повреждённый файл истории не должен ронять поиск: читаем его как пустой и
+// перезаписываем при следующем запросе.
+private val Context.searchStore: DataStore<Preferences> by preferencesDataStore(
+    name = "searches",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * Последние запросы.
