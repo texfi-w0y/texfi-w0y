@@ -522,6 +522,24 @@ interface W0yDao {
     @Query("SELECT MIN(playedAt) FROM history")
     suspend fun firstPlayAt(): Long?
 
+    /** Исполнители, которых впервые засчитали не раньше [since]: «новые» за период. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM (
+            SELECT songs.artist AS artist, MIN(history.playedAt) AS firstAt FROM history
+            JOIN songs ON songs.id = history.songId
+            WHERE songs.artist != '' AND history.counted = 1
+            GROUP BY songs.artist
+            HAVING firstAt >= :since
+        )
+        """,
+    )
+    suspend fun newArtistsSince(since: Long): Int
+
+    /** Обнуляет счётчики прослушивания; сами записи остаются — «недавнее» не пустеет. */
+    @Query("UPDATE history SET listenedMs = 0, counted = 0, legacy = 0")
+    suspend fun resetListening()
+
     @Query("DELETE FROM history")
     suspend fun clearHistory()
 

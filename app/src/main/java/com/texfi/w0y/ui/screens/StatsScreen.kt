@@ -16,6 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,7 +29,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.texfi.w0y.R
 import com.texfi.w0y.data.StatsPeriod
 import com.texfi.w0y.data.Thumbnails
+import com.texfi.w0y.ui.components.ConfirmDialog
 import com.texfi.w0y.ui.components.CoverImage
+import com.texfi.w0y.ui.components.HourlyLine
+import com.texfi.w0y.ui.components.PixelButton
 import com.texfi.w0y.ui.components.FillText
 import com.texfi.w0y.ui.components.SegmentedBar
 import com.texfi.w0y.ui.components.EmptyState
@@ -71,13 +77,29 @@ fun StatsScreen(
             Spacer(Modifier.height(18.dp))
         }
 
-        if (stats.plays == 0) {
+        // Пока считается — не пишем «пусто»: это был ложный пустой экран на первом кадре.
+        if (!stats.loaded) return
+        if (stats.isEmpty) {
             EmptyState(
                 sprite = Sprites.stats,
                 title = stringResource(R.string.stats_empty_title),
                 text = stringResource(R.string.stats_empty_text),
             )
             return
+        }
+        var confirmReset by remember { mutableStateOf(false) }
+        if (confirmReset) {
+            ConfirmDialog(
+                title = stringResource(R.string.stats_reset_title),
+                text = stringResource(R.string.stats_reset_text),
+                confirm = stringResource(R.string.stats_reset_confirm),
+                dismiss = stringResource(R.string.library_cancel),
+                onConfirm = {
+                    confirmReset = false
+                    viewModel.reset()
+                },
+                onDismiss = { confirmReset = false },
+            )
         }
 
         LazyColumn(
@@ -86,14 +108,25 @@ fun StatsScreen(
         ) {
             item {
                 Row(Modifier.fillMaxWidth()) {
-                    Metric(stringResource(R.string.stats_minutes), stats.minutes.toString(), Modifier.weight(1f))
+                    Metric(stringResource(R.string.stats_minutes), if (stats.minutes == 0 && stats.listenedMs > 0) "<1" else stats.minutes.toString(), Modifier.weight(1f))
                     Spacer(Modifier.width(12.dp))
                     Metric(stringResource(R.string.stats_plays), stats.plays.toString(), Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Metric(stringResource(R.string.stats_new_artists), stats.newArtists.toString(), Modifier.weight(1f))
+                    Spacer(Modifier.width(12.dp))
+                    val peak = stats.hourly.withIndex().maxByOrNull { it.value }?.takeIf { it.value > 0 }?.index
+                    Metric(stringResource(R.string.stats_peak_hour), peak?.let { "%02d:00".format(it) } ?: "—", Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(22.dp))
                 SectionHeader(stringResource(R.string.stats_chart_title))
                 Spacer(Modifier.height(10.dp))
                 ListenChart(bars = stats.bars, bucket = stats.bucket)
+                Spacer(Modifier.height(22.dp))
+                SectionHeader(stringResource(R.string.stats_hourly_title))
+                Spacer(Modifier.height(10.dp))
+                HourlyLine(stats.hourly)
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.stats_rule_note), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 if (stats.hasLegacy) {
@@ -191,7 +224,17 @@ fun StatsScreen(
                 }
             }
 
-            item { Spacer(Modifier.height(28.dp)) }
+            item {
+                Spacer(Modifier.height(28.dp))
+                PixelButton(
+                    text = stringResource(R.string.stats_reset),
+                    onClick = { confirmReset = true },
+                    fill = colors.surfaceHigh,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(stringResource(R.string.stats_local_note), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                Spacer(Modifier.height(28.dp))
+            }
         }
     }
 }

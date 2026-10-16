@@ -95,6 +95,9 @@ class W0yPlayerService : MediaSessionService() {
     @Inject lateinit var readAhead: ReadAhead
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    /** Короткие записи истории, которые должны дойти до базы даже при остановке сервиса. */
+    private val writeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val settings = MutableStateFlow(W0ySettings())
     private var session: MediaSession? = null
     private var playRequestedAt: Long = 0L
@@ -709,16 +712,25 @@ class W0yPlayerService : MediaSessionService() {
         listenRowId = null
         listenSavedMs = 0
         scope.launch {
-            listenRowId =
-                library.remember(
-                    SongItem(
-                        id = item.mediaId,
-                        title = item.mediaMetadata.title?.toString().orEmpty(),
-                        artist = item.mediaMetadata.artist?.toString().orEmpty(),
-                        album = item.mediaMetadata.albumTitle?.toString(),
-                        thumbnailUrl = item.mediaMetadata.artworkUri?.toString(),
-                    ),
-                )
+            val row =
+                runCatching {
+                    library.remember(
+                        SongItem(
+                            id = item.mediaId,
+                            title = item.mediaMetadata.title?.toString().orEmpty(),
+                            artist = item.mediaMetadata.artist?.toString().orEmpty(),
+                            album = item.mediaMetadata.albumTitle?.toString(),
+                            thumbnailUrl = item.mediaMetadata.artworkUri?.toString(),
+                        ),
+                    )
+                }.onFailure { Timber.w(it, "История: строка не записалась") }.getOrNull() ?: return@launch
+            if (listen === session) {
+                listenRowId = row
+            } else if (session.listenedMs > 0) {
+                // Трек успели переключить, пока строка создавалась: чужой
+                // номер новому включению не отдаём, свою долю дописываем.
+                runCatching { library.updateListen(row, session.listenedMs, session.counted) }
+            }
         }
     }
 
@@ -729,7 +741,9 @@ class W0yPlayerService : MediaSessionService() {
         listen = null
         listenRowId = null
         if (row != null && session.listenedMs != listenSavedMs) {
-            scope.launch { library.updateListen(row, session.listenedMs, session.counted) }
+            // Отдельная область: при остановке сервиса `scope` отменяется
+            // раньше, чем запись доходит до базы, и последнее включение терялось.
+            writeScope.launch { runCatching { library.updateListen(row, session.listenedMs, session.counted) } }
         }
     }
 
@@ -760,7 +774,9 @@ class W0yPlayerService : MediaSessionService() {
                     val row = listenRowId ?: continue
                     if (crossed || session.listenedMs - listenSavedMs >= LISTEN_SAVE_MS) {
                         listenSavedMs = session.listenedMs
-                        library.updateListen(row, session.listenedMs, session.counted)
+                        // Сбой записи не должен гасить счётчик до конца жизни сервиса.
+                        runCatching { library.updateListen(row, session.listenedMs, session.counted) }
+                            .onFailure { Timber.w(it, "История: прослушивание не записалось") }
                     }
                 }
             }

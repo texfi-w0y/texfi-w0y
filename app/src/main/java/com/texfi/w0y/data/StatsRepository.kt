@@ -30,6 +30,8 @@ data class ListeningStats(
     val period: StatsPeriod = StatsPeriod.WEEK,
     val plays: Int = 0,
     val minutes: Int = 0,
+    /** Проигранное время точнее минут: меньше минуты — это не «ничего». */
+    val listenedMs: Long = 0L,
     val topSongs: List<Pair<SongItem, Int>> = emptyList(),
     val topArtists: List<ArtistPlays> = emptyList(),
     val since: Long = 0L,
@@ -37,7 +39,16 @@ data class ListeningStats(
     val bucket: StatsBucket = StatsBucket.DAY,
     /** В периоде есть записи до правила прослушивания — минуты по ним оценочные. */
     val hasLegacy: Boolean = false,
-)
+    /** Пока false, экран показывает загрузку, а не «пусто». */
+    val loaded: Boolean = false,
+    /** Исполнители, впервые засчитанные в этом периоде. */
+    val newArtists: Int = 0,
+    /** Минуты по часам суток (24 значения): когда обычно слушаешь. */
+    val hourly: List<Int> = List(24) { 0 },
+) {
+    /** Пусто честно: ни минут, ни засчитанных прослушиваний. */
+    val isEmpty: Boolean get() = plays == 0 && listenedMs <= 0L
+}
 
 /**
  * Свои итоги вместо годового «рекапа».
@@ -59,18 +70,26 @@ class StatsRepository @Inject constructor(
         val since = period.days?.let { System.currentTimeMillis() - it * DAY_MS } ?: 0L
         val rows = dao.listensSince(since)
         val first = dao.firstPlayAt()
+        val totalMs = rows.sumOf(::msOf)
         return ListeningStats(
             period = period,
             plays = dao.playsSince(since),
-            minutes = (rows.sumOf(::msOf) / 60_000L).toInt(),
+            minutes = (totalMs / 60_000L).toInt(),
+            listenedMs = totalMs,
             topSongs = dao.topSongsSince(since).map { it.song.toItem() to it.plays },
             topArtists = dao.topArtistsSince(since),
             since = first ?: since,
             bars = bars(rows, period, first ?: since, zone),
             bucket = period.bucket,
             hasLegacy = rows.any { it.legacy },
+            loaded = true,
+            newArtists = dao.newArtistsSince(since),
+            hourly = hourly(rows, zone),
         )
     }
+
+    /** Стереть счётчики; записи истории остаются. */
+    suspend fun reset() = dao.resetListening()
 
     companion object {
         private const val DAY_MS = 24L * 60 * 60 * 1000
@@ -85,6 +104,16 @@ class StatsRepository @Inject constructor(
             } else {
                 row.durationMs?.takeIf { it > 0 } ?: (durationSeconds(row.durationText) * 1000L)
             }
+
+        /** Минуты по часам суток в часовом поясе пользователя. */
+        fun hourly(rows: List<ListenRow>, zone: ZoneId): List<Int> {
+            val ms = LongArray(24)
+            rows.forEach { row ->
+                val hour = Instant.ofEpochMilli(row.playedAt).atZone(zone).hour
+                ms[hour] += msOf(row)
+            }
+            return ms.map { (it / 60_000L).toInt() }
+        }
 
         /**
          * Столбики по дням или месяцам. Пустые отрезки тоже есть: дыра в

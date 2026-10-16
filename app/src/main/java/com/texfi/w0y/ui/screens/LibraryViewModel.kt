@@ -70,7 +70,20 @@ class LibraryViewModel @Inject constructor(
     private val dialHidden: DialHiddenRepository,
     private val settings: SettingsRepository,
     private val localMusic: com.texfi.w0y.data.LocalMusicRepository,
+    private val stats: com.texfi.w0y.data.StatsRepository,
 ) : ViewModel() {
+    /** Прослушиваний за неделю для карточки «Итоги»; null, пока считается. */
+    private val _weekPlays = MutableStateFlow<Int?>(null)
+    val weekPlays: StateFlow<Int?> = _weekPlays.asStateFlow()
+
+    private fun refreshWeek() {
+        viewModelScope.launch { _weekPlays.value = runCatching { stats.stats(com.texfi.w0y.data.StatsPeriod.WEEK).plays }.getOrNull() }
+    }
+
+    init {
+        refreshWeek()
+    }
+
     val files: StateFlow<List<SongItem>> =
         localMusic.songs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -346,6 +359,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun back() {
+        refreshWeek()
         playlistJob?.cancel()
         playlistJob = null
         _route.value = LibraryRoute.Root
