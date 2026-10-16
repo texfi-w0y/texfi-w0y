@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased (draft for beta-3, not tagged)
+
+Search errors are now visible with a reason, plus Copy debug info and a
+connection test (no data leaves the phone).
+
+
 ## v0.0.3 beta-2
 
 Hairline grows up: a new floating dock, tabbed settings, a bento "Yours" screen,
