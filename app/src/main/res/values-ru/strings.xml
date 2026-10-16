@@ -856,4 +856,8 @@
     <string name="sheet_speed_hint">Запоминается за этим треком. Быстрые значения:</string>
     <string name="sheet_more_title">Ещё</string>
     <string name="badge_eq">EQ</string>
+    <string name="home_block_discoveries">Открытия недели</string>
+    <string name="home_block_releases">Новое от твоих исполнителей</string>
+    <string name="home_block_forgotten">Забытые любимые</string>
+    <string name="home_block_time">Под это время суток</string>
 </resources>

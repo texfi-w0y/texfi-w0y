@@ -31,6 +31,8 @@ class HomeViewModel @Inject constructor(
     private val youtube: YouTubeRepository,
     private val playback: PlaybackStarter,
     private val settings: SettingsRepository,
+    private val recs: com.texfi.w0y.recs.RecEngine,
+    private val library: com.texfi.w0y.data.LibraryRepository,
     startupMetrics: StartupMetrics,
 ) : ViewModel() {
     /**
@@ -62,12 +64,40 @@ class HomeViewModel @Inject constructor(
     private val _failed = MutableStateFlow(false)
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
+    private val _blocks = MutableStateFlow(com.texfi.w0y.recs.HomeBlocks())
+
+    /** Блоки подборок: открытия, релизы твоих исполнителей, забытое, время суток. */
+    val blocks: StateFlow<com.texfi.w0y.recs.HomeBlocks> = _blocks.asStateFlow()
+
     init {
         refresh()
+        loadBlocks(force = false)
     }
+
+    fun loadBlocks(force: Boolean) {
+        viewModelScope.launch {
+            val loaded = runCatching { recs.homeBlocks(force) }.onFailure { Timber.w(it, "Блоки подборок не собрались") }.getOrNull() ?: return@launch
+            _blocks.value = loaded
+            weeklyPlaylist(loaded.discoveries)
+        }
+    }
+
+    /** Раз в неделю, если включено: свои «Открытия» складываются в обычный локальный плейлист. */
+    private suspend fun weeklyPlaylist(found: List<com.texfi.w0y.recs.Rec>) {
+        if (found.size < MIN_WEEKLY || !settings.settings.first().weeklyDiscovery) return
+        val cal = java.util.Calendar.getInstance()
+        val week = "%d-W%02d".format(cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.WEEK_OF_YEAR))
+        if (settings.lastDiscoveryWeek() == week) return
+        val id = library.createPlaylist("OPEN · $week")
+        found.forEach { library.addToPlaylist(id, it.song) }
+        settings.setLastDiscoveryWeek(week)
+    }
+
+    fun playRecs(items: List<com.texfi.w0y.recs.Rec>, index: Int) = playback.play(items.map { it.song }, index)
 
     fun refresh() {
         if (_loading.value) return
+        loadBlocks(force = true)
         viewModelScope.launch {
             _loading.value = true
             _failed.value = false
@@ -99,6 +129,7 @@ class HomeViewModel @Inject constructor(
 
     private companion object {
         const val SHELVES = 5
+        const val MIN_WEEKLY = 4
 
         /**
          * Сезонные промо-ленты YouTube («The sound of autumn» и подобные) —

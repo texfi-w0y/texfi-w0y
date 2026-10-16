@@ -43,6 +43,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -96,6 +97,7 @@ fun HomeScreen(
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val liked by viewModel.liked.collectAsStateWithLifecycle()
     val shelves by home.shelves.collectAsStateWithLifecycle()
+    val recBlocks by home.blocks.collectAsStateWithLifecycle()
     val loadingShelves by home.loading.collectAsStateWithLifecycle()
     val recommendationsFailed by home.failed.collectAsStateWithLifecycle()
     val showRecommendations by home.showRecommendations.collectAsStateWithLifecycle()
@@ -189,6 +191,24 @@ fun HomeScreen(
                     onOpen = { item -> openDial(item) },
                     onLongPress = { menuItem = it },
                 )
+            }
+        }
+
+        // Подборки по твоему вкусу: каждый блок появляется, только когда в нём есть что показать.
+        recBlockRow(R.string.home_block_discoveries, recBlocks.discoveries, home)
+        recBlockRow(R.string.home_block_forgotten, recBlocks.forgotten, home)
+        recBlockRow(R.string.home_block_time, recBlocks.timeOfDay, home)
+        if (recBlocks.releases.isNotEmpty()) {
+            item(key = "block-releases") {
+                Column(Modifier.padding(top = 16.dp)) {
+                    ShelfTitle(stringResource(R.string.home_block_releases).asLabel(), Modifier.padding(horizontal = Gutter))
+                    Spacer(Modifier.height(12.dp))
+                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(recBlocks.releases, key = { "br-${it.browseId}" }) { card ->
+                            ReleaseTile(card) { navigator.open(BrowseRoute.Album(card.browseId, card.title, card.thumbnailUrl)) }
+                        }
+                    }
+                }
             }
         }
 
@@ -597,6 +617,36 @@ private fun HairDialGrid(
                                 .size(if (on) 7.dp else 5.dp)
                                 .border(com.texfi.w0y.ui.theme.hairLook.line, if (on) colors.accentText else colors.outline, CircleShape)
                                 .background(if (on) colors.accentText else Color.Transparent, CircleShape),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/** Горизонтальный ряд подборки: плитка трека и под ней причина, почему он здесь. */
+private fun androidx.compose.foundation.lazy.LazyListScope.recBlockRow(
+    @androidx.annotation.StringRes title: Int,
+    items: List<com.texfi.w0y.recs.Rec>,
+    home: HomeViewModel,
+) {
+    if (items.isEmpty()) return
+    item(key = "block-$title") {
+        Column(Modifier.padding(top = 16.dp)) {
+            ShelfTitle(stringResource(title).asLabel(), Modifier.padding(horizontal = Gutter))
+            Spacer(Modifier.height(12.dp))
+            LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(items, key = { "b-${it.song.id}" }) { rec ->
+                    Column(Modifier.width(132.dp)) {
+                        SongTile(rec.song) { home.playRecs(items, items.indexOf(rec)) }
+                        Text(
+                            whyLabel(rec.why).asLabel(),
+                            style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                            color = LocalW0yColors.current.textMuted,
+                            maxLines = 2,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
                 }

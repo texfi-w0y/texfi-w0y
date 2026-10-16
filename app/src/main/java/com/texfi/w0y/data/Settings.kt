@@ -19,6 +19,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
@@ -641,6 +642,11 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSettingsFavorites(value: String) = put(Keys.SETTINGS_FAVORITES, value)
 
+    /** Неделя, за которую плейлист «Открытия» уже собран ("2026-W42"). Служебное, в снимок настроек не входит. */
+    suspend fun lastDiscoveryWeek(): String = context.dataStore.data.first()[Keys.DISCOVERY_WEEK].orEmpty()
+
+    suspend fun setLastDiscoveryWeek(value: String) = put(Keys.DISCOVERY_WEEK, value)
+
     suspend fun setQualityWifi(value: Quality) = put(Keys.QUALITY_WIFI, value.name)
 
     suspend fun setQualityMobile(value: Quality) = put(Keys.QUALITY_MOBILE, value.name)
@@ -1030,6 +1036,7 @@ class SettingsRepository @Inject constructor(
         val WEEKLY_DISCOVERY = booleanPreferencesKey("weekly_discovery")
         val PLAYER_BADGE = booleanPreferencesKey("player_state_badge")
         val SETTINGS_FAVORITES = stringPreferencesKey("settings_favorites")
+        val DISCOVERY_WEEK = stringPreferencesKey("discovery_week")
         val SCHEMA = intPreferencesKey("settings_schema")
         val QUALITY_WIFI = stringPreferencesKey("quality_wifi")
         val QUALITY_MOBILE = stringPreferencesKey("quality_mobile")

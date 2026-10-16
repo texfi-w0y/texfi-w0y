@@ -856,4 +856,8 @@
     <string name="sheet_speed_hint">Remembered for this track. Quick values:</string>
     <string name="sheet_more_title">More</string>
     <string name="badge_eq">EQ</string>
+    <string name="home_block_discoveries">Discoveries of the week</string>
+    <string name="home_block_releases">Recent releases from your artists</string>
+    <string name="home_block_forgotten">Favourites you forgot</string>
+    <string name="home_block_time">For this time of day</string>
 </resources>

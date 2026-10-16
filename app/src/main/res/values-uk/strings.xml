@@ -856,4 +856,8 @@
     <string name="sheet_speed_hint">Запам’ятовується для цього треку. Швидкі значення:</string>
     <string name="sheet_more_title">Ще</string>
     <string name="badge_eq">EQ</string>
+    <string name="home_block_discoveries">Відкриття тижня</string>
+    <string name="home_block_releases">Нове від твоїх виконавців</string>
+    <string name="home_block_forgotten">Забуті улюблені</string>
+    <string name="home_block_time">Під цю пору доби</string>
 </resources>
