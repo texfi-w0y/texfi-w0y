@@ -213,8 +213,10 @@ fun PlayerScreen(
     var position by remember { mutableLongStateOf(0L) }
     var dragPosition by remember { mutableStateOf<Long?>(null) }
     var showPlaylists by remember { mutableStateOf(false) }
-    var sheetOpen by remember { mutableStateOf(false) }
-    var sheetTab by remember { mutableStateOf(PlayerSheetMemory.tab) }
+    // Одна открытая панель за раз: таймер сна, очередь с «похожим» или «ещё».
+    var panel by remember { mutableStateOf<PlayerPanel?>(null) }
+    var queueTab by remember { mutableStateOf(PlayerPanelMemory.queueTab) }
+    var moreTab by remember { mutableStateOf(PlayerPanelMemory.moreTab) }
     val similar by viewModel.similar.collectAsStateWithLifecycle()
     val similarLoading by viewModel.similarLoading.collectAsStateWithLifecycle()
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
@@ -350,35 +352,10 @@ fun PlayerScreen(
         }
     }
 
-    // Таймер сна, стиль визуализатора и подставка — вкладка «Таймер» нижней панели.
-    fun LazyListScope.timerItems() {
-        item(key = "sheet-timer") {
+    // Стиль визуализатора и подставка — вкладка «Вид» панели «Ещё».
+    fun LazyListScope.lookItems() {
+        item(key = "sheet-look") {
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                MenuChips(
-                    title = stringResource(R.string.player_sleep_title),
-                    hint = sleepLeft?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" },
-                    options =
-                        listOf(
-                            stringResource(R.string.player_sleep_off),
-                            stringResource(R.string.player_sleep_track),
-                            stringResource(R.string.settings_sleep_minutes, 15),
-                            stringResource(R.string.settings_sleep_minutes, 30),
-                            stringResource(R.string.settings_sleep_minutes, 60),
-                        ),
-                    selected =
-                        when {
-                            sleepAfterTrack -> 1
-                            sleepLeft != null -> -1
-                            else -> 0
-                        },
-                    onSelect = { i ->
-                        when (listOf(null, 0, 15, 30, 60)[i]) {
-                            null -> viewModel.cancelSleepTimer()
-                            0 -> viewModel.sleepAfterTrack()
-                            else -> viewModel.startSleepTimer(listOf(null, 0, 15, 30, 60)[i]!!)
-                        }
-                    },
-                )
                 val styles = com.texfi.w0y.data.VisualizerStyle.entries.filter { it.hair }
                 MenuChips(
                     title = stringResource(R.string.player_visualizer),
@@ -389,7 +366,7 @@ fun PlayerScreen(
                 )
                 PixelButton(
                     stringResource(R.string.player_stand),
-                    onClick = { sheetOpen = false; onStand() },
+                    onClick = { panel = null; onStand() },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -794,7 +771,7 @@ fun PlayerScreen(
                     position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
                     visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
                     onToggleArt = toggleArt,
-                    onMenu = { sheetTab = PlayerSheetMemory.tab; sheetOpen = true },
+                    onMenu = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
                     lyricsOn = lyricsOn,
                     onToggleLyrics = { lyricsOn = !lyricsOn; videoOn = false },
                     videoAvailable = isVideoTrack,
@@ -1092,7 +1069,7 @@ fun PlayerScreen(
                         onAdd = { showPlaylists = true },
                         onDownload = { viewModel.download(song) },
                         onShare = viewModel::shareCard,
-                        onSleep = { sheetTab = SheetTab.TIMER; sheetOpen = true },
+                        onSleep = { panel = PlayerPanel.SLEEP },
                         onCopyLink = copyLinkAction(song),
                     )
                 } else Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1359,7 +1336,12 @@ fun PlayerScreen(
                     PlayerSheetHandle(
                         label = stringResource(R.string.sheet_handle_queue, state.queue.size),
                         badge = badge,
-                        onOpen = { sheetTab = PlayerSheetMemory.tab; sheetOpen = true },
+                        onOpen = { queueTab = PlayerPanelMemory.queueTab; panel = PlayerPanel.QUEUE },
+                        onBadge = {
+                            PlayerPanelMemory.moreTab = MoreTab.SPEED
+                            moreTab = MoreTab.SPEED
+                            panel = PlayerPanel.MORE
+                        },
                         modifier = Modifier.padding(bottom = 10.dp),
                     )
                 }
@@ -1377,32 +1359,51 @@ fun PlayerScreen(
         }
 
         if (hair) {
-            PlayerSheet(
-                visible = sheetOpen,
-                tab = sheetTab,
-                onTab = { sheetTab = it; PlayerSheetMemory.tab = it },
-                onDismiss = { sheetOpen = false },
+            SleepPanel(
+                visible = panel == PlayerPanel.SLEEP,
+                remainingMs = sleepLeft,
+                afterTrack = sleepAfterTrack,
+                onChoose = { choice ->
+                    when (val minutes = choice.minutes) {
+                        null -> viewModel.cancelSleepTimer()
+                        0 -> viewModel.sleepAfterTrack()
+                        else -> viewModel.startSleepTimer(minutes)
+                    }
+                },
+                onDismiss = { panel = null },
+            )
+            QueuePanel(
+                visible = panel == PlayerPanel.QUEUE,
+                tab = queueTab,
+                onTab = { queueTab = it; PlayerPanelMemory.queueTab = it },
+                onDismiss = { panel = null },
             ) { t ->
                 when (t) {
-                    SheetTab.QUEUE -> tabItems(PlayerTab.QUEUE, DialSet.ALL)
+                    QueueTab.QUEUE -> tabItems(PlayerTab.QUEUE, DialSet.ALL)
 
-                    SheetTab.SIMILAR ->
+                    QueueTab.SIMILAR ->
                         similarItems(
                             set = similar,
                             loading = similarLoading,
                             onRefresh = viewModel::refreshSimilar,
-                            onPlay = { viewModel.moreLikeThis(it); sheetOpen = false },
+                            onPlay = { viewModel.moreLikeThis(it); panel = null },
                             onEnqueue = viewModel::enqueue,
                             onNext = viewModel::playNextSong,
-                            onMore = { viewModel.moreLikeThis(it); sheetOpen = false },
+                            onMore = { viewModel.moreLikeThis(it); panel = null },
                             onLess = viewModel::lessLikeThis,
                         )
-
-                    SheetTab.SOUND -> tabItems(PlayerTab.SOUND, DialSet.TONE)
-
-                    SheetTab.SPEED -> speedItems()
-
-                    SheetTab.TIMER -> timerItems()
+                }
+            }
+            MorePanel(
+                visible = panel == PlayerPanel.MORE,
+                tab = moreTab,
+                onTab = { moreTab = it; PlayerPanelMemory.moreTab = it },
+                onDismiss = { panel = null },
+            ) { t ->
+                when (t) {
+                    MoreTab.SOUND -> tabItems(PlayerTab.SOUND, DialSet.TONE)
+                    MoreTab.SPEED -> speedItems()
+                    MoreTab.LOOK -> lookItems()
                 }
             }
         }

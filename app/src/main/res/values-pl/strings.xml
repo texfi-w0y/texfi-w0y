@@ -833,11 +833,11 @@
     <string name="sheet_similar">Podobne</string>
     <string name="sheet_sound">Dźwięk</string>
     <string name="sheet_speed">Tempo</string>
-    <string name="sheet_timer">Minutnik</string>
-    <string name="sheet_open_cd">Otwórz kolejkę, dźwięk, tempo i minutnik</string>
+    <string name="sheet_open_cd">Otwórz kolejkę i podobne</string>
+    <string name="sheet_look">Wygląd</string>
+    <string name="sheet_badge_cd">Otwórz prędkość i dźwięk</string>
     <string name="sheet_close_cd">Zamknij panel</string>
     <string name="sheet_handle_queue">KOLEJKA · %1$d</string>
-    <string name="sheet_more">Więcej</string>
     <string name="similar_refresh">ODŚWIEŻ</string>
     <string name="similar_loading">Szukam podobnego brzmienia…</string>
     <string name="similar_empty">Na razie brak nowych propozycji. Spróbuj ODŚWIEŻ za chwilę.</string>
@@ -854,7 +854,6 @@
     <string name="why_forgotten">DAWNO NIE SŁUCHANE</string>
     <string name="why_time_of_day">NA TĘ PORĘ DNIA</string>
     <string name="sheet_speed_hint">Zapamiętane dla tego utworu. Szybkie wartości:</string>
-    <string name="sheet_more_title">Więcej</string>
     <string name="badge_eq">EQ</string>
     <string name="home_block_discoveries">Odkrycia tygodnia</string>
     <string name="home_block_releases">Nowe od twoich wykonawców</string>
