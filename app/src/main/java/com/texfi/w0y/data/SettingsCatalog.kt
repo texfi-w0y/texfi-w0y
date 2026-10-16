@@ -1,21 +1,18 @@
 package com.texfi.w0y.data
 
 /**
- * Десять категорий настроек — порядок и номера те, что на главной странице.
- * Каждая настройка живёт ровно в одной из них; в «Избранном» и поиске это
- * ссылки на ту же строку, а не копии.
+ * Восемь вкладок настроек в порядке слева направо. Каждая настройка живёт ровно
+ * в одной вкладке; поиск ссылается на ту же строку, а не на копию.
  */
-enum class SettingsCategory(val number: Int, val docTitle: String) {
-    PLAYBACK(1, "ВОСПРОИЗВЕДЕНИЕ"),
-    SOUND(2, "ЗВУК"),
-    TONE(3, "ТОН И СКОРОСТЬ"),
-    TEXT_VIZ(4, "ТЕКСТ И ВИЗУАЛИЗАТОР"),
-    STAND(5, "РЕЖИМ ПОДСТАВКИ"),
-    STORAGE(6, "ЗАГРУЗКИ И ПАМЯТЬ"),
-    SEARCH_FEEDS(7, "ПОИСК И ЛЕНТЫ"),
-    LOOK(8, "ВИД"),
-    ACCOUNT(9, "АККАУНТ"),
-    DATA(10, "ДАННЫЕ И ПРИЛОЖЕНИЕ"),
+enum class SettingsCategory(val docTitle: String) {
+    PLAYBACK("ВОСПРОИЗВЕДЕНИЕ"),
+    SOUND("ЗВУК"),
+    STORAGE("СКАЧИВАНИЕ"),
+    SEARCH_FEEDS("ПОИСК И ЛЕНТЫ"),
+    LOOK("ВИД"),
+    STAND("ПОДСТАВКА"),
+    ACCOUNT("АККАУНТ"),
+    DATA("ПРИЛОЖЕНИЕ"),
 }
 
 /** Подзаголовки внутри категории: моно-заголовок над группой строк. */
@@ -24,6 +21,7 @@ enum class SettingsGroup(@androidx.annotation.StringRes val title: Int) {
     CONTROL(com.texfi.w0y.R.string.grp_control),
     QUALITY(com.texfi.w0y.R.string.grp_quality),
     OUTPUT(com.texfi.w0y.R.string.grp_output),
+    TONE(com.texfi.w0y.R.string.grp_tone),
     LYRICS(com.texfi.w0y.R.string.grp_lyrics),
     VIZ(com.texfi.w0y.R.string.grp_viz),
     STAND_LOOK(com.texfi.w0y.R.string.grp_stand_look),
@@ -73,8 +71,6 @@ object SettingsCatalog {
 
     private val P = SettingsCategory.PLAYBACK
     private val S = SettingsCategory.SOUND
-    private val T = SettingsCategory.TONE
-    private val V = SettingsCategory.TEXT_VIZ
     private val D = SettingsCategory.STAND
     private val M = SettingsCategory.STORAGE
     private val F = SettingsCategory.SEARCH_FEEDS
@@ -104,19 +100,19 @@ object SettingsCatalog {
             e("settings_pause_headphones_title", S, "pause_on_unplug", "Pause when headphones are out", group = SettingsGroup.OUTPUT) { it.pauseOnHeadphonesOut },
             e("settings_resume_headphones_title", S, "resume_on_plug", "Resume when headphones are in", group = SettingsGroup.OUTPUT) { it.resumeOnHeadphonesIn },
             e("devices", S, null, "Audio outputs", group = SettingsGroup.OUTPUT, androidOnly = true),
-            // 03 ТОН И СКОРОСТЬ
-            e("settings_speed_title", T, "speed", "Speed") { it.speed },
-            e("settings_pitch_title", T, "pitch", "Pitch") { it.pitch },
-            e("settings_reverb_title", T, "reverb", "Reverb") { it.reverb },
-            // 04 ТЕКСТ И ВИЗУАЛИЗАТОР
-            e("settings_lyrics_title", V, "show_lyrics", "Lyrics", group = SettingsGroup.LYRICS) { it.showLyrics },
-            e("lyrics_size_title", V, "lyrics_size", "Lyrics size", group = SettingsGroup.LYRICS) { it.lyricsSize },
-            e("lyrics_delay_title", V, "lyrics_delay_ms", "Lyrics delay, ms", group = SettingsGroup.LYRICS) { it.lyricsDelayMs },
-            e("lyrics_sources_title", V, "lyrics_all_sources", "All lyrics sources", group = SettingsGroup.LYRICS) { it.lyricsAllSources },
-            e("viz_style_title", V, "visualizer_style", "Visualizer style", group = SettingsGroup.VIZ) { it.visualizerStyle },
-            e("viz_sensitivity_title", V, "visualizer_sensitivity", "Visualizer sensitivity", group = SettingsGroup.VIZ) { it.visualizerSensitivity },
-            e("viz_fps_title", V, "visualizer_fps", "Visualizer FPS", group = SettingsGroup.VIZ) { it.visualizerFps },
-            e("viz_backdrop_title", V, "visualizer_backdrop", "Cover behind visualizer", group = SettingsGroup.VIZ) { it.visualizerCoverBackdrop },
+            // ТОН И СКОРОСТЬ — группа внутри ЗВУКА
+            e("settings_speed_title", S, "speed", "Speed", group = SettingsGroup.TONE) { it.speed },
+            e("settings_pitch_title", S, "pitch", "Pitch", group = SettingsGroup.TONE) { it.pitch },
+            e("settings_reverb_title", S, "reverb", "Reverb", group = SettingsGroup.TONE) { it.reverb },
+            // ТЕКСТ И ВИЗУАЛИЗАТОР — группы внутри ВИДА
+            e("settings_lyrics_title", L, "show_lyrics", "Lyrics", group = SettingsGroup.LYRICS) { it.showLyrics },
+            e("lyrics_size_title", L, "lyrics_size", "Lyrics size", group = SettingsGroup.LYRICS) { it.lyricsSize },
+            e("lyrics_delay_title", L, "lyrics_delay_ms", "Lyrics delay, ms", group = SettingsGroup.LYRICS) { it.lyricsDelayMs },
+            e("lyrics_sources_title", L, "lyrics_all_sources", "All lyrics sources", group = SettingsGroup.LYRICS) { it.lyricsAllSources },
+            e("viz_style_title", L, "visualizer_style", "Visualizer style", group = SettingsGroup.VIZ) { it.visualizerStyle },
+            e("viz_sensitivity_title", L, "visualizer_sensitivity", "Visualizer sensitivity", group = SettingsGroup.VIZ) { it.visualizerSensitivity },
+            e("viz_fps_title", L, "visualizer_fps", "Visualizer FPS", group = SettingsGroup.VIZ) { it.visualizerFps },
+            e("viz_backdrop_title", L, "visualizer_backdrop", "Cover behind visualizer", group = SettingsGroup.VIZ) { it.visualizerCoverBackdrop },
             // 05 РЕЖИМ ПОДСТАВКИ
             e("stand_view_title", D, "stand_view", "Stand view", group = SettingsGroup.STAND_LOOK) { it.standView },
             e("stand_clock_title", D, "stand_clock", "Clock", group = SettingsGroup.STAND_LOOK) { it.standClock },
@@ -216,15 +212,6 @@ object SettingsCatalog {
     /** Место в каталоге: по нему строки идут в категории в заданном порядке. */
     fun indexOf(id: String): Int = order[id] ?: Int.MAX_VALUE
 
-    /** Избранное для новых установок: качество, таймер сна, громкость, подставка, тема, защита от удаления. */
-    const val DEFAULT_FAVORITES = "settings_quality_wifi_title,settings_sleep_title,settings_normalize_title,stand_view_title,settings_theme_title,delete_protection"
-
-    const val MAX_FAVORITES = 6
-
-    fun parseFavorites(raw: String): List<String> = raw.split(',').map { it.trim() }.filter { it in byId }.distinct().take(MAX_FAVORITES)
-
-    fun formatFavorites(ids: List<String>): String = ids.distinct().take(MAX_FAVORITES).joinToString(",")
-
     /** Таблица для `docs/SETTINGS_MAP.md`. */
     fun markdown(): String =
         buildString {
@@ -232,15 +219,13 @@ object SettingsCatalog {
             appendLine("# Карта настроек")
             appendLine()
             appendLine("Файл собирается из `SettingsCatalog` тестом `SettingsCatalogTest`: правишь каталог — обновляется и таблица.")
-            appendLine("Каждая настройка живёт ровно в одной категории; «Избранное» и поиск ссылаются на ту же строку.")
+            appendLine("Каждая настройка живёт ровно в одной вкладке; поиск ссылается на ту же строку.")
             appendLine()
-            appendLine("| Категория | Настройка (id строки) | Ключ DataStore | Умолчание | Только Android |")
+            appendLine("| Вкладка | Настройка (id строки) | Ключ DataStore | Умолчание | Только Android |")
             appendLine("|---|---|---|---|---|")
-            entries.sortedBy { it.category.number }.forEach { en ->
+            entries.sortedBy { it.category.ordinal }.forEach { en ->
                 val def = en.default(d)?.let { if (it is Enum<*>) it.name else it.toString().ifEmpty { "—" } } ?: "—"
-                appendLine("| ${en.category.number}. ${en.category.docTitle} | ${en.name} (`${en.id}`) | ${en.key?.let { "`$it`" } ?: "—"} | $def | ${if (en.androidOnly) "да" else ""} |")
+                appendLine("| ${en.category.ordinal + 1}. ${en.category.docTitle} | ${en.name} (`${en.id}`) | ${en.key?.let { "`$it`" } ?: "—"} | $def | ${if (en.androidOnly) "да" else ""} |")
             }
-            appendLine()
-            appendLine("Избранное по умолчанию: ${DEFAULT_FAVORITES.split(',').joinToString(", ") { "`$it`" }}.")
         }
 }

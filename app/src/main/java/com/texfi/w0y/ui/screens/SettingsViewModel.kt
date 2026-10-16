@@ -185,7 +185,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setPlayerStateBadge(value: Boolean) = update { repository.setPlayerStateBadge(value) }
 
-    fun setFavorites(value: String) = update { repository.setSettingsFavorites(value) }
 
     /** Короткая плашка над списком настроек. */
     fun showMessage(text: String) {

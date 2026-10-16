@@ -21,18 +21,45 @@ class SettingsCatalogTest {
     fun everyIdLivesInExactlyOneCategory() {
         val ids = SettingsCatalog.entries.map { it.id }
         assertEquals("повторяющиеся id: ${ids.groupBy { it }.filter { it.value.size > 1 }.keys}", ids.size, ids.toSet().size)
-        assertEquals(10, SettingsCategory.entries.size)
+        assertEquals(8, SettingsCategory.entries.size)
         SettingsCategory.entries.forEach { c -> assertTrue("пустая категория $c", SettingsCatalog.entries.any { it.category == c }) }
     }
 
     @Test
-    fun defaultFavoritesExistAndFitTheLimit() {
-        val favorites = SettingsCatalog.parseFavorites(SettingsCatalog.DEFAULT_FAVORITES)
-        assertEquals(6, favorites.size)
-        assertEquals(SettingsCatalog.DEFAULT_FAVORITES, SettingsCatalog.formatFavorites(favorites))
-        assertEquals(SettingsCatalog.DEFAULT_FAVORITES, W0ySettings().settingsFavorites)
-        // Больше шести не помещается, неизвестные id отбрасываются.
-        assertEquals(6, SettingsCatalog.parseFavorites(SettingsCatalog.DEFAULT_FAVORITES + ",hl_set_motion,nope").size)
+    fun tabsAreTheEightAgreedOnesInOrder() {
+        assertEquals(
+            listOf("ВОСПРОИЗВЕДЕНИЕ", "ЗВУК", "СКАЧИВАНИЕ", "ПОИСК И ЛЕНТЫ", "ВИД", "ПОДСТАВКА", "АККАУНТ", "ПРИЛОЖЕНИЕ"),
+            SettingsCategory.entries.map { it.docTitle },
+        )
+        fun tabOf(id: String) = SettingsCatalog.categoryOf(id)
+        // Тон и скорость — группа внутри ЗВУКА, текст и визуализатор — внутри ВИДА.
+        listOf("settings_speed_title", "settings_pitch_title", "settings_reverb_title").forEach { assertEquals(SettingsCategory.SOUND, tabOf(it)) }
+        listOf("settings_lyrics_title", "viz_style_title", "viz_fps_title").forEach { assertEquals(SettingsCategory.LOOK, tabOf(it)) }
+        // «Без мата» — в ПОИСКЕ И ЛЕНТАХ, замеры запуска — в ПРИЛОЖЕНИИ → Диагностика.
+        assertEquals(SettingsCategory.SEARCH_FEEDS, tabOf("settings_clean_title"))
+        assertEquals(SettingsCategory.DATA, tabOf("settings_startup_title"))
+    }
+
+    @Test
+    fun noFavoritesLeftInCatalogOrSettings() {
+        val src = File("src/main/java/com/texfi/w0y/ui/screens/SettingsScreen.kt").readText()
+        assertFalse("звёздочка/избранное в экране", src.contains("Favorite", ignoreCase = true))
+    }
+
+    @Test
+    fun upgradeFromOldSettingsDropsFavoritesAndKeepsEverythingElse() {
+        val prefs =
+            mutablePreferencesOf(
+                stringPreferencesKey("settings_favorites") to "settings_quality_wifi_title,delete_protection",
+                booleanPreferencesKey("delete_protection") to false,
+                stringPreferencesKey("theme") to "LIGHT",
+                intPreferencesKey("settings_schema") to 1,
+            )
+        SettingsMigration.apply(prefs, SettingsMigration.CURRENT)
+        assertTrue(stringPreferencesKey("settings_favorites") !in prefs)
+        assertEquals(false, prefs[booleanPreferencesKey("delete_protection")])
+        assertEquals("LIGHT", prefs[stringPreferencesKey("theme")])
+        assertEquals(SettingsMigration.CURRENT, prefs[intPreferencesKey("settings_schema")])
     }
 
     /** Каждая настройка из экрана присутствует в каталоге (по тексту исходника). */
