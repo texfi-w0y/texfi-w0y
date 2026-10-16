@@ -816,4 +816,6 @@
     <string name="rm_delete_downloads_text">Delete %1$d downloaded tracks? You can download them again later.</string>
     <string name="rm_delete_button">DELETE</string>
     <string name="rm_item_handle">Hold and drag to reorder</string>
+    <string name="local_only_tag">ONLY ON THIS PHONE</string>
+    <string name="local_file_missing">FILE UNAVAILABLE</string>
 </resources>

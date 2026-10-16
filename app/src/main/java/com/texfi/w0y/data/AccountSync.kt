@@ -132,8 +132,15 @@ class AccountSync @Inject constructor(
             .forEach { playlist ->
                 val pulled = remote.fetch(playlist.remoteId ?: return@forEach, maxPages = 1)
                 if (pulled != null && !pulled.exists) {
-                    Timber.d("Плейлист %s удалён в аккаунте — убираю и здесь", playlist.remoteId)
-                    dao.deletePlaylist(playlist.id)
+                    // Свои файлы в плейлисте нельзя терять из-за того, что его убрали в
+                    // аккаунте: плейлист остаётся на телефоне и в аккаунт больше не уходит.
+                    if (dao.localItemCount(playlist.id) > 0) {
+                        Timber.d("Плейлист %s удалён в аккаунте — со своими файлами, оставляю на телефоне", playlist.remoteId)
+                        dao.detachFromAccount(playlist.id)
+                    } else {
+                        Timber.d("Плейлист %s удалён в аккаунте — убираю и здесь", playlist.remoteId)
+                        dao.deletePlaylist(playlist.id)
+                    }
                 }
             }
     }

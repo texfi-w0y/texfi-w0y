@@ -76,10 +76,20 @@ class LibraryRepository @Inject constructor(
 
     fun playlist(id: Long) = dao.playlist(id)
 
+    /**
+     * Состав плейлиста: треки из аккаунта/свои добавления плюс свои файлы,
+     * наложенные по позиции. Синхронизация переписывает только первую часть.
+     */
     fun playlistSongs(id: Long): Flow<List<SongItem>> =
-        dao.playlistSongs(id).map { list -> list.map(SongEntity::toItem) }
+        kotlinx.coroutines.flow.combine(dao.playlistItems(id), dao.localPlaylistItems(id)) { remote, local ->
+            PlaylistMerge.merge(
+                remote.map { it.song.toItem() to it.pos },
+                local.map { it.song.toItem() to it.pos },
+            )
+        }
 
-    fun playlistSize(id: Long) = dao.playlistSize(id)
+    fun playlistSize(id: Long): Flow<Int> =
+        kotlinx.coroutines.flow.combine(dao.playlistSize(id), dao.localPlaylistSize(id)) { a, b -> a + b }
 
     fun isLiked(id: String): Flow<Boolean> = dao.likedFlow(id).map { it == true }
 
@@ -119,11 +129,20 @@ class LibraryRepository @Inject constructor(
     }
 
     suspend fun addToPlaylist(playlistId: Long, song: SongItem) {
+        if (LocalMusic.isLocal(song.id)) {
+            // Свой файл остаётся на телефоне: отдельная таблица, в аккаунт не уходит.
+            dao.addLocalSongToPlaylist(playlistId, SongEntity.from(song), now())
+            return
+        }
         dao.addSongToPlaylist(playlistId, SongEntity.from(song), now())
-        if (!LocalMusic.isLocal(song.id)) remoteId(playlistId)?.let { sync.add(it, song.id) }
+        remoteId(playlistId)?.let { sync.add(it, song.id) }
     }
 
     suspend fun removeFromPlaylist(playlistId: Long, songId: String) {
+        if (LocalMusic.isLocal(songId)) {
+            dao.removeLocalItem(playlistId, songId)
+            return
+        }
         dao.removeFromPlaylist(playlistId, songId)
         remoteId(playlistId)?.let { sync.remove(it, songId) }
     }
@@ -185,7 +204,8 @@ class LibraryRepository @Inject constructor(
     /** Новый порядок своего плейлиста. Аккаунтный порядок меняет [YtPlaylistSync]. */
     suspend fun reorderPlaylist(playlistId: Long, songIds: List<String>) {
         dao.reorderPlaylist(playlistId, songIds)
-        remoteId(playlistId)?.let { remote -> sync.reorder(remote, songIds) }
+        // В аккаунт уходит порядок без своих файлов: их там нет.
+        remoteId(playlistId)?.let { remote -> sync.reorder(remote, songIds.filterNot(LocalMusic::isLocal)) }
     }
 
     suspend fun clearHistory() = dao.clearHistory()
@@ -278,4 +298,16 @@ class LibraryRepository @Inject constructor(
     }
 
     private fun now() = System.currentTimeMillis()
+}
+
+
+/**
+ * Наложение своих файлов на состав плейлиста. Позиции у обеих частей —
+ * общая шкала; при равных первыми идут треки из аккаунта.
+ */
+object PlaylistMerge {
+    fun merge(remote: List<Pair<SongItem, Int>>, local: List<Pair<SongItem, Int>>): List<SongItem> =
+        (remote.map { Triple(it.first, it.second, 0) } + local.map { Triple(it.first, it.second, 1) })
+            .sortedWith(compareBy({ it.second }, { it.third }))
+            .map { it.first }
 }

@@ -153,6 +153,7 @@ class LocalMusicRepository @Inject constructor(
     suspend fun remove(id: String) =
         withContext(Dispatchers.IO) {
             dao.deleteSongFromPlaylists(id)
+            dao.deleteSongFromLocalItems(id)
             dao.deleteSongHistory(id)
             dao.deleteSongPins(id)
             dao.deleteSongRow(id)

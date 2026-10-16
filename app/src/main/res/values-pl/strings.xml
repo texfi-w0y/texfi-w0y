@@ -816,4 +816,6 @@
     <string name="rm_delete_downloads_text">Usunąć pobrane utwory (%1$d)? Możesz pobrać je ponownie.</string>
     <string name="rm_delete_button">USUŃ</string>
     <string name="rm_item_handle">Przytrzymaj i przeciągnij, aby zmienić kolejność</string>
+    <string name="local_only_tag">TYLKO NA TYM TELEFONIE</string>
+    <string name="local_file_missing">PLIK NIEDOSTĘPNY</string>
 </resources>

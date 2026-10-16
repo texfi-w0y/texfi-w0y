@@ -105,7 +105,8 @@ class YtPlaylistSync @Inject constructor(
      */
     suspend fun push(remoteId: String, songIds: List<String>): Int? = attempt("push") {
         val present = remoteSongIds(remoteId)
-        val missing = songIds.filterNot { it in present }
+        // Свои файлы в аккаунт не уходят никогда: у YouTube такого трека нет.
+        val missing = songIds.filterNot { it in present || LocalMusic.isLocal(it) }
         missing.forEach { innerTube.addToPlaylist(YouTubeClient.WEB_REMIX, remoteId, it) }
         missing.size
     }

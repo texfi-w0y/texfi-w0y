@@ -816,4 +816,6 @@
     <string name="rm_delete_downloads_text">Удалить загруженные треки (%1$d)? Их можно скачать снова.</string>
     <string name="rm_delete_button">УДАЛИТЬ</string>
     <string name="rm_item_handle">Удерживай и тяни, чтобы переставить</string>
+    <string name="local_only_tag">ТОЛЬКО НА ЭТОМ ТЕЛЕФОНЕ</string>
+    <string name="local_file_missing">ФАЙЛ НЕДОСТУПЕН</string>
 </resources>

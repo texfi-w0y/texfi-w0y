@@ -46,8 +46,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -850,6 +852,18 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
         }
         // Порядок держим у себя, пока тянут строку; в базу — один раз, когда отпустили.
         var order by remember(songs) { mutableStateOf(songs) }
+        // Свой файл могли стереть вручную: строка остаётся, но с пометкой и без попытки играть.
+        val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+        val missingFiles by produceState(emptySet<String>(), songs) {
+            value =
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    songs
+                        .filter { com.texfi.w0y.data.LocalMusic.isLocal(it.id) }
+                        .filterNot { com.texfi.w0y.data.LocalMusic.file(appContext, it.id).exists() }
+                        .map { it.id }
+                        .toSet()
+                }
+        }
         val listState = rememberLazyListState()
         val reorder =
             rememberReorderState(listState) { from, to ->
@@ -885,10 +899,24 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
             }
             items(order, key = { it.id }, contentType = { ReorderState.REORDER_TYPE }) { song ->
                 val dragged = reorder.dragging == song.id
+                val isLocal = com.texfi.w0y.data.LocalMusic.isLocal(song.id)
+                val missing = song.id in missingFiles
                 with(reorder) {
                     SongRow(
                         song = song,
-                        onClick = { viewModel.playCollection(order, order.indexOf(song)) },
+                        tag =
+                            when {
+                                missing -> stringResource(R.string.local_file_missing)
+                                isLocal -> stringResource(R.string.local_only_tag)
+                                else -> null
+                            },
+                        tagWarn = missing,
+                        onClick = {
+                            if (!missing) {
+                                val playable = order.filter { it.id !in missingFiles }
+                                viewModel.playCollection(playable, playable.indexOf(song))
+                            }
+                        },
                         modifier =
                             if (dragged) {
                                 Modifier.reorderable(song.id)
