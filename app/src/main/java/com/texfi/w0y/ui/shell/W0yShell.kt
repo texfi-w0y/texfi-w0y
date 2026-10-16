@@ -386,7 +386,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 .statusBarsPadding()
                 .padding(bottom = if (cutBars) barsHeight else 0.dp),
         ) {
-            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (cutBars) 0.dp else barsHeight) {
+            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (cutBars) 0.dp else barsHeight, com.texfi.w0y.ui.components.LocalCutBottom provides if (cutBars) barsHeight else 0.dp) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
                 Box(Modifier.fillMaxSize().softEnter(tab)) {

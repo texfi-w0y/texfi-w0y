@@ -382,10 +382,11 @@ private fun PosterPlayerPage(
         val look = hairLook
         val tone = Contrast.ensure(colors.accent, colors.background)
         val density = androidx.compose.ui.platform.LocalDensity.current
-        // Визуализатор, в отличие от обложки, не растворяется: его столбики стоят между шапкой и
-        // управлением и не заходят под кнопки.
-        val stageTop by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 72.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageTop")
-        val stageBottom by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 112.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageBottom")
+        // Визуализатор крупно, по центру видимой части обложки: сверху почти под шапкой, снизу
+        // ровно до зоны растворения, которая лежит под кнопками, — на управление он не заходит.
+        val stageTop by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 40.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageTop")
+        val stageBottom by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 104.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageBottom")
+        val coverAlpha by animateFloatAsState(if (visualizerOn) 0.28f else 1f, hairSpec(HairTokens.LONG_MS), label = "posterCoverDim")
         var lastSwipe by remember { mutableIntStateOf(1) }
         var controlsPx by remember { mutableIntStateOf(0) }
         val inSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.LONG_MS)
@@ -444,8 +445,17 @@ private fun PosterPlayerPage(
                     },
                     label = "posterTrack",
                 ) { _ ->
-                    Box(Modifier.fillMaxSize().then(if (visualizerOn) Modifier.statusBarsPadding() else Modifier).padding(top = stageTop, bottom = stageBottom).padding(horizontal = if (visualizerOn) 20.dp else 0.dp)) {
-                        stage(song.thumbnailUrl)
+                    Box(Modifier.fillMaxSize()) {
+                        // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
+                        // встают поверх неё в свободной части между шапкой и управлением.
+                        PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha })
+                        if (visualizerOn) {
+                            Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = stageTop, bottom = stageBottom)) {
+                                stage(song.thumbnailUrl)
+                            }
+                        } else {
+                            stage(song.thumbnailUrl)
+                        }
                     }
                 }
                 // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.

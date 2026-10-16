@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.components
 
+import androidx.compose.ui.layout.layout
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.snap
@@ -385,6 +386,25 @@ private const val NAV_STEPS = 5
  * докручивается до места над панелями. Без стекла — ноль.
  */
 val LocalBottomInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
+/**
+ * На сколько экран обрезан снизу над островком. Содержимое кончается над ним, а фон экрана
+ * продлевается на эту высоту — за островком тот же лист, а не пустота.
+ */
+val LocalCutBottom = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
+/** Фон, который выходит за нижний край экрана на высоту островка (см. [LocalCutBottom]). */
+@androidx.compose.runtime.Composable
+fun Modifier.extendUnderIsland(): Modifier {
+    val extra = LocalCutBottom.current
+    if (extra <= 0.dp) return this
+    return layout { measurable, constraints ->
+        val add = extra.roundToPx()
+        val h = if (constraints.hasBoundedHeight) constraints.maxHeight + add else constraints.maxHeight
+        val placeable = measurable.measure(constraints.copy(minHeight = h, maxHeight = h))
+        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+    }
+}
 
 /** Запас под последним элементом списка сверх высоты панелей. */
 val BottomContentMargin = 16.dp
