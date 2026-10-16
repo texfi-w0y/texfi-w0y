@@ -243,15 +243,23 @@ fun HomeScreen(
                 // а не мгновенной подменой всего списка.
                 Stagger(index = shelfIndex * 3) {
                 Column(Modifier.padding(top = 16.dp)) {
-                    ShelfTitle(shelf.title, Modifier.padding(horizontal = Gutter))
+                    // Ленты треков — строками по четыре в колонке, как список, а не плитками:
+                    // название, исполнитель и прослушивания читаются целиком.
+                    if (shelf.songs.isNotEmpty()) {
+                        com.texfi.w0y.ui.components.QuickPicksShelf(
+                            title = shelf.title,
+                            songs = shelf.songs,
+                            onPlay = { index -> home.play(shelf.songs, index) },
+                        )
+                    } else {
+                        ShelfTitle(shelf.title, Modifier.padding(horizontal = Gutter))
+                    }
+                    if (shelf.cards.isNotEmpty() || shelf.artists.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = Gutter),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(shelf.songs, key = { "s-${it.id}" }) { song ->
-                            SongTile(song) { home.play(shelf.songs, shelf.songs.indexOf(song)) }
-                        }
                         items(shelf.cards, key = { "c-${it.browseId}" }) { card ->
                             ReleaseTile(card) {
                                 navigator.open(BrowseRoute.Album(card.browseId, card.title, card.thumbnailUrl))
@@ -262,6 +270,7 @@ fun HomeScreen(
                                 navigator.open(BrowseRoute.Artist(card.browseId, card.name, card.thumbnailUrl))
                             }
                         }
+                    }
                     }
                 }
                 }

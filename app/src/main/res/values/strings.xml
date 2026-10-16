@@ -939,4 +939,25 @@
     <string name="widget_preview_title">Night Drive</string>
     <string name="widget_preview_artist">Your artist</string>
     <string name="widget_idle_hint">Nothing playing — tap to open</string>
+    <string name="home_play_all">Play all</string>
+    <string name="recap_card_label">%1$d · your year</string>
+    <string name="recap_entry">Minutes, artist of the year, top songs and your rhythm</string>
+    <string name="recap_minutes_title">minutes of music</string>
+    <string name="recap_hours">That’s %1$d hours of music.</string>
+    <string name="recap_plays">Plays: %1$d</string>
+    <string name="recap_artist_label">Artist of the year</string>
+    <string name="recap_songs_label">Top songs</string>
+    <string name="recap_song_label">Song of the year</string>
+    <string name="recap_rhythm_label">Your rhythm</string>
+    <string name="recap_peak_hour">the hour with the most music</string>
+    <string name="recap_fact_streak">Days in a row</string>
+    <string name="recap_fact_days">Days with music</string>
+    <string name="recap_fact_hour">Peak hour</string>
+    <string name="recap_fact_month">Busiest month</string>
+    <string name="recap_fact_best_day">Biggest day</string>
+    <string name="recap_fact_new_artists">New artists</string>
+    <string name="recap_final_title">That was your year in music.</string>
+    <string name="recap_share">Share card</string>
+    <string name="recap_private">Counted on this phone only. Nothing left the device.</string>
+    <string name="recap_empty">Not much music this year yet. Listen a little — the review will build itself.</string>
 </resources>

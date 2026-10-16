@@ -4,6 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.layout.size
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,6 +67,36 @@ fun StatsScreen(
 ) {
     val colors = LocalW0yColors.current
     val stats by viewModel.stats.collectAsStateWithLifecycle()
+    val recap by viewModel.recap.collectAsStateWithLifecycle()
+    val recapShare by viewModel.recapShare.collectAsStateWithLifecycle()
+    var recapOpen by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Карточка итогов уходит через системное окно выбора — куда, решает человек.
+    androidx.compose.runtime.LaunchedEffect(recapShare) {
+        val file = recapShare ?: return@LaunchedEffect
+        runCatching {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.share", file)
+            val send =
+                android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            context.startActivity(android.content.Intent.createChooser(send, null))
+        }
+        viewModel.consumeRecapShare()
+    }
+    if (recapOpen) {
+        recap?.let { value ->
+            // Во весь экран поверх островка и плеера: итоги — отдельный момент, а не вкладка.
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { recapOpen = false },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+            ) {
+                YearRecapScreen(value, onClose = { recapOpen = false }, onShare = viewModel::shareRecap)
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -106,6 +142,13 @@ fun StatsScreen(
             Modifier.padding(horizontal = Gutter),
             contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
         ) {
+            item {
+                RecapEntry(onOpen = {
+                    viewModel.loadRecap()
+                    recapOpen = true
+                })
+                Spacer(Modifier.height(18.dp))
+            }
             item {
                 Row(Modifier.fillMaxWidth()) {
                     Metric(stringResource(R.string.stats_minutes), if (stats.minutes == 0 && stats.listenedMs > 0) "<1" else stats.minutes.toString(), Modifier.weight(1f))
@@ -252,5 +295,31 @@ private fun Metric(label: String, value: String, modifier: Modifier = Modifier) 
         // Число заливается снизу вверх поверх бледной копии — момент, когда
         // цифра «набралась», виден, а не подменяется мгновенным скачком.
         FillText(value, style = PixelBigNumber, ghost = colors.border, fill = colors.text)
+    }
+}
+
+/** Вход в итоги года: строка в рамке, акцентная метка года и стрелка — видно, что это переход. */
+@Composable
+private fun RecapEntry(onOpen: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.cardRadius)
+    val year = java.time.LocalDate.now().year
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .border(look.line, colors.outline, shape)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)
+            .testTag("recap-entry")
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.recap_card_label, year).asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background))
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.recap_entry), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
+        }
+        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.text, Modifier.size(20.dp))
     }
 }

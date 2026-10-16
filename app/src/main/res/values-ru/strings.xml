@@ -939,4 +939,25 @@
     <string name="widget_preview_title">Ночная дорога</string>
     <string name="widget_preview_artist">Твой исполнитель</string>
     <string name="widget_idle_hint">Ничего не играет — открыть w0y</string>
+    <string name="home_play_all">Слушать всё</string>
+    <string name="recap_card_label">%1$d · твой год</string>
+    <string name="recap_entry">Минуты, исполнитель года, главные треки и твой ритм</string>
+    <string name="recap_minutes_title">минут музыки</string>
+    <string name="recap_hours">Это %1$d ч музыки.</string>
+    <string name="recap_plays">Прослушиваний: %1$d</string>
+    <string name="recap_artist_label">Исполнитель года</string>
+    <string name="recap_songs_label">Главные треки</string>
+    <string name="recap_song_label">Трек года</string>
+    <string name="recap_rhythm_label">Твой ритм</string>
+    <string name="recap_peak_hour">час, когда музыки больше всего</string>
+    <string name="recap_fact_streak">Дней подряд</string>
+    <string name="recap_fact_days">Дней с музыкой</string>
+    <string name="recap_fact_hour">Главный час</string>
+    <string name="recap_fact_month">Самый музыкальный месяц</string>
+    <string name="recap_fact_best_day">Рекордный день</string>
+    <string name="recap_fact_new_artists">Новых исполнителей</string>
+    <string name="recap_final_title">Таким был твой год в музыке.</string>
+    <string name="recap_share">Поделиться карточкой</string>
+    <string name="recap_private">Посчитано только на этом телефоне. Ничего не ушло наружу.</string>
+    <string name="recap_empty">В этом году пока мало музыки. Послушай ещё — итоги соберутся сами.</string>
 </resources>

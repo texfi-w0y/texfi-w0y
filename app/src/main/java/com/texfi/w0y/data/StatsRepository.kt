@@ -90,6 +90,20 @@ class StatsRepository @Inject constructor(
         )
     }
 
+    /** Итоги календарного года [year] (по умолчанию — текущего). */
+    suspend fun yearRecap(year: Int = LocalDate.now().year, zone: ZoneId = ZoneId.systemDefault()): YearRecap {
+        val since = YearRecapMath.startOf(year, zone)
+        return YearRecapMath.compute(
+            year = year,
+            rows = dao.listensSince(since),
+            plays = dao.playsSince(since),
+            topSongs = dao.topSongsSince(since, limit = 5).map { it.song.toItem() to it.plays },
+            topArtists = dao.topArtistsSince(since, limit = 5),
+            newArtists = dao.newArtistsSince(since),
+            zone = zone,
+        )
+    }
+
     /** Статистика, которая пересчитывается сама при любой записи в историю. */
     fun observe(period: StatsPeriod, zone: ZoneId = ZoneId.systemDefault()): kotlinx.coroutines.flow.Flow<ListeningStats> =
         dao.historyPulse().distinctUntilChanged().map { stats(period, zone) }
