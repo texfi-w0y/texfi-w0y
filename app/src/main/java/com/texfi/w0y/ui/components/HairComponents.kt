@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.components
 
+import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -163,6 +164,7 @@ internal fun HairSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, ha
     Box(
         Modifier
             .size(width = 46.dp, height = 28.dp)
+            .testTag("hair-switch")
             .clip(shape)
             .background(tone.copy(alpha = 0.16f * on))
             .border(hairLook.line, lerp(colors.outline, tone, on), shape)
@@ -170,12 +172,16 @@ internal fun HairSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, ha
                 haptic(if (checked) Buzz.OFF else Buzz.ON)
                 onCheckedChange(!checked)
             }
-            .padding(4.dp),
+            // Внутри 36×18: бегунок 18 dp ровно по высоте, ход 18 dp — зазор по краям одинаковый,
+            // а круг стоит по центру пилюли (раньше он был прижат кверху и влево).
+            .padding(5.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             Modifier
                 .offset { androidx.compose.ui.unit.IntOffset((18.dp.toPx() * on).roundToInt(), 0) }
                 .size(18.dp)
+                .testTag("hair-switch-thumb")
                 .clip(CircleShape)
                 .background(lerp(colors.textMuted, tone, on)),
         )

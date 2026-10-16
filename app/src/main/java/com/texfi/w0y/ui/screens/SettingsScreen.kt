@@ -1128,7 +1128,7 @@ private fun settingsRows(
                 id = "backdrop_title",
                 title = stringResource(R.string.backdrop_title),
                 description = stringResource(R.string.backdrop_desc),
-                keywords = "background wallpaper aurora photo grid black",
+                keywords = "background wallpaper aurora photo grid black topo contours lines контуры обои",
                 control =
                     SettingControl.Choice(
                         com.texfi.w0y.data.BackdropMode.entries,
@@ -1136,6 +1136,7 @@ private fun settingsRows(
                         {
                             stringResource(
                                 when (it) {
+                                    com.texfi.w0y.data.BackdropMode.TOPO -> R.string.backdrop_topo
                                     com.texfi.w0y.data.BackdropMode.GRID -> R.string.backdrop_grid
                                     com.texfi.w0y.data.BackdropMode.PURE -> R.string.backdrop_pure
                                     com.texfi.w0y.data.BackdropMode.COVER -> R.string.backdrop_cover
@@ -1770,6 +1771,74 @@ private fun settingsRows(
                 description = stringResource(R.string.settings_import_desc),
                 keywords = "json",
                 control = SettingControl.Action(stringResource(R.string.settings_import_button), onImport),
+            ),
+        )
+        // Обновления с GitHub: автопроверка, ручная проверка и установка, описание своей версии.
+        add(
+            SettingRow(
+                id = "update_check",
+                title = stringResource(R.string.update_check_title),
+                description = stringResource(R.string.update_check_desc),
+                keywords = "update github obtainium version обновление проверка",
+                control = SettingControl.Toggle(settings.updateCheck, viewModel::setUpdateCheck),
+            ),
+        )
+        val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+        val installed = appVersionLabel
+        val updateInfo =
+            when (val s = updateState) {
+                is com.texfi.w0y.data.UpdateState.Available -> s.info
+                is com.texfi.w0y.data.UpdateState.Downloading -> s.info
+                is com.texfi.w0y.data.UpdateState.Ready -> s.info
+                is com.texfi.w0y.data.UpdateState.Failed -> s.info
+                else -> null
+            }
+        val updateText =
+            when (val s = updateState) {
+                is com.texfi.w0y.data.UpdateState.Idle -> stringResource(R.string.update_desc_idle, installed)
+                is com.texfi.w0y.data.UpdateState.Checking -> stringResource(R.string.update_desc_checking)
+                is com.texfi.w0y.data.UpdateState.UpToDate -> stringResource(R.string.update_desc_latest, installed)
+                is com.texfi.w0y.data.UpdateState.Available -> stringResource(R.string.update_desc_available, s.info.label, installed)
+                is com.texfi.w0y.data.UpdateState.Downloading ->
+                    stringResource(R.string.update_desc_downloading, s.info.label, if (s.total > 0) (s.done * 100 / s.total).toInt() else 0)
+                is com.texfi.w0y.data.UpdateState.Ready -> stringResource(R.string.update_desc_ready, s.info.label)
+                is com.texfi.w0y.data.UpdateState.Failed -> com.texfi.w0y.ui.shell.updateReasonText(s.reason)
+            }
+        val updateButton =
+            when (val s = updateState) {
+                is com.texfi.w0y.data.UpdateState.Available -> stringResource(R.string.update_btn_update) to { viewModel.downloadUpdate(s.info) }
+                is com.texfi.w0y.data.UpdateState.Ready -> stringResource(R.string.update_btn_install) to { viewModel.installUpdate(s.file); Unit }
+                is com.texfi.w0y.data.UpdateState.Downloading -> stringResource(R.string.update_btn_wait) to { }
+                is com.texfi.w0y.data.UpdateState.Checking -> stringResource(R.string.update_btn_wait) to { }
+                is com.texfi.w0y.data.UpdateState.Failed ->
+                    if (updateInfo != null) stringResource(R.string.update_btn_retry) to { viewModel.downloadUpdate(updateInfo) }
+                    else stringResource(R.string.update_btn_check) to { viewModel.checkUpdate() }
+                else -> stringResource(R.string.update_btn_check) to { viewModel.checkUpdate() }
+            }
+        add(
+            SettingRow(
+                id = "update_now",
+                title = stringResource(R.string.update_title),
+                description = updateText,
+                keywords = "update install download github обновить установить версия",
+                control = SettingControl.Action(updateButton.first, updateButton.second),
+            ),
+        )
+        val whatsNewScope = androidx.compose.runtime.rememberCoroutineScope()
+        val whatsNewContext = androidx.compose.ui.platform.LocalContext.current
+        val whatsNewFail = stringResource(R.string.whatsnew_fail)
+        add(
+            SettingRow(
+                id = "update_whatsnew",
+                title = stringResource(R.string.whatsnew_title),
+                description = stringResource(R.string.whatsnew_desc),
+                keywords = "changelog release notes what's new что нового изменения",
+                control =
+                    SettingControl.Action(stringResource(R.string.whatsnew_btn)) {
+                        whatsNewScope.launch {
+                            if (!viewModel.showWhatsNew()) android.widget.Toast.makeText(whatsNewContext, whatsNewFail, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    },
             ),
         )
         add(

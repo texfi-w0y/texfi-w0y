@@ -147,6 +147,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     var loginBusy by remember { mutableStateOf(false) }
     val libraryViewModel: LibraryViewModel = hiltViewModel()
     val welcomeSeen by viewModel.welcomeSeen.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val updateDeferred by viewModel.updateDeferred.collectAsStateWithLifecycle()
+    val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val stylePicked by viewModel.stylePicked.collectAsStateWithLifecycle()
     val uiStyle by viewModel.uiStyle.collectAsStateWithLifecycle()
@@ -546,6 +549,20 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 onDone = {
                     viewModel.completeWelcome()
                 },
+            )
+        }
+
+        // Обновления: после приветствия, поверх всего — «что нового» после обновления или «доступна новая версия».
+        if (welcomeSeen == true) {
+            androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.onUpdatesLaunch() }
+            UpdateDialogs(
+                state = updateState,
+                deferredTag = updateDeferred,
+                whatsNew = whatsNew,
+                onDownload = viewModel::downloadUpdate,
+                onInstall = viewModel::installUpdate,
+                onDefer = viewModel::deferUpdate,
+                onCloseWhatsNew = viewModel::dismissWhatsNew,
             )
         }
 
