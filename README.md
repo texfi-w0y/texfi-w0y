@@ -81,16 +81,18 @@ bottom dock. The older Pixel and Smooth looks are still in Settings → Look.
 
 **Android 8.0 (API 26) or newer.**
 
-1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-2/TexFi-w0y-android.apk)
-   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.3-beta-2)
+1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-3/TexFi-w0y-android.apk)
+   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.3-beta-3)
    and open it. Checksums are in `SHA256SUMS.txt` next to it.
 2. Or add `https://github.com/texfi-w0y/texfi-w0y` to
    [Obtainium](https://github.com/ImranR98/Obtainium).
 
 Updates install over the top as long as they come signed with the project key.
+The app also checks this page itself when it starts and offers the update
+(Update / Later); it stays in Settings → App. You can turn the check off there.
 
 **Linux (x86_64):** download
-[`w0y-linux-x86_64.tar.gz`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-2/w0y-linux-x86_64.tar.gz),
+[`w0y-linux-x86_64.tar.gz`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-3/w0y-linux-x86_64.tar.gz),
 unpack it and run `./install.sh`. You need `mpv` installed. The interface of
 the Linux version is in Russian only.
 

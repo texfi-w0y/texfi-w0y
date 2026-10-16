@@ -1,18 +1,13 @@
 # Changelog
 
-## Unreleased (draft for beta-3, not tagged)
+## v0.0.3 beta-3
 
-Search errors are now visible with a reason, plus Copy debug info and a
-connection test (no data leaves the phone).
-
-Polish pass: the bottom island now sits in the layout (the screen ends above it,
-not under it); settings are back to eight tabs with search behind a magnifier; delete
-protection (long-press, confirm, UNDO) and handle-only reordering; your own files stay
-in playlists after a sync; stats update by themselves, count a play after 30 seconds
-and are restored from your history; three separate player panels (sleep timer, queue
-with similar, more) that close without collapsing the player; recommendations that do
-not repeat and show one shared reason; a Hairline widget in three sizes; crashes are
-recorded locally and appear in Copy debug info.
+A new player (Framed cover and Poster layouts, the cover flies into the mini
+player), the contour-map background, updates straight from GitHub with a
+"What's new" window, Quick picks on Home, a yearly recap, and the polish pass:
+visible search errors with Copy debug info, a connection test, delete
+protection, recommendations that do not repeat, tabbed settings, a Hairline
+widget. Details in the [release notes](docs/RELEASE_NOTES.md).
 
 ## v0.0.3 beta-2
 
