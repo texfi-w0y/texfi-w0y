@@ -48,7 +48,7 @@ object DebugInfoFormatter {
                 appendLine("data saver: ${n.dataSaver}, battery saver: ${yesNo(n.powerSave)}")
                 appendLine("signed in: ${yesNo(context.signedIn)}")
                 appendLine()
-                appendLine("last ${EVENTS} network events (newest last):")
+                appendLine("last ${EVENTS} events: network and crashes (newest last):")
                 val recent = events.takeLast(EVENTS)
                 if (recent.isEmpty()) appendLine("  none") else recent.forEach { appendLine("  " + line(it)) }
                 appendLine()
@@ -65,6 +65,7 @@ object DebugInfoFormatter {
             event.durationMs?.let { append("  ").append(it).append("ms") }
             event.bytes?.let { append("  ").append(it).append("B") }
             event.host?.let { append("  ").append(it) }
+            event.detail?.let { append("\n      ").append(it.replace("\n", "\n      ")) }
         }
     }
 

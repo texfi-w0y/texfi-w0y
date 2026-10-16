@@ -647,6 +647,11 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setLastDiscoveryWeek(value: String) = put(Keys.DISCOVERY_WEEK, value)
 
+    /** Версия восстановления статистики по истории: 0 — не запускалось. Служебное. */
+    suspend fun statsBackfillVersion(): Int = context.dataStore.data.first()[Keys.STATS_BACKFILL] ?: 0
+
+    suspend fun setStatsBackfillVersion(value: Int) = put(Keys.STATS_BACKFILL, value)
+
     suspend fun setQualityWifi(value: Quality) = put(Keys.QUALITY_WIFI, value.name)
 
     suspend fun setQualityMobile(value: Quality) = put(Keys.QUALITY_MOBILE, value.name)
@@ -1037,6 +1042,7 @@ class SettingsRepository @Inject constructor(
         val PLAYER_BADGE = booleanPreferencesKey("player_state_badge")
         val SETTINGS_FAVORITES = stringPreferencesKey("settings_favorites")
         val DISCOVERY_WEEK = stringPreferencesKey("discovery_week")
+        val STATS_BACKFILL = intPreferencesKey("stats_backfill")
         val SCHEMA = intPreferencesKey("settings_schema")
         val QUALITY_WIFI = stringPreferencesKey("quality_wifi")
         val QUALITY_MOBILE = stringPreferencesKey("quality_mobile")

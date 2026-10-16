@@ -15,6 +15,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -88,6 +91,60 @@ class StatsAggregatesTest {
             assertTrue(after.isEmpty)
             // Сами записи остались: «недавнее» не пустеет.
             assertEquals(2, dao.recentSongs().first().size)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun backfillRestoresListensFromHistoryTimestamps() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, W0yDatabase::class.java).allowMainThreadQueries().build()
+        try {
+            val dao = db.dao()
+            val repo = StatsRepository(dao)
+            val now = System.currentTimeMillis()
+            listOf("a", "b", "c", "d").forEach { dao.saveSongMeta(SongEntity(id = it, title = it, artist = "Artist $it", durationMs = 200_000)) }
+            // Три трека включали подряд с интервалами 3 мин, 20 с и 3 мин; последний — идёт сейчас.
+            dao.addHistory(HistoryEntity(songId = "a", playedAt = now - 400_000))
+            dao.addHistory(HistoryEntity(songId = "b", playedAt = now - 220_000))
+            dao.addHistory(HistoryEntity(songId = "c", playedAt = now - 200_000))
+            dao.addHistory(HistoryEntity(songId = "d", playedAt = now - 5_000))
+            // До восстановления статистика пуста, хотя история есть.
+            assertTrue(repo.stats(StatsPeriod.WEEK).isEmpty)
+
+            val updated = repo.backfill()
+            assertEquals(3, updated)
+            val after = repo.stats(StatsPeriod.WEEK)
+            assertFalse(after.isEmpty)
+            assertEquals(2, after.plays) // a: 180 с и c: 195 с засчитаны, b: 20 с — пропущен (порог 30 с)
+            assertTrue(after.minutes >= 6)
+            // Повторный запуск ничего не меняет.
+            assertEquals(0, repo.backfill())
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun observeEmitsAgainWhenListeningIsWritten() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, W0yDatabase::class.java).allowMainThreadQueries().build()
+        try {
+            val dao = db.dao()
+            val repo = StatsRepository(dao)
+            dao.saveSongMeta(SongEntity(id = "s1", title = "t", artist = "A"))
+            val id = dao.addHistory(HistoryEntity(songId = "s1", playedAt = System.currentTimeMillis()))
+            val first = kotlinx.coroutines.withTimeout(5_000) { repo.observe(StatsPeriod.WEEK).first() }
+            assertTrue(first.isEmpty)
+            val next =
+                async(kotlinx.coroutines.Dispatchers.Default) {
+                    kotlinx.coroutines.withTimeout(5_000) { repo.observe(StatsPeriod.WEEK).drop(1).first() }
+                }
+            kotlinx.coroutines.delay(300)
+            dao.updateListen(id, 45_000, true)
+            val updated = next.await()
+            assertEquals(1, updated.plays)
         } finally {
             db.close()
         }

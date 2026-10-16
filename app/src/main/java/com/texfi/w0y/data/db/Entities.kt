@@ -194,7 +194,7 @@ data class PlaylistSongEntity(
  *
  * Строка заводится на старте — так «недавнее» показывает всё, что включали,
  * — а прослушиванием она становится, только когда реально проиграна хотя бы
- * половина трека (или 4 минуты у длинных): см. [com.texfi.w0y.data.ListenRule].
+ * половина трека (или 30 секунд у длинных): см. [com.texfi.w0y.data.ListenRule].
  * Перемотка вперёд в [listenedMs] не попадает: считается проигранное время,
  * а не позиция.
  *
@@ -280,6 +280,15 @@ data class DurationPlays(
  * Включение для графиков: когда, сколько проиграно и, для старых записей,
  * длительность трека — по ней оцениваются их минуты.
  */
+data class BackfillRow(
+    val id: Long,
+    val playedAt: Long,
+    val listenedMs: Long,
+    val legacy: Boolean,
+    val counted: Boolean,
+    val durationMs: Long?,
+)
+
 data class ListenRow(
     val playedAt: Long,
     val listenedMs: Long,

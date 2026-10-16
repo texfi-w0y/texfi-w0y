@@ -255,6 +255,15 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // поэтому экран физически не может зайти под него и ни одному списку не нужен
     // свой нижний отступ. Парит поверх контента только стекло Smooth.
     val overlayBars = glassBars
+    androidx.compose.runtime.SideEffect {
+        com.texfi.w0y.data.CrashReporter.screen = when {
+            standOpen -> "STAND"
+            playerExpanded -> "PLAYER"
+            settingsOpen -> "SETTINGS"
+            browseStack.isNotEmpty() -> "BROWSE"
+            else -> tab.name
+        }
+    }
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barsHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barsHeightTarget = with(density) { barsHeightPx.toDp() }

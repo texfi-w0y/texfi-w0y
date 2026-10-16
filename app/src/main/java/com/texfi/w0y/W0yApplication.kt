@@ -31,6 +31,7 @@ class W0yApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.texfi.w0y.data.CrashReporter.install(this)
         com.texfi.w0y.playback.localMusicDir = com.texfi.w0y.data.LocalMusic.dir(this)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())

@@ -59,6 +59,7 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 
 hilt = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
+hilt-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hilt" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigation" }
 
 media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }

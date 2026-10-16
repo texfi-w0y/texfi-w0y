@@ -11,6 +11,8 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /** За какой срок считаем итоги и чем делим график. */
 enum class StatsPeriod(@StringRes val label: Int, val days: Int?, val bucket: StatsBucket) {
@@ -86,6 +88,17 @@ class StatsRepository @Inject constructor(
             newArtists = dao.newArtistsSince(since),
             hourly = hourly(rows, zone),
         )
+    }
+
+    /** Статистика, которая пересчитывается сама при любой записи в историю. */
+    fun observe(period: StatsPeriod, zone: ZoneId = ZoneId.systemDefault()): kotlinx.coroutines.flow.Flow<ListeningStats> =
+        dao.historyPulse().distinctUntilChanged().map { stats(period, zone) }
+
+    /** Дописывает проигранное время в строки, где его не успели записать. Возвращает, сколько строк обновлено. */
+    suspend fun backfill(): Int {
+        val updates = StatsBackfill.plan(dao.historyForBackfill())
+        updates.forEach { dao.updateListen(it.id, it.listenedMs, it.counted) }
+        return updates.size
     }
 
     /** Стереть счётчики; записи истории остаются. */
