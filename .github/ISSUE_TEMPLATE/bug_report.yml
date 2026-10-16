@@ -1,0 +1,71 @@
+name: Bug report
+description: Something does not work (search, playback, anything else)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. w0y has no telemetry, so we only know what you tell us.
+        If **search** is the problem: open Settings → About → Diagnostics, tap **Test connection**, then **Copy debug info** and paste it below. Nothing is sent anywhere; you decide what to share.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What went wrong, in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Search
+        2. Type ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      description: "For example: Pixel 7, Android 15 (or Linux + distro)."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: w0y version
+      description: "Settings → About, for example: v0.0.3 beta-2."
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Do you use any of these?
+      description: They can get in the way of search. Pick everything that applies.
+      multiple: true
+      options:
+        - VPN
+        - Private DNS
+        - Ad blocker (DNS-level or app)
+        - Data saver / battery saver
+        - None of these
+  - type: textarea
+    id: debug
+    attributes:
+      label: Debug info
+      description: Paste the text from "Copy debug info" (Settings → About → Diagnostics). It has no account data, cookies or search text.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I did not paste personal data (account name, e-mail, cookies, tokens).
+          required: true
