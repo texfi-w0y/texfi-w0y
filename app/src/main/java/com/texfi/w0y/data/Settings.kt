@@ -443,7 +443,7 @@ data class W0ySettings(
     val lineWeight: LineWeight = LineWeight.THIN,
     val corners: CornerStyle = CornerStyle.SHARP,
     val coverShape: CoverShape = CoverShape.ROUNDED,
-    val playerLayout: PlayerLayout = PlayerLayout.RING,
+    val playerLayout: PlayerLayout = PlayerLayout.COVER,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
     val density: Density = Density.COMFORTABLE,
     val motion: MotionMode = MotionMode.AUTO,

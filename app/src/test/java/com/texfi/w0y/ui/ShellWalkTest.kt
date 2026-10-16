@@ -89,7 +89,7 @@ class ShellWalkTest {
     private fun islandTop(): Float = compose.onNodeWithTag("island").fetchSemanticsNode().boundsInRoot.top
 
     /** Прокручивает главный список вниз до конца и проверяет, что низ последней строки над островом. */
-    private fun assertEndsAboveIsland(label: String) {
+    private fun assertEndsAboveIsland(label: String, cut: Boolean = true) {
         compose.waitForIdle()
         // Данные читаются из базы на другом потоке: ждём, пока список появится.
         runCatching { compose.waitUntil(8_000) { compose.onAllNodes(verticalList).fetchSemanticsNodes().isNotEmpty() } }
@@ -106,6 +106,12 @@ class ShellWalkTest {
         val lowest = listNode.children.maxOfOrNull { it.boundsInRoot.bottom } ?: 0f
         val top = islandTop()
         assertTrue("$label: низ последней строки $lowest заходит под остров $top", lowest <= top + 1f)
+        val listBottom = listNode.boundsInRoot.bottom
+        if (cut) {
+            assertTrue("$label: список обрезан по острову ($listBottom <= $top)", listBottom <= top + 1f)
+        } else {
+            assertTrue("$label: экран идёт под островом ($listBottom > $top)", listBottom > top + 1f)
+        }
     }
 
     private fun back() {
@@ -118,11 +124,11 @@ class ShellWalkTest {
         start()
         compose.onNode(hasContentDescription("yours")).performClick()
         compose.waitForIdle()
-        assertEndsAboveIsland("Моё")
+        assertEndsAboveIsland("Моё", cut = false)
         listOf("LIKES", "HISTORY", "DOWNLOADED", "MY FILES", "STATS").forEach { label ->
             compose.onAllNodes(hasText(label, substring = true)).onFirst().performClick()
             // «Мои файлы» без добавленных файлов — пустое состояние без списка.
-            if (label == "MY FILES") compose.waitForIdle() else assertEndsAboveIsland(label)
+            if (label == "MY FILES") compose.waitForIdle() else assertEndsAboveIsland(label, cut = label != "STATS")
             back()
         }
     }
@@ -134,7 +140,7 @@ class ShellWalkTest {
         compose.waitForIdle()
         compose.onNode(hasContentDescription("home")).performClick()
         compose.waitForIdle()
-        assertEndsAboveIsland("Главная")
+        assertEndsAboveIsland("Главная", cut = false)
     }
 
     @Test

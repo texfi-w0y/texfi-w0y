@@ -1,11 +1,6 @@
 package com.texfi.w0y.ui.components
 
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.ui.input.pointer.positionChange
-import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -115,11 +110,7 @@ fun rememberReorderState(list: LazyListState, onMove: (Any, Any) -> Unit): Reord
     return androidx.compose.runtime.remember(list) { ReorderState(list, scope, { a, b -> move(a, b) }, tap) }
 }
 
-/**
- * Ручка строки: 48 dp касания. Перенос начинается, только если палец
- * удержан на ручке [HOLD_MS]: обычное касание и прокрутка списка переносом
- * не становятся.
- */
+/** Ручка строки: 48 dp касания; перенос — только за неё, прокрутка списка и касание строки его не начинают. */
 @Composable
 fun ReorderHandle(state: ReorderState, key: Any, onDrop: () -> Unit) {
     val colors = LocalW0yColors.current
@@ -142,29 +133,21 @@ fun ReorderHandle(state: ReorderState, key: Any, onDrop: () -> Unit) {
     }
 }
 
-/** Сколько палец держат на ручке, прежде чем начнётся перенос. */
-const val HOLD_MS = 250L
-
 /**
- * Перенос после удержания: коснулся и ждёшь [HOLD_MS] — строка «берётся»;
- * отпустил раньше или повёл пальцем в сторону прокрутки — ничего не произошло.
+ * Перенос за ручку: ведёшь пальцем по ручке — строка берётся, как только палец прошёл порог касания.
+ *
+ * Раньше требовалось ещё и удержание 250 мс: пока палец стоял, малейший сдвиг уже подхватывал
+ * прокрутка списка, и перенос не начинался вовсе — «музыку в плейлисте не переместить». Защита от
+ * случайного переноса осталась: тянуть можно только за ручку, а не за строку.
  */
 fun Modifier.holdToDrag(key: Any, onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> Unit): Modifier =
     pointerInput(key) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            var released = true
-            withTimeoutOrNull(HOLD_MS) {
-                waitForUpOrCancellation()
-                released = true
-            } ?: run { released = false }
-            if (!released) {
-                onStart()
-                drag(down.id) { change ->
-                    change.consume()
-                    onDrag(change.positionChange().y)
-                }
-                onEnd()
-            }
+        detectDragGestures(
+            onDragStart = { onStart() },
+            onDragEnd = { onEnd() },
+            onDragCancel = { onEnd() },
+        ) { change, amount ->
+            change.consume()
+            onDrag(amount.y)
         }
     }

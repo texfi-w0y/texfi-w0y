@@ -837,6 +837,8 @@
     <string name="sheet_open_cd">Open queue and similar tracks</string>
     <string name="sheet_look">Look</string>
     <string name="sheet_badge_cd">Open speed and sound</string>
+    <string name="player_menu_download">Download</string>
+    <string name="player_menu_sound">Sound, speed, look</string>
     <string name="sheet_close_cd">Close panel</string>
     <string name="sheet_handle_queue">QUEUE · %1$d</string>
     <string name="similar_refresh">REFRESH</string>

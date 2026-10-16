@@ -90,7 +90,7 @@ data class HairlineLook(
     val weight: LineWeight = LineWeight.THIN,
     val corners: CornerStyle = CornerStyle.SHARP,
     val coverShape: CoverShape = CoverShape.ROUNDED,
-    val layout: PlayerLayout = PlayerLayout.RING,
+    val layout: PlayerLayout = PlayerLayout.COVER,
     val caps: CapsMode = CapsMode.TITLES_LABELS,
     val density: Density = Density.COMFORTABLE,
     val motion: MotionLevel = MotionLevel.FULL,
