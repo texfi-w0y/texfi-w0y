@@ -471,7 +471,6 @@ data class W0ySettings(
     /** Значок состояния (скорость, эквалайзер) в плеере; при умолчаниях он скрыт сам. */
     val playerStateBadge: Boolean = true,
     /** Закреплённые настройки, ключи через запятую. */
-    val settingsFavorites: String = SettingsCatalog.DEFAULT_FAVORITES,
 )
 
 @Singleton
@@ -596,7 +595,6 @@ class SettingsRepository @Inject constructor(
                     homeRecBlocks = prefs[Keys.HOME_REC_BLOCKS] ?: d.homeRecBlocks,
                     weeklyDiscovery = prefs[Keys.WEEKLY_DISCOVERY] ?: d.weeklyDiscovery,
                     playerStateBadge = prefs[Keys.PLAYER_BADGE] ?: d.playerStateBadge,
-                    settingsFavorites = prefs[Keys.SETTINGS_FAVORITES] ?: d.settingsFavorites,
                 )
             }
 
@@ -639,8 +637,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setWeeklyDiscovery(value: Boolean) = put(Keys.WEEKLY_DISCOVERY, value)
 
     suspend fun setPlayerStateBadge(value: Boolean) = put(Keys.PLAYER_BADGE, value)
-
-    suspend fun setSettingsFavorites(value: String) = put(Keys.SETTINGS_FAVORITES, value)
 
     /** Неделя, за которую плейлист «Открытия» уже собран ("2026-W42"). Служебное, в снимок настроек не входит. */
     suspend fun lastDiscoveryWeek(): String = context.dataStore.data.first()[Keys.DISCOVERY_WEEK].orEmpty()
@@ -1040,7 +1036,6 @@ class SettingsRepository @Inject constructor(
         val HOME_REC_BLOCKS = booleanPreferencesKey("home_rec_blocks")
         val WEEKLY_DISCOVERY = booleanPreferencesKey("weekly_discovery")
         val PLAYER_BADGE = booleanPreferencesKey("player_state_badge")
-        val SETTINGS_FAVORITES = stringPreferencesKey("settings_favorites")
         val DISCOVERY_WEEK = stringPreferencesKey("discovery_week")
         val STATS_BACKFILL = intPreferencesKey("stats_backfill")
         val SCHEMA = intPreferencesKey("settings_schema")
@@ -1153,11 +1148,13 @@ const val STAND_BRIGHTNESS_SYSTEM = -1f
  * существующим сначала записываются старые значения тех ключей, чьё умолчание
  * изменилось, — иначе тихо поменялось бы то, что человек не трогал.
  *
- * Схема 1 (эта правка): `normalize_volume` был включён по умолчанию, `dock_labels`
+ * Схема 2: избранные настройки убраны вместе с закреплением звёздочкой — ключ `settings_favorites` стирается.
+ *
+ * Схема 1: `normalize_volume` был включён по умолчанию, `dock_labels`
  * показывал все подписи; теперь по умолчанию выключено и «активная».
  */
 object SettingsMigration {
-    const val CURRENT = 1
+    const val CURRENT = 2
 
     fun apply(prefs: androidx.datastore.preferences.core.MutablePreferences, target: Int) {
         val schema = prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] ?: 0
@@ -1170,6 +1167,7 @@ object SettingsMigration {
             if (normalize !in prefs) prefs[normalize] = true
             if (labels !in prefs) prefs[labels] = DockLabels.ALL.name
         }
+        if (schema < 2) prefs.remove(androidx.datastore.preferences.core.stringPreferencesKey("settings_favorites"))
         prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] = target
     }
 }

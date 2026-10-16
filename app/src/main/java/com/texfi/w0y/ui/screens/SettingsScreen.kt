@@ -62,6 +62,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -108,18 +111,16 @@ import com.texfi.w0y.ui.components.RowActionsMenu
 import com.texfi.w0y.ui.theme.Contrast
 
 /**
- * Настройки: десять категорий, избранное и поиск.
+ * Настройки: восемь вкладок сверху и поиск значком в шапке.
  *
- * Главная страница — вертикальный список: номер, название и мелкая строка
- * текущих значений. Над ним — «Избранное» (до шести закреплённых пунктов) и поиск
- * по названию, пояснению и синонимам. Внутри категории — строки: слева название и
- * одна строка пояснения, справа значение или переключатель; выбор из вариантов
- * открывается нижней панелью.
+ * Вкладки — тонкая полоса с подчёркиванием активной; последняя открытая помнится.
+ * Внутри вкладки — строки: слева название и одна строка пояснения, справа значение
+ * или переключатель; выбор из вариантов открывается небольшой нижней панелью. Поиск
+ * (значок лупы) ищет по названию, пояснению и синонимам, переводит на нужную вкладку
+ * и подсвечивает строку.
  *
- * Список пунктов один на все режимы (категория, избранное, поиск) и собирается
- * данными; к какой категории и группе относится пункт, решает [SettingsCatalog], —
- * поэтому каждая настройка живёт ровно в одном месте, а в избранном и поиске это
- * ссылки на ту же строку.
+ * Строки собираются данными; вкладку и группу пункта решает [SettingsCatalog], —
+ * поэтому каждая настройка живёт ровно в одном месте.
  */
 @Composable
 fun SettingsScreen(
@@ -132,8 +133,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var categoryName by rememberSaveable { mutableStateOf<String?>(null) }
+    // Последняя открытая вкладка помнится: возвращаешься туда, где был.
+    var tabName by rememberSaveable { mutableStateOf(SettingsTabMemory.last) }
     var query by rememberSaveable { mutableStateOf("") }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
     var tasteOpen by rememberSaveable { mutableStateOf(false) }
     // Куда прокрутить и что подсветить после перехода из поиска или избранного.
@@ -236,32 +239,21 @@ fun SettingsScreen(
             onAutoExport = { on -> if (on) withCopyrightNotice { viewModel.setAutoExport(true) } else viewModel.setAutoExport(false) },
             onPickBackdrop = { backdropLauncher.launch(arrayOf("image/*")) },
         ).filter { SettingsCatalog.entry(it.id) != null }.sortedBy { SettingsCatalog.indexOf(it.id) }
-    val category = categoryName?.let { name -> SettingsCategory.entries.firstOrNull { it.name == name } }
-    val favorites = SettingsCatalog.parseFavorites(currentSettings.settingsFavorites)
+    val category = SettingsCategory.entries.firstOrNull { it.name == tabName } ?: SettingsCategory.PLAYBACK
 
-    // Внутри категории «назад» возвращает к списку категорий, а не закрывает
-    // настройки целиком; при поиске — сначала очищает запрос.
-    BackHandler(enabled = category != null || query.isNotBlank()) {
-        if (query.isNotBlank()) query = "" else categoryName = null
+    // Назад: сначала закрывает поиск, потом настройки целиком.
+    BackHandler(enabled = searchOpen || query.isNotBlank()) {
+        if (query.isNotBlank()) query = "" else searchOpen = false
     }
 
-    val favoriteFull = stringResource(R.string.settings_fav_full)
-    val toggleFavorite: (String) -> Unit = { id ->
-        val now = SettingsCatalog.parseFavorites(currentSettings.settingsFavorites)
-        when {
-            id in now -> viewModel.setFavorites(SettingsCatalog.formatFavorites(now - id))
-            now.size >= SettingsCatalog.MAX_FAVORITES -> viewModel.showMessage(favoriteFull)
-            else -> viewModel.setFavorites(SettingsCatalog.formatFavorites(now + id))
-        }
-    }
     val openRow: (SettingRow) -> Unit = { row ->
-        categoryName = row.category.name
+        tabName = row.category.name
+        SettingsTabMemory.last = tabName
         query = ""
+        searchOpen = false
         target = row.id
     }
     val ctx = RowContext(
-        favorites = favorites,
-        onToggleFavorite = toggleFavorite,
         onChoose = { choiceId = it },
         onDetails = { detailsId = it },
     )
@@ -274,8 +266,28 @@ fun SettingsScreen(
             .statusBarsPadding(),
     ) {
         ScreenTitle(
-            title = category?.let { stringResource(it.titleRes()) } ?: stringResource(R.string.settings_title),
-            onBack = if (category != null) ({ categoryName = null }) else onClose,
+            title = stringResource(R.string.settings_title),
+            onBack = onClose,
+            actions = {
+                val searchCd = stringResource(R.string.settings_search_placeholder)
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .testTag("settings-search")
+                        .semantics { contentDescription = searchCd; role = Role.Button }
+                        .clickable {
+                            searchOpen = !searchOpen
+                            if (!searchOpen) query = ""
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.texfi.w0y.ui.icons.HairIcon(
+                        com.texfi.w0y.ui.icons.HairGlyph.SEARCH,
+                        if (searchOpen) colors.accent else colors.textMuted,
+                        Modifier.size(22.dp),
+                    )
+                }
+            },
         )
         message?.let {
             Text(
@@ -285,15 +297,22 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
-        if (category == null) {
+        if (searchOpen) {
             SettingsSearchField(value = query, onValueChange = { query = it })
             Spacer(Modifier.height(8.dp))
         }
+        SettingsTabStrip(
+            tabs = SettingsCategory.entries.map { it.name to stringResource(it.titleRes()) },
+            selected = category.name,
+            onSelect = {
+                tabName = it
+                SettingsTabMemory.last = it
+            },
+        )
 
         when {
             query.isNotBlank() -> SearchResults(rows, query, onOpen = openRow)
-            category != null -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
-            else -> SettingsHome(rows, favorites, ctx, onOpenCategory = { categoryName = it.name }, onOpenFavorite = openRow)
+            else -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
         }
     }
 
@@ -325,8 +344,6 @@ private fun SettingsCategory.titleRes(): Int =
     when (this) {
         SettingsCategory.PLAYBACK -> R.string.cat_playback
         SettingsCategory.SOUND -> R.string.cat_sound
-        SettingsCategory.TONE -> R.string.cat_tone
-        SettingsCategory.TEXT_VIZ -> R.string.cat_text_viz
         SettingsCategory.STAND -> R.string.cat_stand
         SettingsCategory.STORAGE -> R.string.cat_storage
         SettingsCategory.SEARCH_FEEDS -> R.string.cat_search_feeds
@@ -373,10 +390,8 @@ private class SettingRow(
     val group: SettingsGroup? get() = SettingsCatalog.entry(id)?.group
 }
 
-/** Что нужно строке от экрана: избранное и открытие панелей. */
+/** Что нужно строке от экрана: открытие панелей. */
 private class RowContext(
-    val favorites: List<String>,
-    val onToggleFavorite: (String) -> Unit,
     val onChoose: (String) -> Unit,
     val onDetails: (String) -> Unit,
 )
@@ -394,79 +409,6 @@ private fun valueText(row: SettingRow): String? =
         is SettingControl.Info -> c.value
         is SettingControl.Action, is SettingControl.Custom -> null
     }
-
-/** Что показывать справа от категории: значения ключевых пунктов, как на ней задано. */
-private val GLANCE: Map<SettingsCategory, List<String>> =
-    mapOf(
-        SettingsCategory.PLAYBACK to listOf("settings_queue_title", "rec_end_mode", "delete_protection"),
-        SettingsCategory.SOUND to listOf("settings_quality_wifi_title", "settings_quality_mobile_title", "settings_normalize_title"),
-        SettingsCategory.TONE to listOf("settings_speed_title", "settings_pitch_title", "settings_reverb_title"),
-        SettingsCategory.TEXT_VIZ to listOf("settings_lyrics_title", "viz_style_title"),
-        SettingsCategory.STAND to listOf("stand_view_title", "stand_brightness_title"),
-        SettingsCategory.STORAGE to listOf("settings_cache_title", "dl_quality_wifi_title", "settings_wifi_only_title"),
-        SettingsCategory.SEARCH_FEEDS to listOf("rec_novelty", "settings_clean_title", "settings_history_title"),
-        SettingsCategory.LOOK to listOf("settings_theme_title", "settings_style_title", "settings_accent_title"),
-        SettingsCategory.ACCOUNT to listOf("settings_account_title", "settings_sync_playlists_title"),
-        SettingsCategory.DATA to emptyList(),
-    )
-
-@Composable
-private fun glanceLine(category: SettingsCategory, rows: List<SettingRow>): String {
-    if (category == SettingsCategory.DATA) return stringResource(R.string.settings_version, appVersionLabel)
-    val parts = ArrayList<String>(3)
-    for (id in GLANCE.getValue(category)) {
-        val row = rows.firstOrNull { it.id == id } ?: continue
-        val v = valueText(row) ?: (if (category == SettingsCategory.ACCOUNT && id == "settings_account_title") row.description else null)
-        if (v != null) parts += v
-    }
-    return parts.joinToString(" · ")
-}
-
-@Composable
-private fun SettingsHome(
-    rows: List<SettingRow>,
-    favorites: List<String>,
-    ctx: RowContext,
-    onOpenCategory: (SettingsCategory) -> Unit,
-    onOpenFavorite: (SettingRow) -> Unit,
-) {
-    val colors = LocalW0yColors.current
-    val favRows = favorites.mapNotNull { id -> rows.firstOrNull { it.id == id } }
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
-    ) {
-        item(key = "fav-head") { MonoHeader(stringResource(R.string.settings_favorites_title)) }
-        if (favRows.isEmpty()) {
-            item(key = "fav-empty") {
-                Text(
-                    stringResource(R.string.settings_fav_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-            }
-        } else {
-            items(favRows, key = { "fav-" + it.id }) { row ->
-                SettingRowItem(row, ctx, highlighted = false, sectionHint = stringResource(row.category.titleRes()))
-                RowDivider()
-            }
-        }
-        item(key = "cats-head") { MonoHeader(stringResource(R.string.settings_categories_title)) }
-        items(SettingsCategory.entries.toList(), key = { "cat-" + it.name }) { cat ->
-            CategoryRow(cat, glanceLine(cat, rows)) { onOpenCategory(cat) }
-            RowDivider()
-        }
-        item(key = "version") {
-            Text(
-                text = stringResource(R.string.settings_version, appVersionLabel),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 16.dp, bottom = 24.dp),
-            )
-        }
-    }
-}
 
 /** Заголовок группы: моно, заглавные, приглушённо. */
 @Composable
@@ -486,42 +428,6 @@ private fun RowDivider() {
     Box(Modifier.fillMaxWidth().height(com.texfi.w0y.ui.theme.hairLook.line).background(colors.border))
 }
 
-/** Строка категории: номер, название, мелкая строка значений, стрелка. */
-@Composable
-private fun CategoryRow(category: SettingsCategory, glance: String, onClick: () -> Unit) {
-    val colors = LocalW0yColors.current
-    val title = stringResource(category.titleRes())
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "%02d".format(category.number),
-            style = com.texfi.w0y.ui.theme.HairLabelStyle,
-            color = colors.textMuted,
-            modifier = Modifier.width(34.dp),
-        )
-        Column(Modifier.weight(1f)) {
-            Text(title.asLabel(), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = colors.text, maxLines = 2)
-            if (glance.isNotBlank()) {
-                Text(
-                    glance.asLabel(),
-                    style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                    color = colors.textMuted,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Spacer(Modifier.width(10.dp))
-        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
-    }
-}
-
 /** Содержимое категории: группы с моно-заголовками, строки; при переходе из поиска — прокрутка и подсветка. */
 @Composable
 private fun CategoryList(
@@ -534,8 +440,11 @@ private fun CategoryList(
     onTargetShown: () -> Unit,
 ) {
     val colors = LocalW0yColors.current
-    val inCategory = rows.filter { it.category == category }
-    val groups = inCategory.map { it.group }.distinct()
+    val unordered = rows.filter { it.category == category }
+    // Группа идёт одним куском, в порядке первого появления в каталоге.
+    val groupOrder = unordered.map { it.group }.distinct()
+    val inCategory = unordered.sortedBy { groupOrder.indexOf(it.group) }
+    val groups = groupOrder
     // Элементы списка: заголовок группы (только если групп больше одной) и строки.
     val entries = ArrayList<Pair<String, SettingRow?>>()
     var prev: SettingsGroup? = null
@@ -564,7 +473,7 @@ private fun CategoryList(
         }
     }
     LazyColumn(
-        Modifier.fillMaxSize(),
+        Modifier.fillMaxSize().testTag("settings-list"),
         state = state,
         contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
     ) {
@@ -711,12 +620,10 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolean, sectionHint: String? = null) {
+private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolean) {
     val colors = LocalW0yColors.current
     val look = com.texfi.w0y.ui.theme.hairLook
     val control = row.control
-    val isFavorite = row.id in ctx.favorites
-    var menu by remember { mutableStateOf(false) }
     val outlineAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (highlighted) 1f else 0f,
         // Без анимации в Motion Lite/Off: контур просто появляется и пропадает.
@@ -731,19 +638,6 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
             is SettingControl.Action -> control.onClick
             else -> null
         }
-    if (menu) {
-        RowActionsMenu(
-            title = row.title,
-            actions =
-                listOf(
-                    RowAction(stringResource(if (isFavorite) R.string.settings_fav_remove else R.string.settings_fav_add)) { ctx.onToggleFavorite(row.id) },
-                    RowAction(stringResource(R.string.settings_row_details)) { ctx.onDetails(row.id) },
-                ),
-            cancel = stringResource(R.string.common_cancel),
-            onDismiss = { menu = false },
-        )
-    }
-    val favMark = if (isFavorite) stringResource(R.string.settings_fav_mark) else null
     Column(
         Modifier
             .fillMaxWidth()
@@ -752,40 +646,20 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
             .combinedClickable(
                 enabled = primary != null || true,
                 onClick = { primary?.invoke() },
-                onLongClick = { menu = true },
+                onLongClick = { ctx.onDetails(row.id) },
             )
             .padding(horizontal = if (outlineAlpha > 0f) 8.dp else 0.dp, vertical = 10.dp)
             .heightIn(min = 48.dp),
     ) {
-        if (sectionHint != null) {
-            Text(
-                sectionHint.asLabel(),
-                style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                color = Contrast.ensure(colors.accent, colors.background),
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        row.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.text,
-                        maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (favMark != null) {
-                        Spacer(Modifier.width(8.dp))
-                        com.texfi.w0y.ui.icons.HairIcon(
-                            com.texfi.w0y.ui.icons.HairGlyph.PIN,
-                            Contrast.ensure(colors.accent, colors.background),
-                            Modifier.size(14.dp),
-                            description = favMark,
-                        )
-                    }
-                }
+                Text(
+                    row.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.text,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
                 Text(
                     row.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -2238,3 +2112,79 @@ private fun AppIconPicker(selected: com.texfi.w0y.data.AppIcon, onPick: (com.tex
 
 /** Фон значка, как в ресурсе icon_bg: превью рисует маску поверх него. */
 private const val ICON_BG = 0xFF0A090CL
+
+
+/** Последняя открытая вкладка настроек: живёт, пока жив процесс. */
+private object SettingsTabMemory {
+    @Volatile
+    var last: String = SettingsCategory.PLAYBACK.name
+}
+
+/**
+ * Вкладки настроек: подписи моно, тонкая линия под полосой, под активной — акцентная.
+ * Подписи целиком, без усечения: полоса прокручивается, активная сама подъезжает в видимую часть,
+ * а у края, где есть продолжение, стоит затемнение.
+ */
+@Composable
+private fun SettingsTabStrip(tabs: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    val colors = LocalW0yColors.current
+    val look = com.texfi.w0y.ui.theme.hairLook
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    val spots = remember { androidx.compose.runtime.mutableStateMapOf<String, Pair<Int, Int>>() }
+    val spot = spots[selected]
+    val spec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+    val x by androidx.compose.animation.core.animateFloatAsState(spot?.first?.toFloat() ?: 0f, spec, label = "tabX")
+    val w by androidx.compose.animation.core.animateFloatAsState(spot?.second?.toFloat() ?: 0f, spec, label = "tabW")
+    LaunchedEffect(spot, scroll.maxValue) {
+        spot ?: return@LaunchedEffect
+        val target = (spot.first - 60).coerceIn(0, scroll.maxValue)
+        scroll.animateScrollTo(target, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    Box(Modifier.fillMaxWidth().testTag("settings-tabs")) {
+        Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
+            Row {
+                Spacer(Modifier.width(18.dp))
+                tabs.forEach { (key, label) ->
+                    val active = key == selected
+                    val tone by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, androidx.compose.animation.core.tween(200), label = "tabTone")
+                    Box(
+                        Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag("tab-$key")
+                            .onGloballyPositioned { spots[key] = it.positionInParent().x.toInt() to it.size.width }
+                            .semantics { role = Role.Tab; this.selected = active }
+                            .clickable { onSelect(key) }
+                            .padding(horizontal = 11.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = tone, maxLines = 1, softWrap = false)
+                    }
+                }
+                Spacer(Modifier.width(18.dp))
+            }
+            if (spot != null) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .offset { androidx.compose.ui.unit.IntOffset(x.toInt(), 0) }
+                        .width(with(density) { w.toDp() })
+                        .padding(horizontal = 11.dp)
+                        .height(2.dp)
+                        .background(colors.accent),
+                )
+            }
+        }
+        if (scroll.canScrollForward) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(28.dp)
+                    .height(48.dp)
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, colors.background.copy(alpha = 0.9f)))),
+            )
+        }
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(look.line).background(colors.border))
+    }
+    Spacer(Modifier.height(8.dp))
+}
