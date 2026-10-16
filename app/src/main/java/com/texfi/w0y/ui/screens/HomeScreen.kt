@@ -140,7 +140,7 @@ fun HomeScreen(
         },
         modifier = Modifier.fillMaxSize(),
     ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
         item {
             ScreenTitle(
                 title = stringResource(if (hair) R.string.tab_home else R.string.app_name),

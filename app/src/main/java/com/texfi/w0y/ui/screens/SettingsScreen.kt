@@ -286,7 +286,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxWidth()
                 .then(if (barsInset > 0.dp) Modifier else Modifier.navigationBarsPadding()),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 18.dp, end = 18.dp, bottom = barsInset),
+            contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 18.dp, end = 18.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             when {

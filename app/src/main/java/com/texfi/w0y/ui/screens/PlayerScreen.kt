@@ -413,7 +413,7 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+            contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(start = 20.dp, end = 20.dp),
         ) {
             if (hair) item {
                 HairPlayerHeader(

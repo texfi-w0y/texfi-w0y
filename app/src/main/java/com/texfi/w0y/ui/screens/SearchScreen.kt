@@ -275,7 +275,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                     )
                 } else {
                     val songs = current.songs.filterNot { hideExplicit && it.explicit }
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current)) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
                         // Своё — выше чужого: то, что человек уже слушал,
                         // он ищет чаще, чем что-то новое.
                         val mine = localResults.filterNot { own -> songs.any { it.id == own.id } }

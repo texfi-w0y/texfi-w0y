@@ -77,7 +77,7 @@ fun ArtistScreen(
         Modifier
             .fillMaxSize()
             .screenBackground(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = com.texfi.w0y.ui.components.LocalBottomInset.current),
+        contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
     ) {
         item {
             Hero(

@@ -101,7 +101,8 @@ fun AboutScreen(
         }
 
         LazyColumn(
-            Modifier.navigationBarsPadding(),
+            Modifier.then(if (com.texfi.w0y.ui.components.LocalBottomInset.current > 0.dp) Modifier else Modifier.navigationBarsPadding()),
+            contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item { NumberedSection("01", stringResource(R.string.about_section_app)) }
@@ -164,7 +165,6 @@ fun AboutScreen(
 
             item { NumberedSection("05", stringResource(R.string.about_section_diagnostics)) }
             item { DiagnosticsCard() }
-            item { Spacer(Modifier.height(18.dp)) }
         }
     }
 }

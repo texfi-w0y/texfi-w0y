@@ -242,7 +242,7 @@ private fun LocalFileEditor(
                 .clickable { if (sure) onRemove() else sure = true }
                 .padding(vertical = 14.dp),
         )
-        Spacer(Modifier.height(com.texfi.w0y.ui.components.LocalBottomInset.current))
+        com.texfi.w0y.ui.components.BottomInsetSpacer()
     }
 }
 
