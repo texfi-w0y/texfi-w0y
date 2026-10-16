@@ -837,8 +837,6 @@
     <string name="sheet_open_cd">Открыть очередь и похожее</string>
     <string name="sheet_look">Вид</string>
     <string name="sheet_badge_cd">Открыть скорость и звук</string>
-    <string name="player_menu_download">Скачать</string>
-    <string name="player_menu_sound">Звук, скорость, вид</string>
     <string name="sheet_close_cd">Закрыть панель</string>
     <string name="sheet_handle_queue">ОЧЕРЕДЬ · %1$d</string>
     <string name="similar_refresh">ОБНОВИТЬ</string>
