@@ -129,14 +129,16 @@ fun stateBadge(speed: Float, pitch: Float, reverbOn: Boolean, eq: String): Strin
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-/** Нижняя панель: вкладки и список содержимого. Закрывается жестом вниз, кнопкой «назад» и по фону. */
+/**
+ * Каркас нижней панели Hairline: затемнение, панель с контуром 1 dp, ручка.
+ * Закрывается жестом вниз по ручке, кнопкой «назад» и нажатием по фону.
+ */
 @Composable
-fun PlayerSheet(
+fun HairSheetFrame(
     visible: Boolean,
-    tab: SheetTab,
-    onTab: (SheetTab) -> Unit,
     onDismiss: () -> Unit,
-    content: LazyListScope.(SheetTab) -> Unit,
+    heightFraction: Float? = 0.82f,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
@@ -161,7 +163,7 @@ fun PlayerSheet(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.82f)
+                    .then(if (heightFraction != null) Modifier.fillMaxHeight(heightFraction) else Modifier)
                     .clip(shape)
                     .background(colors.surface)
                     .border(look.line, colors.outline, shape)
@@ -185,38 +187,54 @@ fun PlayerSheet(
                 ) {
                     Box(Modifier.width(36.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.outline))
                 }
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                content()
+            }
+        }
+    }
+}
+
+/** Нижняя панель плеера: вкладки и список содержимого. */
+@Composable
+fun PlayerSheet(
+    visible: Boolean,
+    tab: SheetTab,
+    onTab: (SheetTab) -> Unit,
+    onDismiss: () -> Unit,
+    content: LazyListScope.(SheetTab) -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    HairSheetFrame(visible = visible, onDismiss = onDismiss) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SheetTab.entries.forEach { t ->
+                val active = t == tab
+                val chip = RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
+                Box(
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(chip)
+                        .background(if (active) colors.text else Color.Transparent)
+                        .then(if (active) Modifier else Modifier.border(look.line, colors.outline, chip))
+                        .clickable { onTab(t) }
+                        .semantics { role = Role.Tab }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    SheetTab.entries.forEach { t ->
-                        val active = t == tab
-                        val chip = RoundedCornerShape(look.pillRadius.coerceAtMost(6.dp))
-                        Box(
-                            Modifier
-                                .heightIn(min = 48.dp)
-                                .clip(chip)
-                                .background(if (active) colors.text else Color.Transparent)
-                                .then(if (active) Modifier else Modifier.border(look.line, colors.outline, chip))
-                                .clickable { onTab(t) }
-                                .semantics { role = Role.Tab }
-                                .padding(horizontal = 14.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                stringResource(t.label).asLabel(),
-                                style = HairLabelStyle,
-                                color = if (active) colors.background else colors.text,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
-                    content(tab)
+                    Text(
+                        stringResource(t.label).asLabel(),
+                        style = HairLabelStyle,
+                        color = if (active) colors.background else colors.text,
+                        maxLines = 1,
+                    )
                 }
             }
+        }
+        Spacer(Modifier.height(10.dp))
+        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            content(tab)
         }
     }
 }
