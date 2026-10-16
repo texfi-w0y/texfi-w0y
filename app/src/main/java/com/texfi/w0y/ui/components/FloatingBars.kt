@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -498,5 +499,25 @@ internal fun HairNavBar(
                     .background(tone),
             )
         }
+    }
+}
+
+/**
+ * Раскладка экрана: контент занимает всё, что осталось, остров стоит под ним В ПОТОКЕ.
+ * Остров не наложен поверх списков, а отнимает у них место, поэтому последняя строка
+ * любого экрана физически остаётся над ним. Высота острова (мини-плеер, нижний
+ * системный отступ) анимируется самим островом, контент подстраивается сам.
+ */
+@androidx.compose.runtime.Composable
+fun IslandLayout(
+    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier,
+    island: @androidx.compose.runtime.Composable () -> Unit,
+    content: @androidx.compose.runtime.Composable () -> Unit,
+) {
+    androidx.compose.foundation.layout.Column(modifier) {
+        androidx.compose.foundation.layout.Box(
+            androidx.compose.ui.Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+        ) { content() }
+        island()
     }
 }

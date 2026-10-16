@@ -165,4 +165,6 @@ dependencies {
     // android-вариант, и ведут они себя по-разному.
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

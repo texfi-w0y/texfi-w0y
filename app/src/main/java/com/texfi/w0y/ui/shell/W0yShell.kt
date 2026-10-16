@@ -251,95 +251,19 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // список кончается над ними, и под непрозрачной панелью ничего не прячется.
     val glassBars = com.texfi.w0y.ui.theme.isSmooth && com.texfi.w0y.ui.theme.styleTokens.glass
     val barBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
-    // Hairline: экран идёт под парящей панелью до самого низа и не обрезается ею.
-    val overlayBars = glassBars || hair
+    // Остров стоит В ПОТОКЕ разметки (Column: контент с weight(1f), под ним остров),
+    // поэтому экран физически не может зайти под него и ни одному списку не нужен
+    // свой нижний отступ. Парит поверх контента только стекло Smooth.
+    val overlayBars = glassBars
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barsHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barsHeightTarget = with(density) { barsHeightPx.toDp() }
     // Мини-плеер появляется и исчезает: отступ списков едет плавно, а не рывком.
     val barsHeight by androidx.compose.animation.core.animateDpAsState(barsHeightTarget, androidx.compose.animation.core.tween(220), label = "barsInset")
-    Box(
-        Modifier
-            .fillMaxSize()
-            .screenBackground(),
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .screenBackdrop(barBackdrop)
-                // Фон — внутри записи: без него текст на прозрачном размывался
-                // в бледное пятно, и сквозь стекло читался чёткий оригинал.
-                .screenBackground(),
-        ) {
-        // Фон экосистемы: он виден в промежутках между карточками и
-        // строками — как на сайте, где чёрный тоже не пустой.
-        if (hair) {
-            // Hairline: «чертёжный лист» — сетка, холодный отсвет и свет обложки. Градиенты, без размытия.
-            com.texfi.w0y.ui.components.HairBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
-        } else if (com.texfi.w0y.ui.theme.isSmooth) {
-            com.texfi.w0y.ui.components.SmoothBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
-        } else {
-            Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
-        }
-        Column(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(bottom = if (overlayBars) 0.dp else barsHeight),
-        ) {
-            Box(Modifier.weight(1f)) {
-            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (overlayBars) barsHeight else 0.dp) {
-                // Смена вкладки — спокойное ступенчатое проявление: экран стоит
-                // на месте с первого кадра, без ожидания и без цветных блоков.
-                Box(Modifier.fillMaxSize().softEnter(tab)) {
-                when (tab) {
-                    Tab.HOME ->
-                        HomeScreen(
-                            onOpenSettings = { settingsOpen = true },
-                            onOpenPlayer = { playerExpanded = true },
-                            onOpenLocalPlaylist = { id ->
-                                libraryViewModel.open(LibraryRoute.Local(id))
-                                tab = Tab.LIBRARY
-                            },
-                        )
-                    Tab.SEARCH -> SearchScreen()
-                    Tab.LIBRARY -> LibraryScreen(onOpenLogin = { loginOpen = true })
-                }
-                }
-
-                // Артист и альбом ложатся поверх вкладки, но не поверх
-                // мини-плеера: на этих страницах чаще всего и переключают
-                // трек, прятать управление на них было бы издевательством.
-                BrowseOverlay(
-                    visible = browseStack.isNotEmpty(),
-                    route = lastBrowse,
-                    onBack = { if (browseStack.isNotEmpty()) browseStack.removeAt(browseStack.lastIndex) },
-                )
-                // Настройки открываются внутри экрана, под нижними панелями: те
-                // остаются на месте (со стеклом — размывают их), вкладка
-                // закрывает настройки.
-                SettingsLayer(settingsOpen, onClose = { settingsOpen = false }, onOpenLogin = { loginOpen = true })
-            }
-            }
-        }
-        }
-        if (hair) {
-            // Экран идёт под островом; полоса под ним и у жестовой планки гаснет в фон,
-            // чтобы строки не торчали из-под острова.
-            val fade = com.texfi.w0y.ui.theme.LocalW0yColors.current.background
-            val inset = androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(inset + 28.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, fade.copy(alpha = 0.92f)))),
-            )
-        }
+    val bars: @Composable (Modifier) -> Unit = { modifier ->
         CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalBarBackdrop provides if (glassBars) barBackdrop else null) {
         Column(
-            Modifier
-                .align(Alignment.BottomCenter)
+            modifier
                 .fillMaxWidth()
                 .onSizeChanged { barsHeightPx = it.height },
         ) {
@@ -410,6 +334,71 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             }
         }
         }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .screenBackground(),
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .screenBackdrop(barBackdrop)
+                // Фон — внутри записи: без него текст на прозрачном размывался
+                // в бледное пятно, и сквозь стекло читался чёткий оригинал.
+                .screenBackground(),
+        ) {
+        // Фон экосистемы: он виден в промежутках между карточками и
+        // строками — как на сайте, где чёрный тоже не пустой.
+        if (hair) {
+            // Hairline: «чертёжный лист» — сетка, холодный отсвет и свет обложки. Градиенты, без размытия.
+            com.texfi.w0y.ui.components.HairBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
+        } else if (com.texfi.w0y.ui.theme.isSmooth) {
+            com.texfi.w0y.ui.components.SmoothBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
+        } else {
+            Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
+        }
+        com.texfi.w0y.ui.components.IslandLayout(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            island = { if (!overlayBars) bars(Modifier) },
+        ) {
+            CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (overlayBars) barsHeight else 0.dp) {
+                // Смена вкладки — спокойное ступенчатое проявление: экран стоит
+                // на месте с первого кадра, без ожидания и без цветных блоков.
+                Box(Modifier.fillMaxSize().softEnter(tab)) {
+                when (tab) {
+                    Tab.HOME ->
+                        HomeScreen(
+                            onOpenSettings = { settingsOpen = true },
+                            onOpenPlayer = { playerExpanded = true },
+                            onOpenLocalPlaylist = { id ->
+                                libraryViewModel.open(LibraryRoute.Local(id))
+                                tab = Tab.LIBRARY
+                            },
+                        )
+                    Tab.SEARCH -> SearchScreen()
+                    Tab.LIBRARY -> LibraryScreen(onOpenLogin = { loginOpen = true })
+                }
+                }
+
+                // Артист и альбом ложатся поверх вкладки, но не поверх
+                // мини-плеера: на этих страницах чаще всего и переключают
+                // трек, прятать управление на них было бы издевательством.
+                BrowseOverlay(
+                    visible = browseStack.isNotEmpty(),
+                    route = lastBrowse,
+                    onBack = { if (browseStack.isNotEmpty()) browseStack.removeAt(browseStack.lastIndex) },
+                )
+                // Настройки открываются внутри экрана, под нижними панелями: те
+                // остаются на месте (со стеклом — размывают их), вкладка
+                // закрывает настройки.
+                SettingsLayer(settingsOpen, onClose = { settingsOpen = false }, onOpenLogin = { loginOpen = true })
+            }
+        }
+        }
+        if (overlayBars) bars(Modifier.align(Alignment.BottomCenter))
 
         // «Остановлено · Отменить» — четыре секунды после того, как плеер убрали жестом.
         AnimatedVisibility(

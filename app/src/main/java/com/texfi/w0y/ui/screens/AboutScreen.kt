@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -92,7 +91,7 @@ fun AboutScreen(
         com.texfi.w0y.ui.components.ScreenTitle(title = stringResource(R.string.about_title), onBack = onBack)
 
         LazyColumn(
-            Modifier.padding(horizontal = 18.dp).then(if (com.texfi.w0y.ui.components.LocalBottomInset.current > 0.dp) Modifier else Modifier.navigationBarsPadding()),
+            Modifier.padding(horizontal = 18.dp),
             contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
