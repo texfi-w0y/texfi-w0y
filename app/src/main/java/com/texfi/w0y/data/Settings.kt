@@ -234,7 +234,8 @@ enum class StandView { TEXT, COVER }
 enum class SeasonMode { AUTO, OFF, HALLOWEEN, WINTER }
 
 /** Фон приложения: сетка, чистый чёрный, свет обложки, переливы или своя картинка. */
-enum class BackdropMode { GRID, PURE, COVER, AURORA, PHOTO }
+/** TOPO — контурная карта из ресурсов приложения, основной фон. */
+enum class BackdropMode { TOPO, GRID, PURE, COVER, AURORA, PHOTO }
 
 /** Панель снизу: парящий остров или плоская полоса во всю ширину. */
 enum class DockShape { ISLAND, BAR }
@@ -427,7 +428,7 @@ data class W0ySettings(
     val standFlipped: Boolean = false,
     val standView: StandView = StandView.TEXT,
     val standClock: Boolean = true,
-    val backdropMode: BackdropMode = BackdropMode.GRID,
+    val backdropMode: BackdropMode = BackdropMode.TOPO,
     val dockShape: DockShape = DockShape.ISLAND,
     val dockTint: DockTint = DockTint.COVER,
     val dockLabels: DockLabels = DockLabels.ACTIVE,
@@ -470,6 +471,8 @@ data class W0ySettings(
     val homeRecBlocks: Boolean = true,
     /** Раз в неделю собирать плейлист «Открытия». */
     val weeklyDiscovery: Boolean = false,
+    /** При запуске спрашивать у GitHub, вышла ли новая версия. */
+    val updateCheck: Boolean = true,
     /** Значок состояния (скорость, эквалайзер) в плеере; при умолчаниях он скрыт сам. */
     val playerStateBadge: Boolean = true,
     /** Закреплённые настройки, ключи через запятую. */
@@ -596,6 +599,7 @@ class SettingsRepository @Inject constructor(
                     tasteExcluded = prefs[Keys.TASTE_EXCLUDED] ?: d.tasteExcluded,
                     homeRecBlocks = prefs[Keys.HOME_REC_BLOCKS] ?: d.homeRecBlocks,
                     weeklyDiscovery = prefs[Keys.WEEKLY_DISCOVERY] ?: d.weeklyDiscovery,
+                    updateCheck = prefs[Keys.UPDATE_CHECK] ?: d.updateCheck,
                     playerStateBadge = prefs[Keys.PLAYER_BADGE] ?: d.playerStateBadge,
                 )
             }
@@ -637,6 +641,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setHomeRecBlocks(value: Boolean) = put(Keys.HOME_REC_BLOCKS, value)
 
     suspend fun setWeeklyDiscovery(value: Boolean) = put(Keys.WEEKLY_DISCOVERY, value)
+
+    suspend fun setUpdateCheck(value: Boolean) = put(Keys.UPDATE_CHECK, value)
 
     suspend fun setPlayerStateBadge(value: Boolean) = put(Keys.PLAYER_BADGE, value)
 
@@ -1037,6 +1043,7 @@ class SettingsRepository @Inject constructor(
         val TASTE_EXCLUDED = stringPreferencesKey("taste_excluded")
         val HOME_REC_BLOCKS = booleanPreferencesKey("home_rec_blocks")
         val WEEKLY_DISCOVERY = booleanPreferencesKey("weekly_discovery")
+        val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val PLAYER_BADGE = booleanPreferencesKey("player_state_badge")
         val DISCOVERY_WEEK = stringPreferencesKey("discovery_week")
         val STATS_BACKFILL = intPreferencesKey("stats_backfill")
@@ -1156,7 +1163,7 @@ const val STAND_BRIGHTNESS_SYSTEM = -1f
  * показывал все подписи; теперь по умолчанию выключено и «активная».
  */
 object SettingsMigration {
-    const val CURRENT = 2
+    const val CURRENT = 3
 
     fun apply(prefs: androidx.datastore.preferences.core.MutablePreferences, target: Int) {
         val schema = prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] ?: 0
@@ -1170,6 +1177,12 @@ object SettingsMigration {
             if (labels !in prefs) prefs[labels] = DockLabels.ALL.name
         }
         if (schema < 2) prefs.remove(androidx.datastore.preferences.core.stringPreferencesKey("settings_favorites"))
+        // Основной фон теперь «Контуры»: у кого стоял прежний фон по умолчанию (сетка), берётся новый.
+        // Осознанно выбранные чёрный, обложка, переливы и своё фото остаются как были.
+        if (schema < 3) {
+            val backdrop = androidx.datastore.preferences.core.stringPreferencesKey("backdrop_mode")
+            if (prefs[backdrop] == "GRID") prefs.remove(backdrop)
+        }
         prefs[androidx.datastore.preferences.core.intPreferencesKey("settings_schema")] = target
     }
 }

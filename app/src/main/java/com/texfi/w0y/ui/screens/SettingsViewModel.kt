@@ -54,7 +54,21 @@ class SettingsViewModel @Inject constructor(
     startupMetrics: StartupMetrics,
     private val downloads: com.texfi.w0y.playback.DownloadsRepository,
     library: com.texfi.w0y.data.LibraryRepository,
+    private val updates: com.texfi.w0y.data.UpdateManager,
 ) : ViewModel() {
+    val updateState: StateFlow<com.texfi.w0y.data.UpdateState> = updates.state
+
+    fun setUpdateCheck(value: Boolean) = update { repository.setUpdateCheck(value) }
+
+    fun checkUpdate() = updates.check()
+
+    fun downloadUpdate(info: com.texfi.w0y.data.UpdateInfo) = updates.download(info)
+
+    fun installUpdate(file: java.io.File) = updates.install(file)
+
+    /** Показывает описание своей версии; false — связи нет или описания не нашлось. */
+    suspend fun showWhatsNew(): Boolean = updates.loadWhatsNewNow()
+
     /** Свои плейлисты — для выбора автозагрузки. */
     val playlists: StateFlow<List<com.texfi.w0y.data.db.PlaylistEntity>> =
         library.playlists.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

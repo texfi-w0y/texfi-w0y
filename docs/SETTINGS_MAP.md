@@ -87,7 +87,7 @@
 | 5. ВИД | Language (`settings_language_title`) | `language` | SYSTEM |  |
 | 5. ВИД | Compact rows (`settings_compact_title`) | `compact_rows` | false |  |
 | 5. ВИД | Live background (`settings_live_background_title`) | `animated_background` | true |  |
-| 5. ВИД | Backdrop (`backdrop_title`) | `backdrop_mode` | GRID |  |
+| 5. ВИД | Backdrop (`backdrop_title`) | `backdrop_mode` | TOPO |  |
 | 5. ВИД | Backdrop photo (`backdrop_image_title`) | `backdrop_image` | — |  |
 | 5. ВИД | Seasonal mood (`season_title`) | `season_mode` | AUTO |  |
 | 5. ВИД | Cover glow in player (`settings_cover_glow_title`) | `player_cover_glow` | true |  |
@@ -112,5 +112,8 @@
 | 8. ПРИЛОЖЕНИЕ | Track start time (`settings_startup_title`) | — | — |  |
 | 8. ПРИЛОЖЕНИЕ | Where the time goes (`settings_startup_parts_title`) | — | — |  |
 | 8. ПРИЛОЖЕНИЕ | Diagnostics (`diagnostics`) | — | — |  |
+| 8. ПРИЛОЖЕНИЕ | Check for updates (`update_check`) | `update_check` | true |  |
+| 8. ПРИЛОЖЕНИЕ | App update (`update_now`) | — | — |  |
+| 8. ПРИЛОЖЕНИЕ | What's new (`update_whatsnew`) | — | — |  |
 | 8. ПРИЛОЖЕНИЕ | About (`settings_about_title`) | — | — |  |
 | 8. ПРИЛОЖЕНИЕ | Reset everything (`settings_reset_title`) | — | — |  |

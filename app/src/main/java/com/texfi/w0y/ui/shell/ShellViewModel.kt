@@ -9,6 +9,7 @@ import com.texfi.w0y.data.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,7 +36,25 @@ class ShellViewModel @Inject constructor(
     private val settings: SettingsRepository,
     val downloads: DownloadsRepository,
     private val stats: com.texfi.w0y.data.StatsRepository,
+    private val updates: com.texfi.w0y.data.UpdateManager,
 ) : ViewModel() {
+    val updateState: StateFlow<com.texfi.w0y.data.UpdateState> = updates.state
+    val updateDeferred: StateFlow<String?> = updates.deferredTag
+    val whatsNew: StateFlow<com.texfi.w0y.data.WhatsNew?> = updates.whatsNew
+
+    /** Один раз за запуск, когда приветствие позади: проверка обновлений и «что нового». */
+    fun onUpdatesLaunch() {
+        viewModelScope.launch { updates.onLaunch(autoCheck = settings.settings.first().updateCheck) }
+    }
+
+    fun downloadUpdate(info: com.texfi.w0y.data.UpdateInfo) = updates.download(info)
+
+    fun installUpdate(file: java.io.File) = updates.install(file)
+
+    fun deferUpdate(info: com.texfi.w0y.data.UpdateInfo) = updates.defer(info)
+
+    fun dismissWhatsNew() = updates.dismissWhatsNew()
+
     init {
         // Первый запуск после обновления: прослушивания, не дописанные в историю,
         // восстанавливаются по её меткам времени. Фоном, интерфейс не ждёт.
@@ -124,7 +143,7 @@ class ShellViewModel @Inject constructor(
     val backdropMode: StateFlow<com.texfi.w0y.data.BackdropMode> =
         settings.settings
             .map { it.backdropMode }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.texfi.w0y.data.BackdropMode.GRID)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.texfi.w0y.data.BackdropMode.TOPO)
 
     val backdropImage: StateFlow<String?> =
         settings.settings

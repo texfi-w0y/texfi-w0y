@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -62,6 +63,19 @@ fun ProvideBackdrop(mode: BackdropMode, coverUrl: String?, imagePath: String?, c
         remember { mutableStateOf(0.25f) }
     }
     var bitmap by remember(imagePath) { mutableStateOf<ImageBitmap?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Контурная карта: картинка из ресурсов, в аппаратный битмап — он лежит в памяти видеокарты,
+    // а не в куче приложения (10 МБ несжатого кадра). Грузится только пока выбран этот фон.
+    var topo by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(mode) {
+        if (mode != BackdropMode.TOPO || topo != null) return@LaunchedEffect
+        topo = withContext(Dispatchers.IO) {
+            runCatching {
+                val options = android.graphics.BitmapFactory.Options().apply { inPreferredConfig = android.graphics.Bitmap.Config.HARDWARE }
+                android.graphics.BitmapFactory.decodeResource(context.resources, com.texfi.w0y.R.drawable.backdrop_topo, options)?.asImageBitmap()
+            }.getOrNull()
+        }
+    }
     LaunchedEffect(imagePath, mode) {
         if (mode != BackdropMode.PHOTO || imagePath == null) return@LaunchedEffect
         bitmap = withContext(Dispatchers.IO) {
@@ -70,7 +84,7 @@ fun ProvideBackdrop(mode: BackdropMode, coverUrl: String?, imagePath: String?, c
             }.getOrNull()
         }
     }
-    val spec = BackdropSpec(mode, tint, if (coverUrl != null) 1f else 0f, bitmap, phase)
+    val spec = BackdropSpec(mode, tint, if (coverUrl != null) 1f else 0f, if (mode == BackdropMode.TOPO) topo else bitmap, phase)
     CompositionLocalProvider(LocalBackdrop provides spec, content = content)
 }
 
@@ -86,6 +100,28 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
         drawRect(colors.background, Offset.Zero, Size(w, h))
         when (mode) {
             BackdropMode.PURE -> Unit
+            BackdropMode.TOPO -> {
+                val image = spec?.image
+                // Картинка тёмная: на светлой теме она бы утопила текст, и там остаётся сетка.
+                if (image != null && colors.background.luminance() < 0.5f) {
+                    val scale = maxOf(w / image.width, h / image.height)
+                    val dw = image.width * scale
+                    val dh = image.height * scale
+                    drawImage(
+                        image,
+                        dstOffset = IntOffset(((w - dw) / 2f).toInt(), ((h - dh) / 2f).toInt()),
+                        dstSize = IntSize(dw.toInt(), dh.toInt()),
+                    )
+                    // Лёгкое затемнение и более тёмный низ: подписи и строки читаются на любой части листа.
+                    drawRect(Color.Black.copy(alpha = 0.22f), Offset.Zero, Size(w, h))
+                    drawRect(
+                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.40f), startY = h * 0.55f, endY = h),
+                        Offset.Zero, Size(w, h),
+                    )
+                } else {
+                    grid(w, h, colors.text.copy(alpha = 0.04f))
+                }
+            }
             BackdropMode.GRID -> {
                 drawRect(
                     Brush.verticalGradient(0f to colors.progress.copy(alpha = 0.10f), 0.5f to Color.Transparent, startY = 0f, endY = h),

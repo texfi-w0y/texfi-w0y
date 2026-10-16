@@ -38,6 +38,7 @@ enum class SettingsGroup(@androidx.annotation.StringRes val title: Int) {
     GENERAL(com.texfi.w0y.R.string.grp_general),
     BACKUP(com.texfi.w0y.R.string.grp_backup),
     DIAG(com.texfi.w0y.R.string.grp_diag),
+    UPDATES(com.texfi.w0y.R.string.grp_updates),
     ABOUT(com.texfi.w0y.R.string.grp_about),
 }
 
@@ -197,6 +198,9 @@ object SettingsCatalog {
             e("settings_startup_title", X, null, "Track start time", group = SettingsGroup.DIAG),
             e("settings_startup_parts_title", X, null, "Where the time goes", group = SettingsGroup.DIAG),
             e("diagnostics", X, null, "Diagnostics", group = SettingsGroup.DIAG),
+            e("update_check", X, "update_check", "Check for updates", group = SettingsGroup.UPDATES) { it.updateCheck },
+            e("update_now", X, null, "App update", group = SettingsGroup.UPDATES),
+            e("update_whatsnew", X, null, "What's new", group = SettingsGroup.UPDATES),
             e("settings_about_title", X, null, "About", group = SettingsGroup.ABOUT),
             e("settings_reset_title", X, null, "Reset everything", group = SettingsGroup.ABOUT),
         )
