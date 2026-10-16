@@ -94,4 +94,18 @@ class SettingsWalkTest {
         compose.waitForIdle()
         compose.onNode(androidx.compose.ui.test.hasText("Accidental delete protection", substring = true, ignoreCase = true)).assertIsDisplayed()
     }
+
+    @Test
+    fun aboutOpensWithTheSameHeaderAndScrolls() {
+        show()
+        compose.onNodeWithTag("tab-DATA").performClick()
+        compose.waitForIdle()
+        val rows = compose.onAllNodes(verticalList).onFirst().fetchSemanticsNode().config.getOrNull(SemanticsProperties.CollectionInfo)?.rowCount ?: 1
+        compose.onAllNodes(verticalList).onFirst().performScrollToIndex(rows - 1)
+        compose.waitForIdle()
+        compose.onAllNodes(androidx.compose.ui.test.hasText("About", substring = true, ignoreCase = true) and androidx.compose.ui.test.hasClickAction()).onFirst().performClick()
+        compose.waitForIdle()
+        compose.onAllNodes(verticalList).onFirst().performScrollToIndex(5)
+        compose.waitForIdle()
+    }
 }

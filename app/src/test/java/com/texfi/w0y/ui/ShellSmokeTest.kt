@@ -7,6 +7,7 @@ import com.texfi.w0y.ui.shell.ShellViewModel
 import com.texfi.w0y.ui.shell.W0yShell
 import com.texfi.w0y.ui.theme.W0yTheme
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.printToString
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -37,6 +38,10 @@ class ShellSmokeTest {
             W0yTheme { W0yShell(shell) }
         }
         compose.waitForIdle()
-        println("SHELL>>" + compose.onRoot().printToString(maxDepth = 12))
+        compose.onNode(androidx.compose.ui.test.hasText("SKIP")).performClick()
+        compose.waitForIdle()
+        compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
+        compose.waitForIdle()
+        println("SHELL>>" + compose.onRoot().printToString(maxDepth = 40))
     }
 }

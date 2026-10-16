@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -274,6 +275,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         Column(
             modifier
                 .fillMaxWidth()
+                .testTag("island")
                 .onSizeChanged { barsHeightPx = it.height },
         ) {
             DownloadToast(
