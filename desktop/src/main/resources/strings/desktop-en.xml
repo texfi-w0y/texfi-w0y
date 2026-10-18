@@ -203,4 +203,11 @@
     <string name="d_err_local_missing">File not found — it may have been deleted</string>
     <string name="d_search_corrected">Showing results for “%1$s”</string>
     <string name="d_search_original">Search “%1$s”</string>
+    <string name="d_queue_now">Now playing</string>
+    <string name="d_queue_next">Up next</string>
+    <string name="d_queue_played">Already played</string>
+    <string name="d_queue_clear">Clear</string>
+    <string name="d_queue_end">Nothing is queued after this. Try the Similar tab.</string>
+    <string name="d_stand_clock_title">Clock on the stand</string>
+    <string name="d_stand_clock_desc">A big clock next to the title.</string>
 </resources>

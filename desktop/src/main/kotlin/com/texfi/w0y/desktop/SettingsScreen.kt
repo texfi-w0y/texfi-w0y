@@ -455,6 +455,7 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
         add(Setting(SSection.STAND, S("stand_lyrics_title"), S("stand_lyrics_desc"), SetControl.Toggle(st.standLyrics) { v -> set { it.copy(standLyrics = v) } }, "stand подставка"))
         if (vizOk) add(Setting(SSection.STAND, S("stand_viz_title"), S("stand_viz_desc"), SetControl.Toggle(st.standVisualizer) { v -> set { it.copy(standVisualizer = v) } }, "stand подставка"))
         add(Setting(SSection.STAND, S("stand_view_title"), S("stand_view_desc"), choice(StandView.entries, st.standView, { it.label }) { v -> set { it.copy(standView = v) } }, "stand подставка"))
+        add(Setting(SSection.STAND, S("d_stand_clock_title"), S("d_stand_clock_desc"), SetControl.Toggle(st.standClock) { v -> set { it.copy(standClock = v) } }, "stand подставка clock часы"))
         add(Setting(SSection.STAND, S("stand_marquee_title"), S("stand_marquee_desc"), SetControl.Toggle(st.standMarquee) { v -> set { it.copy(standMarquee = v) } }, "stand подставка"))
         add(Setting(SSection.STAND, S("stand_flip_title"), S("stand_flip_desc"), SetControl.Toggle(st.standFlipped) { v -> set { it.copy(standFlipped = v) } }, "stand подставка"))
         add(Setting(SSection.STAND, S("stand_max_title"), S("stand_max_desc"),

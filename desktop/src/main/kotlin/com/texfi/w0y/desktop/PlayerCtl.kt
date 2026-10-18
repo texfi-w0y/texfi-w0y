@@ -31,9 +31,9 @@ class PlayerCtl(
     var loading by mutableStateOf(false)
         private set
     var position by mutableDoubleStateOf(0.0)
-        private set
+        internal set
     var duration by mutableDoubleStateOf(0.0)
-        private set
+        internal set
     var error by mutableStateOf<String?>(null)
         private set
     var volume by mutableIntStateOf(100)
@@ -478,6 +478,13 @@ class PlayerCtl(
                 loadCurrent()
             }
         }
+        app.saveQueue(queue, index)
+    }
+
+    /** Убрать из очереди всё, что идёт после играющего трека. */
+    fun clearUpcoming() {
+        if (index !in queue.indices || index == queue.lastIndex) return
+        queue = queue.take(index + 1)
         app.saveQueue(queue, index)
     }
 

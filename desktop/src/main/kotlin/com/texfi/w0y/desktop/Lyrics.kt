@@ -34,6 +34,11 @@ class LyricsRepo {
     @Volatile
     var allSources = true
 
+    /** Готовый текст без запроса в сеть: для проверок интерфейса. */
+    internal fun seed(songId: String, lyrics: Lyrics) {
+        cache[songId] = lyrics
+    }
+
     suspend fun lyrics(song: SongItem): Lyrics? = withContext(Dispatchers.IO) {
         cache[song.id]?.let { return@withContext it }
         val title = song.title.replace(Regex("\\s*[(\\[].*?[)\\]]"), "").trim()

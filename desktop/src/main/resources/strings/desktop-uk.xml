@@ -203,4 +203,11 @@
     <string name="d_err_local_missing">Файл не знайдено — можливо, його видалили</string>
     <string name="d_search_corrected">Показано за запитом «%1$s»</string>
     <string name="d_search_original">Шукати «%1$s»</string>
+    <string name="d_queue_now">Зараз грає</string>
+    <string name="d_queue_next">Далі</string>
+    <string name="d_queue_played">Вже грало</string>
+    <string name="d_queue_clear">Очистити</string>
+    <string name="d_queue_end">Далі нічого немає. Зазирни у вкладку «Схоже».</string>
+    <string name="d_stand_clock_title">Годинник на підставці</string>
+    <string name="d_stand_clock_desc">Великий годинник поруч із назвою.</string>
 </resources>

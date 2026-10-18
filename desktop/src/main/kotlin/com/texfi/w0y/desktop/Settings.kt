@@ -301,6 +301,7 @@ data class DSettings(
     val standView: StandView = StandView.TEXT,
     val standMaxMinutes: Int = 60,
     val standKeepAwake: Boolean = true,
+    val standClock: Boolean = true,
     // ---- скорость и память
     val preloadNext: Boolean = true,
     val autoDownloadLiked: Boolean = false,

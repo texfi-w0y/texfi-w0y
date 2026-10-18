@@ -127,13 +127,15 @@ private fun HairShell(app: AppState, screens: @Composable () -> Unit) {
         // В плеере свой фон (свечение обложки): общие линии приложения там не нужны.
         val inPlayer = (app.screen == Screen.Player || app.screen == Screen.Queue) && ThemeState.playerBack != PlayerBack.APP
         if (!inPlayer) HairBackdrop(app)
+        // В большом плеере раскладки «Обложка» всё управление уже под обложкой: нижняя полоса не нужна.
+        val ownControls = (app.screen == Screen.Player || app.screen == Screen.Queue) && ThemeState.layout == PlayerLayout.COVER
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Sidebar(app, compact = compact)
                 Box(Modifier.width(1.dp).fillMaxHeight().background(C.Border))
                 Box(Modifier.weight(1f).fillMaxHeight()) { screens() }
             }
-            PlayerBar(app)
+            if (!ownControls) PlayerBar(app)
         }
     }
 }
@@ -391,9 +393,9 @@ fun SegmentedSeek(position: Double, duration: Double, onSeek: (Double) -> Unit) 
 }
 
 @Composable
-private fun VolumeBar(volume: Int, onChange: (Int) -> Unit) {
+fun VolumeBar(volume: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier.width(96.dp).height(14.dp)) {
     Box(
-        Modifier.width(96.dp).height(14.dp)
+        modifier
             .pointerInput(Unit) { detectTapGestures { onChange((it.x / size.width * 100).toInt()) } }
             .pointerInput(Unit) { detectDragGestures { c, _ -> onChange((c.position.x / size.width * 100).toInt().coerceIn(0, 100)) } }
             .drawBehind {
@@ -426,7 +428,7 @@ private fun VolumeBar(volume: Int, onChange: (Int) -> Unit) {
 
 /** «В плейлист»: список своих плейлистов во всплывающем окне над кнопкой. */
 @Composable
-private fun PlaylistMenu(app: AppState, song: com.texfi.w0y.data.SongItem) {
+fun PlaylistMenu(app: AppState, song: com.texfi.w0y.data.SongItem) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(Glyph.Plus, onClick = { open = !open }, color = C.Muted, size = 18.dp)

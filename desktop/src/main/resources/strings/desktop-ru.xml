@@ -203,4 +203,11 @@
     <string name="d_err_local_missing">Файл не найден — возможно, его удалили</string>
     <string name="d_search_corrected">Показано по запросу «%1$s»</string>
     <string name="d_search_original">Искать «%1$s»</string>
+    <string name="d_queue_now">Сейчас играет</string>
+    <string name="d_queue_next">Далее</string>
+    <string name="d_queue_played">Уже играло</string>
+    <string name="d_queue_clear">Очистить</string>
+    <string name="d_queue_end">Дальше ничего нет. Загляни во вкладку «Похожее».</string>
+    <string name="d_stand_clock_title">Часы на подставке</string>
+    <string name="d_stand_clock_desc">Крупные часы рядом с названием.</string>
 </resources>

@@ -203,4 +203,11 @@
     <string name="d_err_local_missing">Nie znaleziono pliku — mógł zostać usunięty</string>
     <string name="d_search_corrected">Wyniki dla „%1$s”</string>
     <string name="d_search_original">Szukaj „%1$s”</string>
+    <string name="d_queue_now">Teraz gra</string>
+    <string name="d_queue_next">Dalej</string>
+    <string name="d_queue_played">Już odtworzone</string>
+    <string name="d_queue_clear">Wyczyść</string>
+    <string name="d_queue_end">Dalej nic nie ma. Zajrzyj do zakładki „Podobne”.</string>
+    <string name="d_stand_clock_title">Zegar na podstawce</string>
+    <string name="d_stand_clock_desc">Duży zegar obok tytułu.</string>
 </resources>
