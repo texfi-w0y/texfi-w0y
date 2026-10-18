@@ -24,6 +24,12 @@ import kotlinx.coroutines.SupervisorJob
 
 fun main(args: Array<String>) {
     Diag.installCrashHandler()
+    // `w0y --smoke` — проверка сборки без окна: CI запускает её на Windows и Linux.
+    if ("--smoke" in args) {
+        System.setProperty("java.awt.headless", "true")
+        if (System.getenv("W0Y_AO").isNullOrBlank()) System.setProperty("w0y.ao", "null")
+        kotlin.system.exitProcess(Smoke.run())
+    }
     // `w0y --do play_pause` — команда уже запущенному приложению (для горячих клавиш окружения).
     if (Control.sendIfRequested(args)) return
     application {

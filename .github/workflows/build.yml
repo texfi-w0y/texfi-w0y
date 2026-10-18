@@ -2,7 +2,7 @@ name: Build & Release
 
 # Сборка идёт здесь; локально собирается только debug для проверки кода.
 #  • пуш тега:        git tag v0.0.1-beta-1 && git push origin v0.0.1-beta-1
-#      → релизный APK, сборка для Linux, SHA256SUMS + GitHub Release
+#      → релизный APK, SHA256SUMS + GitHub Release (файлы ПК-версии добавляет desktop.yml)
 #  • вручную без тега: вкладка Actions → Run workflow, поле пустое
 #      → просто соберёт release APK в артефакты
 #  • вручную с тегом:  release_tag = v0.0.1-beta-1
@@ -80,23 +80,7 @@ jobs:
           mkdir -p out
           cp app/build/outputs/apk/release/app-release*.apk out/TexFi-w0y-android.apk
 
-      # Сборка для Linux — тот же релиз, отдельный файл. Если она упадёт,
-      # APK всё равно выйдет: десктоп здесь вторичен, и тогда в релизе
-      # просто не будет архива для Linux (в журнале шаг помечен как упавший).
-      - name: Build Linux desktop
-        if: >-
-          startsWith(github.ref, 'refs/tags/v') ||
-          (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
-        continue-on-error: true
-        run: |
-          set -e
-          (cd desktop && ./gradlew test createDistributable --no-daemon)
-          P=w0y-linux
-          rm -rf "$P"; mkdir -p "$P"
-          cp -r desktop/build/compose/binaries/main/app/w0y "$P/w0y"
-          cp -r desktop/src/main/resources/icons "$P/icons"
-          cp desktop/install-prebuilt.sh "$P/install.sh"
-          tar -czf out/w0y-linux-x86_64.tar.gz "$P"
+      # ПК-версия (Windows и Linux) собирается отдельным workflow desktop.yml и прикрепляется к этому же релизу.
 
       - name: Checksums and release name
         if: >-

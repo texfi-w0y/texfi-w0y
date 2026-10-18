@@ -73,7 +73,7 @@ class LibMpv(
                 "input-default-bindings" to "no", "input-vo-keyboard" to "no",
             )
         // Для проверок без звуковой карты: W0Y_AO=null.
-        System.getenv("W0Y_AO")?.takeIf { it.isNotBlank() }?.let { options += "ao" to it }
+        (System.getenv("W0Y_AO") ?: System.getProperty("w0y.ao"))?.takeIf { it.isNotBlank() }?.let { options += "ao" to it }
         options.forEach { (k, v) -> lib.mpv_set_option_string(handle, k, v) }
         if (lib.mpv_initialize(handle) < 0) {
             lib.mpv_terminate_destroy(handle)

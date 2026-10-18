@@ -1,0 +1,151 @@
+name: Desktop (Windows + Linux)
+
+# ПК-версия собирается здесь: локально собирать тяжело, ноутбук слабый.
+#  • push в feat/desktop-*, PR и ручной запуск: сборка + тесты + smoke-проверка, артефакты лежат в запуске (14 дней).
+#  • Релиз НЕ создаётся. Файлы уходят в GitHub Release, только когда запуск сделан вручную с полем release_tag
+#    (или по тегу v*) и такой релиз уже есть; публикация релиза — отдельное решение владельца.
+on:
+  push:
+    branches: ["feat/desktop-*"]
+    tags: ["v*"]
+  pull_request:
+    paths: ["desktop/**", "version.properties", ".github/workflows/desktop.yml", "app/src/main/java/com/texfi/w0y/data/**"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Прикрепить файлы к существующему релизу с этим тегом (пусто — только артефакты запуска)."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # libmpv для Windows: сборка shinchiro/mpv-winbuild-cmake. Тег закреплён: другая версия — осознанное решение.
+  MPV_WIN_TAG: "20261018"
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmpv2 xvfb libfuse2 desktop-file-utils
+      - name: Tests
+        working-directory: desktop
+        env: { W0Y_AO: "null" }
+        run: xvfb-run -a ./gradlew test --no-daemon
+      - name: Build app image
+        working-directory: desktop
+        run: ./gradlew createDistributable --no-daemon
+      - name: Smoke test (no window, no sound card)
+        run: xvfb-run -a desktop/build/compose/binaries/main/app/w0y/bin/w0y --smoke
+      - name: Package
+        run: |
+          set -e
+          mkdir -p out
+          VER="$(grep '^versionName=' version.properties | cut -d= -f2)"
+          P=w0y-linux
+          rm -rf "$P"; mkdir -p "$P"
+          cp -r desktop/build/compose/binaries/main/app/w0y "$P/w0y"
+          cp -r desktop/src/main/resources/icons "$P/icons"
+          cp desktop/install-prebuilt.sh "$P/install.sh"
+          cp THIRD_PARTY_LICENSES.md LICENSE "$P/"
+          tar -czf out/w0y-linux-x86_64.tar.gz "$P"
+          # AppImage с libmpv внутри. Если не вышло, архив выше всё равно остаётся (там libmpv берётся из системы).
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          APPIMAGETOOL="$PWD/appimagetool" desktop/installer/make-appimage.sh desktop/build/compose/binaries/main/app/w0y out/w0y-linux-x86_64.AppImage || echo "::warning::AppImage не собрался, остаётся tar.gz"
+          [ -f out/w0y-linux-x86_64.AppImage ] && { chmod +x out/w0y-linux-x86_64.AppImage; xvfb-run -a out/w0y-linux-x86_64.AppImage --smoke || echo "::warning::smoke из AppImage не прошёл"; }
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with: { name: w0y-linux, path: out/*, retention-days: 14, if-no-files-found: error }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: libmpv (pinned build)
+        shell: pwsh
+        run: |
+          $asset = "mpv-dev-x86_64-$env:MPV_WIN_TAG-git-"
+          $rel = Invoke-RestMethod "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/tags/$env:MPV_WIN_TAG"
+          $a = $rel.assets | Where-Object { $_.name -like "$asset*.7z" -and $_.name -notlike "*v3*" } | Select-Object -First 1
+          if (-not $a) { throw "в релизе $env:MPV_WIN_TAG нет $asset*.7z" }
+          Invoke-WebRequest $a.browser_download_url -OutFile mpv-dev.7z
+          $hash = (Get-FileHash mpv-dev.7z -Algorithm SHA256).Hash.ToLower()
+          "libmpv asset: $($a.name)`nsha256: $hash"
+          New-Item -ItemType Directory -Force desktop/appResources/windows-x64 | Out-Null
+          7z x mpv-dev.7z -odesktop/appResources/windows-x64 "libmpv-2.dll" -y | Out-Null
+          if (-not (Test-Path desktop/appResources/windows-x64/libmpv-2.dll)) { throw "libmpv-2.dll не найдена в архиве" }
+          "$($a.name)`nsha256: $hash`nsource: https://github.com/shinchiro/mpv-winbuild-cmake/releases/tag/$env:MPV_WIN_TAG`nlicense: GPL-2.0-or-later (сборка с GPL-кодеками), см. THIRD_PARTY_LICENSES.md" | Set-Content desktop/appResources/windows-x64/libmpv-build.txt
+      - name: Tests
+        working-directory: desktop
+        shell: pwsh
+        env: { W0Y_AO: "null" }
+        run: ./gradlew test --no-daemon
+      - name: Build app image
+        working-directory: desktop
+        run: ./gradlew createDistributable --no-daemon
+      - name: Smoke test (no window, no sound card)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath desktop/build/compose/binaries/main/app/w0y/w0y.exe -ArgumentList "--smoke" -Wait -PassThru -RedirectStandardOutput smoke.txt
+          Get-Content smoke.txt
+          if ($p.ExitCode -ne 0) { throw "smoke: код $($p.ExitCode)" }
+      - name: Installer and portable zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          $ver = (Select-String -Path version.properties -Pattern '^versionName=(.+)$').Matches[0].Groups[1].Value
+          $src = (Resolve-Path desktop/build/compose/binaries/main/app/w0y).Path
+          Copy-Item THIRD_PARTY_LICENSES.md, LICENSE $src
+          choco install innosetup -y --no-progress | Out-Null
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" "/DSourceDir=$src" desktop/installer/w0y.iss
+          Copy-Item desktop/build/installer/w0y-windows-x64-setup.exe out/
+          Compress-Archive -Path "$src\*" -DestinationPath out/w0y-windows-x64-portable.zip
+          Get-ChildItem out
+      - uses: actions/upload-artifact@v4
+        with: { name: w0y-windows, path: out/*, retention-days: 14, if-no-files-found: error }
+
+  checksums:
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: files, merge-multiple: true }
+      - name: SHA256SUMS
+        run: |
+          cd files
+          sha256sum * > SHA256SUMS-desktop.txt
+          cat SHA256SUMS-desktop.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: w0y-desktop-all, path: files/*, retention-days: 14 }
+      # Только вручную с release_tag или по тегу; релиз должен уже существовать (его выпускает build.yml по тегу).
+      - name: Attach to release
+        if: ${{ inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          for i in $(seq 1 40); do
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            echo "жду релиз $TAG ($i/40)"; sleep 30
+          done
+          gh release upload "$TAG" files/* --clobber --repo "$GITHUB_REPOSITORY"

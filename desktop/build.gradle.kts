@@ -114,13 +114,17 @@ compose.desktop {
     application {
         mainClass = "com.texfi.w0y.desktop.MainKt"
         nativeDistributions {
+            // AppImage здесь — папка-приложение (app-image jpackage); из неё CI собирает установщик, zip, tar.gz и .AppImage.
             targetFormats(TargetFormat.AppImage)
+            // Нативные библиотеки (libmpv-2.dll и др.) кладёт CI в appResources/<ОС>-x64: они уезжают рядом с приложением.
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("appResources"))
             // java.net.http нужен загрузкам и текстам; jlink сам его не находит.
             modules("java.net.http", "java.naming", "jdk.crypto.ec", "jdk.unsupported", "jdk.security.auth")
             packageName = "w0y"
             packageVersion = installerVersion
             description = "TexFi w0y — клиент YouTube Music"
             linux { iconFile.set(project.file("src/main/resources/icon.png")) }
+            windows { iconFile.set(project.file("src/main/resources/icon.ico")) }
         }
     }
 }
