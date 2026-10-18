@@ -59,18 +59,19 @@ private val EQ_FREQS = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 160
 
 /**
  * Цепочка фильтров mpv для звучания трека: пропуск тишины, выравнивание громкости (по данным
- * YouTube), тон (rubberband), эквалайзер, реверб. Скорость — не фильтр, а свойство `speed`.
+ * YouTube), эквалайзер, реверб, тон (rubberband, он всегда последний). Скорость — не фильтр, а свойство `speed`.
  * Общая для обоих движков, чтобы они не разошлись.
  */
 fun audioFilterChain(profile: SoundProfile, gainDb: Double?, skipSilence: Boolean, eqBands: List<Int>?): String {
     val filters = mutableListOf<String>()
     if (skipSilence) filters += "lavfi=[silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB]"
     if (gainDb != null) filters += "lavfi=[volume=${"%.2f".format(java.util.Locale.ROOT, gainDb)}dB]"
-    if (profile.pitch != 1f) filters += "rubberband=pitch-scale=${profile.pitch}"
     if (eqBands != null) {
         val active = EQ_FREQS.zip(eqBands).filter { it.second != 0 }
         if (active.isNotEmpty()) filters += "lavfi=[" + active.joinToString(",") { (f, g) -> "equalizer=f=$f:t=o:w=1:g=$g" } + "]"
     }
     profile.reverb.filter?.let { filters += "lavfi=[$it]" }
+    // Тон — последним: mpv 0.37 (Ubuntu 24.04, а с ним и AppImage) теряет раскладку каналов, если после rubberband стоит lavfi.
+    if (profile.pitch != 1f) filters += "rubberband=pitch-scale=${profile.pitch}"
     return filters.joinToString(",")
 }
