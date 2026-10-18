@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.layout.size
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.rotate
@@ -85,11 +86,17 @@ fun PlayerScreen(app: AppState) {
     if (tab !in tabs) tab = PlayerTab.Queue
     val glowBrush = glow?.let { androidx.compose.ui.graphics.Brush.verticalGradient(listOf(it.copy(alpha = 0.30f), androidx.compose.ui.graphics.Color.Transparent)) }
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (Look.hair) {
-            if (layout == PlayerLayout.POSTER) PosterBackdrop(song?.thumbnailUrl) else PlayerBackdrop(app)
-        }
         // Hairline: диск растёт вместе с окном, но не выше половины высоты и не шире 40% ширины.
         val coverSize = if (Look.hair) minOf(maxWidth * (if (layout == PlayerLayout.MINIMAL) 0.7f else ThemeState.coverSize.share), maxHeight - 330.dp).coerceIn(220.dp, 640.dp) else 340.dp
+        if (Look.hair) {
+            if (layout == PlayerLayout.POSTER) {
+                PosterBackdrop(song?.thumbnailUrl)
+            } else {
+                // Свечение растёт из центра обложки: колонка с диском стоит слева (или по центру в «Минимализме»), под шапкой.
+                val cx = if (layout == PlayerLayout.MINIMAL) maxWidth / 2 else 28.dp + coverSize / 2
+                PlayerBackdrop(app, DpOffset(cx, 28.dp + 44.dp + coverSize / 2), coverSize / 2)
+            }
+        }
         if (layout == PlayerLayout.MINIMAL) {
             Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.TopCenter) {
                 PlayerMain(app, coverSize) { tab = it }
@@ -434,6 +441,8 @@ private fun ViewPane(app: AppState) {
             chips { CoverShape.entries.forEach { v -> ChoiceChip(v.label, st.hlCoverShape == v) { app.setSt { it.copy(hlCoverShape = v) } } } }()
             SectionLabel(S("hl_set_layout"))
             chips { PlayerLayout.entries.forEach { v -> ChoiceChip(v.label, st.hlLayout == v) { app.setSt { it.copy(hlLayout = v) } } } }()
+            SectionLabel(S("d_pback_title"))
+            chips { PlayerBack.entries.forEach { v -> ChoiceChip(v.label, st.hlPlayerBack == v) { app.setSt { it.copy(hlPlayerBack = v) } } } }()
             SectionLabel(S("d_cover_size_title"))
             chips { CoverSize.entries.forEach { v -> ChoiceChip(v.label, st.hlCoverSize == v) { app.setSt { it.copy(hlCoverSize = v) } } } }()
             RowCenter { AppToggle(st.hlCoverRing) { v -> app.setSt { it.copy(hlCoverRing = v) } }; Gap(w = 12); Txt(S("d_cover_ring_title"), size = 13) }

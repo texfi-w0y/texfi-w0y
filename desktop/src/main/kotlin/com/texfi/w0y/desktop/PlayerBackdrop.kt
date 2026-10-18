@@ -21,6 +21,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
 import kotlin.math.sin
@@ -75,7 +77,7 @@ fun rememberCoverPalette(url: String?): CoverPalette {
  * Цвета плавно перетекают при смене трека; «дыхание» свечения — только при полных анимациях.
  */
 @Composable
-fun PlayerBackdrop(app: AppState, modifier: Modifier = Modifier) {
+fun PlayerBackdrop(app: AppState, center: DpOffset = DpOffset(300.dp, 300.dp), coverRadius: Dp = 150.dp, modifier: Modifier = Modifier) {
     val mode = ThemeState.playerBack
     if (mode == PlayerBack.APP) return
     val url = app.player.current?.thumbnailUrl
@@ -113,13 +115,25 @@ fun PlayerBackdrop(app: AppState, modifier: Modifier = Modifier) {
         }
         else -> Canvas(modifier.fillMaxSize().background(C.Background)) {
             val w = size.width; val h = size.height
-            val breathe = 1f + 0.07f * sin(phase * 2f * Math.PI.toFloat())
-            // Главное свечение — за обложкой, второе уходит в угол, третье — тонкий свет сверху.
-            drawRect(Brush.radialGradient(listOf(ca.copy(alpha = 0.60f * strength), ca.copy(alpha = 0.18f * strength), Color.Transparent), Offset(w * 0.27f, h * 0.38f), maxOf(w, h) * 0.55f * breathe), Offset.Zero, Size(w, h))
-            drawRect(Brush.radialGradient(listOf(cb.copy(alpha = 0.34f * strength), Color.Transparent), Offset(w * 0.85f, h * 0.95f), maxOf(w, h) * 0.5f * (2f - breathe)), Offset.Zero, Size(w, h))
-            drawRect(Brush.radialGradient(listOf(cb.copy(alpha = 0.18f * strength), Color.Transparent), Offset(w * 0.9f, h * 0.02f), maxOf(w, h) * 0.35f), Offset.Zero, Size(w, h))
-            // Виньетка: края темнее, взгляд остаётся на обложке.
-            drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to C.Background.copy(alpha = 0.55f)), Offset.Zero, Size(w, h))
+            val breathe = 1f + 0.05f * sin(phase * 2f * Math.PI.toFloat())
+            val c = Offset(center.x.toPx(), center.y.toPx())
+            val r = coverRadius.toPx()
+            val reach = maxOf(w, h) * 0.95f * breathe
+            val mid = androidx.compose.ui.graphics.lerp(ca, cb, 0.5f)
+            // Свечение растёт из самой обложки и плавно переходит в чёрный: до дальних краёв доходит лишь слабый отсвет.
+            drawRect(
+                Brush.radialGradient(
+                    0f to ca.copy(alpha = 0.80f * strength),
+                    0.30f to ca.copy(alpha = 0.50f * strength),
+                    0.55f to mid.copy(alpha = 0.24f * strength),
+                    0.80f to cb.copy(alpha = 0.08f * strength),
+                    1f to Color.Transparent,
+                    center = c, radius = reach,
+                ),
+                Offset.Zero, Size(w, h),
+            )
+            // Плотный ореол вплотную к обложке: граница обложки не режет глаз.
+            drawRect(Brush.radialGradient(listOf(ca.copy(alpha = 0.60f * strength), Color.Transparent), c, r * 1.9f * breathe), Offset.Zero, Size(w, h))
         }
     }
 }
