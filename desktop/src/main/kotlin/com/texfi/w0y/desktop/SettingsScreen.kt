@@ -94,7 +94,7 @@ private enum class STab(val key: String, val glyph: Glyph, val sections: List<SS
     LOOK("cat_look", Glyph.Palette, listOf(SSection.LOOK)),
     STAND("cat_stand", Glyph.Box, listOf(SSection.STAND)),
     ACCOUNT("cat_account", Glyph.Library, listOf(SSection.ACCOUNT)),
-    APP("cat_data", Glyph.Sliders, listOf(SSection.KEYS, SSection.DATA)),
+    APP("cat_data", Glyph.Sliders, listOf(SSection.DATA, SSection.KEYS)),
     ;
 
     val title: String get() = S(key)

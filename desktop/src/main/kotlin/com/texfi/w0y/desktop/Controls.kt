@@ -1,6 +1,7 @@
 package com.texfi.w0y.desktop
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -43,7 +44,20 @@ import androidx.compose.ui.unit.sp
 /** Переключатель: у Pixel — квадратный, без морфинга; у Smooth — таблетка с плавным бегунком. */
 @Composable
 fun AppToggle(checked: Boolean, onChange: (Boolean) -> Unit) {
-    if (Look.smooth) {
+    if (Look.hair) {
+        // Hairline: линия вместо заливки, бегунок-точка; включённый — акцентный.
+        val knob by animateDpAsState(if (checked) 21.dp else 4.dp, tween(Motion.ms(160)))
+        val shape = RoundedCornerShape(50)
+        Box(
+            Modifier.width(40.dp).height(22.dp).clip(shape)
+                .background(if (checked) C.Blue.copy(alpha = 0.16f) else androidx.compose.ui.graphics.Color.Transparent)
+                .border(1.dp, if (checked) C.Blue else C.Border, shape)
+                .clickable(role = androidx.compose.ui.semantics.Role.Switch) { onChange(!checked) },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(Modifier.padding(start = knob).size(14.dp).clip(CircleShape).background(if (checked) C.Blue else C.Muted))
+        }
+    } else if (Look.smooth) {
         val knob by animateDpAsState(if (checked) 22.dp else 2.dp, tween(160))
         Box(
             Modifier.width(48.dp).height(28.dp).clip(CircleShape)
@@ -78,7 +92,7 @@ fun AppSlider(
     step: Float = 0.05f,
     segments: Int = 24,
 ) {
-    if (!Look.smooth) {
+    if (!Look.smooth || Look.hair) {
         PixelSlider(value, range, onChange, modifier, color, step, segments)
         return
     }
