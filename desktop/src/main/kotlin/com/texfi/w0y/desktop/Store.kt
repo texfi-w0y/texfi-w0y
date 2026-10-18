@@ -97,6 +97,8 @@ class Store {
             runCatching { Files.copy(file, dir.resolve("library.json.broken-${System.currentTimeMillis()}")) }
             Library()
         })
+            // Сессия лежит на диске зашифрованной; в памяти — обычным текстом. Не расшифровалась — вход не выполнен.
+            .let { lib -> lib.copy(cookie = lib.cookie?.let(SecureText::unprotect)) }
             // Плейлисты из прошлой версии были без id — заводим, иначе у всех он будет общим.
             .let { lib -> lib.copy(playlists = lib.playlists.map { if (it.id.isBlank()) it.copy(id = java.util.UUID.randomUUID().toString()) else it }) }
 
@@ -113,7 +115,7 @@ class Store {
             }
             // Через временный файл: оборванная запись не должна убить библиотеку.
             val tmp = dir.resolve("library.json.tmp")
-            Files.writeString(tmp, json.encodeToString(Library.serializer(), library))
+            Files.writeString(tmp, json.encodeToString(Library.serializer(), library.copy(cookie = library.cookie?.let(SecureText::protect))))
             Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
         }
     }

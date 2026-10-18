@@ -173,4 +173,10 @@
     <string name="d_tab_view">Widok</string>
     <string name="d_art_cover">Okładka</string>
     <string name="d_art_visualizer">Wizualizator</string>
+    <string name="d_set_backup_title">Kopia zapasowa</string>
+    <string name="d_set_backup_desc">Jeden plik: ustawienia, polubienia, playlisty, historia, statystyki. Logowanie do konta nie jest w nim zawarte. Przywrócenie zastępuje bieżące dane; ich kopia zostaje w library.json.bak.</string>
+    <string name="d_set_backup_save">Zapisz</string>
+    <string name="d_set_backup_restore">Przywróć</string>
+    <string name="d_set_backup_done">Przywrócono.</string>
+    <string name="d_set_backup_failed">Nie udało się:</string>
 </resources>

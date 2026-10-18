@@ -173,4 +173,10 @@
     <string name="d_tab_view">Вид</string>
     <string name="d_art_cover">Обложка</string>
     <string name="d_art_visualizer">Визуализатор</string>
+    <string name="d_set_backup_title">Резервная копия</string>
+    <string name="d_set_backup_desc">Один файл: настройки, лайки, плейлисты, история, статистика. Вход в аккаунт в него не попадает. При восстановлении текущие данные заменяются; их копия остаётся в library.json.bak.</string>
+    <string name="d_set_backup_save">Сохранить</string>
+    <string name="d_set_backup_restore">Восстановить</string>
+    <string name="d_set_backup_done">Восстановлено.</string>
+    <string name="d_set_backup_failed">Не вышло:</string>
 </resources>

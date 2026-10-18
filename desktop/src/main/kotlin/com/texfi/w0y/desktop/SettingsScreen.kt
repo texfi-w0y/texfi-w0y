@@ -606,6 +606,28 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
                         .onFailure { onMessage(S("settings_import_failed", it.message ?: "")) }
                 }
             }))
+        val restored = S("d_set_backup_done")
+        val restoreFailed = S("d_set_backup_failed") + " "
+        add(Setting(SSection.DATA, S("d_set_backup_title"), S("d_set_backup_desc"), SetControl.Custom {
+            RowCenter {
+                PixelButton(S("d_set_backup_save"), onClick = {
+                    val dialog = FileDialog(null as Frame?, S("d_set_backup_title"), FileDialog.SAVE).apply { file = "w0y-backup.json"; isVisible = true }
+                    dialog.file?.let { name -> File(dialog.directory, name) }?.let { f ->
+                        f.writeText(Backup.export(app.lib))
+                        onMessage(f.name)
+                    }
+                }, primary = false)
+                Gap(w = 8)
+                PixelButton(S("d_set_backup_restore"), onClick = {
+                    val dialog = FileDialog(null as Frame?, S("d_set_backup_title"), FileDialog.LOAD).apply { isVisible = true }
+                    dialog.file?.let { name -> File(dialog.directory, name) }?.let { f ->
+                        Backup.parse(f.readText())
+                            .onSuccess { imported -> app.update { cur -> Backup.restore(cur, imported) }; onMessage(restored) }
+                            .onFailure { onMessage(restoreFailed + (it.message ?: "")) }
+                    }
+                }, primary = false)
+            }
+        }, "backup резервная копия export import восстановить"))
         add(Setting(SSection.DATA, S("d_set_data_title"), S("d_set_data_desc", Store.dirPath()), SetControl.Act(S("download_open")) { Store.openDir() }))
         // ---- Приложение: окно, обновления, диагностика
         val debugCopied = S("d_debug_copied")

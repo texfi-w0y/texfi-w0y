@@ -173,4 +173,10 @@
     <string name="d_tab_view">View</string>
     <string name="d_art_cover">Cover</string>
     <string name="d_art_visualizer">Visualizer</string>
+    <string name="d_set_backup_title">Backup</string>
+    <string name="d_set_backup_desc">One file: settings, likes, playlists, history, stats. Your account sign-in is not included. Restoring replaces current data; a copy stays in library.json.bak.</string>
+    <string name="d_set_backup_save">Save</string>
+    <string name="d_set_backup_restore">Restore</string>
+    <string name="d_set_backup_done">Restored.</string>
+    <string name="d_set_backup_failed">Failed:</string>
 </resources>

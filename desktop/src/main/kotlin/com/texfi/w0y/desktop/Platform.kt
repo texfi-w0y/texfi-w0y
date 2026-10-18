@@ -47,7 +47,7 @@ object Platform {
 
     /** Настройки и журналы: Windows `%APPDATA%\w0y`, Linux `~/.config/w0y`. */
     fun configDir(): Path =
-        if (isWindows) Path.of(System.getenv("APPDATA") ?: "$home\\AppData\\Roaming", "w0y")
+        System.getProperty("w0y.config")?.let { Path.of(it) } ?: if (isWindows) Path.of(System.getenv("APPDATA") ?: "$home\\AppData\\Roaming", "w0y")
         else Path.of(System.getenv("XDG_CONFIG_HOME") ?: "$home/.config", "w0y")
 
     /** Короткоживущие файлы (сокет управления). */
