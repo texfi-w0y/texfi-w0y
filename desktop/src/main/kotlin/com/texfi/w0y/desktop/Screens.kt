@@ -102,7 +102,7 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, 
     val menu = rowMenu(app, song, songs, onPlay)
     androidx.compose.foundation.ContextMenuArea(items = { menu(selected) }) {
         RowCenter(
-            Modifier.fillMaxWidth().hoverable(source).clip(rowShape).background(if (selected) C.SurfaceHigh else bg)
+            Modifier.fillMaxWidth().then(if (Look.hair && index in 0..7) Modifier.hairEnter(index) else Modifier).hoverable(source).clip(rowShape).background(if (selected) C.SurfaceHigh else bg)
                 .then(if (focused) Modifier.border(1.dp, C.Blue, rowShape) else Modifier)
                 .drawBehind { if (selected && Look.hair) drawRect(C.Blue, androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height)) }
                 .focusable(interactionSource = source)
@@ -202,7 +202,7 @@ fun SongList(app: AppState, songs: List<SongItem>, state: LazyListState = rememb
 fun CardTile(title: String, subtitle: String?, thumb: String?, circle: Boolean = false, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     Column(
-        Modifier.width(150.dp).hoverable(source).clip(RoundedCornerShape(Look.row)).background(hoverBackground(source))
+        Modifier.width(150.dp).hairEnter(0).hoverLift(source).hoverable(source).clip(RoundedCornerShape(Look.row)).background(hoverBackground(source))
             .clickable(onClick = onClick).padding(8.dp),
     ) {
         Cover(thumb, 134.dp, circle = circle)
@@ -554,7 +554,7 @@ fun LibraryScreen(app: AppState) {
 
 @Composable
 private fun Shortcut(label: String, value: String, modifier: Modifier, index: Int, glyph: Glyph, onClick: () -> Unit) {
-    PixelCard(modifier.clickable(onClick = onClick)) {
+    PixelCard(modifier.hairEnter(index).hoverLift(remember { MutableInteractionSource() }, 0f).clickable(onClick = onClick)) {
         if (Look.hair) {
             // Как на телефоне: номер и значок сверху, крупное число и подпись снизу.
             Column(Modifier.fillMaxWidth()) {
@@ -723,7 +723,7 @@ private fun DialTile(app: AppState, e: DialEntry, all: List<DialEntry>) {
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
     Box(
-        Modifier.width(150.dp).hoverable(source).clip(RoundedCornerShape(Look.row)).background(if (hovered) C.Surface else Color.Transparent)
+        Modifier.width(150.dp).hairEnter(0).hoverLift(source).hoverable(source).clip(RoundedCornerShape(Look.row)).background(if (hovered) C.Surface else Color.Transparent)
             .clickable {
                 val song = e.song
                 if (song != null) app.player.play(all.mapNotNull { it.song }, all.mapNotNull { it.song }.indexOfFirst { it.id == song.id }.coerceAtLeast(0))

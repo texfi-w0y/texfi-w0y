@@ -349,10 +349,11 @@ fun IconButton(glyph: Glyph, onClick: () -> Unit, modifier: Modifier = Modifier,
     Box(
         modifier
             .size(box)
+            .pressScale(source)
             .hoverable(source)
             .clip(if (Look.smooth) CircleShape else RoundedCornerShape(4.dp))
             .background(if (hovered) C.SurfaceHigh else Color.Transparent)
-            .clickable(onClick = onClick),
+            .clickable(interactionSource = source, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(glyph, if (hovered) C.Text else color, size) }
 }

@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -79,12 +80,14 @@ fun PlayerScreen(app: AppState) {
     var tab by remember { mutableStateOf(PlayerTab.Queue) }
     val song = p.current
     val layout = if (Look.hair) app.st.hlLayout else PlayerLayout.COVER
-    val glow = if (app.st.playerCoverGlow && layout != PlayerLayout.POSTER) rememberCoverColor(song?.thumbnailUrl) else null
+    val glow = if (!Look.hair && app.st.playerCoverGlow) rememberCoverColor(song?.thumbnailUrl) else null
     val tabs = PlayerTab.entries.filter { it != PlayerTab.Lyrics || app.st.showLyrics }
     if (tab !in tabs) tab = PlayerTab.Queue
     val glowBrush = glow?.let { androidx.compose.ui.graphics.Brush.verticalGradient(listOf(it.copy(alpha = 0.30f), androidx.compose.ui.graphics.Color.Transparent)) }
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (layout == PlayerLayout.POSTER) PosterBackdrop(song?.thumbnailUrl)
+        if (Look.hair) {
+            if (layout == PlayerLayout.POSTER) PosterBackdrop(song?.thumbnailUrl) else PlayerBackdrop(app)
+        }
         // Hairline: диск растёт вместе с окном, но не выше половины высоты и не шире 40% ширины.
         val coverSize = if (Look.hair) minOf(maxWidth * (if (layout == PlayerLayout.MINIMAL) 0.7f else ThemeState.coverSize.share), maxHeight - 330.dp).coerceIn(220.dp, 640.dp) else 340.dp
         if (layout == PlayerLayout.MINIMAL) {
@@ -126,22 +129,32 @@ fun PlayerScreen(app: AppState) {
     }
 }
 
-/** «Постер»: обложка на весь экран, чуть размытая, под затемнением из настроек и вуалью к низу. */
+/**
+ * «Постер»: обложка на весь экран в самом большом размере, под затемнением из настроек и вуалью к низу.
+ * При смене трека новая обложка проявляется поверх старой, а пока играет — очень медленно «дышит» (1 → 1,07).
+ */
 @Composable
 private fun PosterBackdrop(url: String?) {
-    val model = sizedThumb(url, 800)
     val dim = ThemeState.posterDim / 100f
-    Box(Modifier.fillMaxSize()) {
-        if (model != null) {
-            coil3.compose.AsyncImage(
-                model = model,
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().blur(3.dp),
-            )
+    val drift = androidx.compose.animation.core.rememberInfiniteTransition(label = "poster")
+    val zoom by drift.animateFloat(1f, 1.07f, androidx.compose.animation.core.infiniteRepeatable(tween(26_000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse), label = "poster-zoom")
+    Box(Modifier.fillMaxSize().clip(androidx.compose.ui.graphics.RectangleShape)) {
+        androidx.compose.animation.Crossfade(url, animationSpec = tween(Motion.ms(700))) { shown ->
+            val model = hiresThumb(shown)
+            if (model != null) {
+                coil3.compose.AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                    modifier = Modifier.fillMaxSize().graphicsLayer { if (Motion.full) { scaleX = zoom; scaleY = zoom } },
+                )
+            }
         }
         Box(Modifier.fillMaxSize().background(C.Background.copy(alpha = dim)))
         Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to androidx.compose.ui.graphics.Color.Transparent, 0.55f to androidx.compose.ui.graphics.Color.Transparent, 1f to C.Background.copy(alpha = 0.92f))))
+        // Мягкая виньетка по краям.
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.radialGradient(0.6f to androidx.compose.ui.graphics.Color.Transparent, 1f to C.Background.copy(alpha = 0.5f))))
     }
 }
 
@@ -189,12 +202,14 @@ private fun PlayerMain(app: AppState, coverSize: Dp, onTab: (PlayerTab) -> Unit)
                             Visualizer(vizStyle, p.playing, app.st.visualizerSensitivity, app.st.visualizerFps, Modifier.fillMaxSize().padding(8.dp))
                         }
                     } else {
-                        coil3.compose.AsyncImage(
-                            model = sizedThumb(song?.thumbnailUrl, 640),
-                            contentDescription = null,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        androidx.compose.animation.AnimatedContent(song?.thumbnailUrl, transitionSpec = { Anim.coverTransition() }, label = "disc-cover") { shown ->
+                            coil3.compose.AsyncImage(
+                                model = sizedThumb(shown, 640),
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }
@@ -239,63 +254,43 @@ private fun PlayerMain(app: AppState, coverSize: Dp, onTab: (PlayerTab) -> Unit)
             }
             if (!p.soundNow.isPlain) Txt(S("d_your_version", p.soundNow.label), color = C.Sand, size = 12, modifier = Modifier.padding(top = 6.dp))
         }
-        if (hair && song != null) {
-            // Ряд действий, как на телефоне: сердце, закрепить, в очередь, скачать, ссылка, таймер сна.
-            Gap(h = 14)
-            RowCenter(Modifier.fillMaxWidth(), ) {
-                val liked = song.id in app.likedIds
-                IconButton(if (liked) Glyph.Heart else Glyph.HeartOff, onClick = { app.toggleLike(song) }, color = if (liked) C.Danger else C.Muted, size = 20.dp)
-                Box(Modifier.weight(1f))
-                IconButton(Glyph.Pin, onClick = { app.togglePin("song:${song.id}") }, color = C.Muted, size = 18.dp)
-                Box(Modifier.weight(1f))
-                IconButton(Glyph.Plus, onClick = { p.enqueue(song, next = false) }, color = C.Muted, size = 20.dp)
-                Box(Modifier.weight(1f))
-                DownloadButton(app, song)
-                Box(Modifier.weight(1f))
-                IconButton(Glyph.Share, onClick = {
-                    java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection("https://music.youtube.com/watch?v=${song.id}"), null)
-                }, color = C.Muted, size = 18.dp)
-                Box(Modifier.weight(1f))
-                SleepMenu(app)
+        if (hair) {
+            // Всё управление (перемотка, кнопки, сердце, закрепить, скачать, ссылка, таймер) — на нижней панели:
+            // здесь только обложка, название и исполнитель, а под ними строка текста, если он есть.
+            val lyrics = if (app.st.showLyrics) rememberLyricsOf(app, song) else null
+            val line = currentLine(lyrics, p.position, app.st.lyricsDelayMs)
+            if (line != null) {
+                Gap(h = 14)
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Txt(line, color = C.Muted, size = 14, maxLines = 2) }
             }
+            return@Column
         }
-        Gap(h = 12)
+        Gap(h = 14)
         SeekRow(p, app.st.seekStepSec)
         Gap(h = 12)
         RowCenter(Modifier.fillMaxWidth()) {
             IconButton(Glyph.Shuffle, onClick = p::toggleShuffle, color = if (app.st.shuffle) C.Blue else C.Muted, size = 18.dp, box = 38.dp)
-            if (hair) Box(Modifier.weight(1f))
             IconButton(Glyph.Prev, onClick = p::previous, size = 24.dp, box = 44.dp)
-            if (hair) Box(Modifier.weight(1f)) else Gap(w = 8)
-            if (hair) {
-                // Как на телефоне: без рамки и круга, просто крупный значок.
-                Box(Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = p::toggle), contentAlignment = Alignment.Center) {
-                    Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.Text, 40.dp)
-                }
-            } else {
-                Box(
-                    (if (Look.smooth) Modifier.width(54.dp).height(54.dp).clip(androidx.compose.foundation.shape.CircleShape).background(C.Blue)
-                    else Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue).border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)))
-                        .clickable(onClick = p::toggle),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.OnAccent, 28.dp) }
-            }
-            if (hair) Box(Modifier.weight(1f)) else Gap(w = 8)
+            Gap(w = 8)
+            Box(
+                (if (Look.smooth) Modifier.width(54.dp).height(54.dp).clip(androidx.compose.foundation.shape.CircleShape).background(C.Blue)
+                else Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue).border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)))
+                    .clickable(onClick = p::toggle),
+                contentAlignment = Alignment.Center,
+            ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.OnAccent, 28.dp) }
+            Gap(w = 8)
             IconButton(Glyph.Next, onClick = { p.nextClick() }, size = 24.dp, box = 44.dp)
-            if (hair) Box(Modifier.weight(1f))
             Box {
                 IconButton(Glyph.Repeat, onClick = p::cycleRepeat, color = if (app.st.repeat != RepeatMode.OFF) C.Blue else C.Muted, size = 18.dp, box = 38.dp)
                 if (app.st.repeat == RepeatMode.ONE) Txt("1", size = 9, color = C.Blue, weight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
-            if (!hair) {
-                Box(Modifier.weight(1f))
-                if (song != null) {
-                    val liked = song.id in app.likedIds
-                    IconButton(if (liked) Glyph.Heart else Glyph.HeartOff, onClick = { app.toggleLike(song) }, color = if (liked) C.Danger else C.Muted, size = 20.dp)
-                    DownloadButton(app, song)
-                }
-                SleepMenu(app)
+            Box(Modifier.weight(1f))
+            if (song != null) {
+                val liked = song.id in app.likedIds
+                IconButton(if (liked) Glyph.Heart else Glyph.HeartOff, onClick = { app.toggleLike(song) }, color = if (liked) C.Danger else C.Muted, size = 20.dp)
+                DownloadButton(app, song)
             }
+            SleepMenu(app)
         }
     }
 }

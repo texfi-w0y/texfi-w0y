@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
         // Трей: окно можно убрать, не останавливая музыку; управление — из меню значка.
         if (trayOn) {
             Tray(
-                icon = painterResource("icon.png"),
+                icon = painterResource(AppIcons.resource(ThemeState.appIcon)),
                 tooltip = "w0y",
                 onAction = { visible = true; state.isMinimized = false },
                 menu = {
@@ -76,7 +76,7 @@ fun main(args: Array<String>) {
             Window(
                 onCloseRequest = { Actions.mini = false },
                 title = "w0y",
-                icon = painterResource("icon.png"),
+                icon = painterResource(AppIcons.resource(ThemeState.appIcon)),
                 undecorated = true,
                 resizable = false,
                 alwaysOnTop = true,
@@ -98,7 +98,7 @@ fun main(args: Array<String>) {
             },
             visible = visible,
             title = "w0y",
-            icon = painterResource("icon.png"),
+            icon = painterResource(AppIcons.resource(ThemeState.appIcon)),
             state = state,
         ) {
             // Масштаб интерфейса: всё окно крупнее или мельче, шрифты вместе с размерами.

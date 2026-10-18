@@ -188,4 +188,11 @@
     <string name="d_cover_spin_desc">Okładka powoli się obraca podczas muzyki. Tylko z pełnymi animacjami.</string>
     <string name="d_poster_dim_title">Przyciemnienie plakatu</string>
     <string name="d_poster_dim_desc">Jak ciemna jest okładka za układem „Plakat”.</string>
+    <string name="d_pback_title">Tło w odtwarzaczu</string>
+    <string name="d_pback_desc">Co jest za odtwarzaczem: miękka poświata w kolorach okładki, rozmyta okładka, zorza, tło aplikacji albo czerń.</string>
+    <string name="d_pback_glow">Poświata okładki</string>
+    <string name="d_pback_blur">Rozmyta okładka</string>
+    <string name="d_pback_aurora">Zorza</string>
+    <string name="d_pback_app">Jak w aplikacji</string>
+    <string name="d_pback_pure">Czarne</string>
 </resources>

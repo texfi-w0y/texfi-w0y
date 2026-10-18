@@ -188,4 +188,11 @@
     <string name="d_cover_spin_desc">The cover slowly turns while music plays. Only with full animations.</string>
     <string name="d_poster_dim_title">Poster dimming</string>
     <string name="d_poster_dim_desc">How dark the cover behind the Poster layout is.</string>
+    <string name="d_pback_title">Player background</string>
+    <string name="d_pback_desc">What lies behind the player: a soft glow in the cover colours, the blurred cover, aurora, the app background or plain black.</string>
+    <string name="d_pback_glow">Cover glow</string>
+    <string name="d_pback_blur">Blurred cover</string>
+    <string name="d_pback_aurora">Aurora</string>
+    <string name="d_pback_app">Same as the app</string>
+    <string name="d_pback_pure">Black</string>
 </resources>

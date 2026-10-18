@@ -200,6 +200,26 @@ enum class CoverSize(override val key: String, val share: Float) : Labeled {
     LARGE("lyrics_size_large", 0.50f),
 }
 
+/** Значок приложения: пять вариантов, как на телефоне. */
+@Serializable
+enum class AppIcon(override val key: String, val file: String) : Labeled {
+    W("hl_icon_w", "w"),
+    LEAF("hl_icon_leaf", "leaf"),
+    BARS("hl_icon_bars", "bars"),
+    RINGS("hl_icon_rings", "rings"),
+    LEAF_LINE("hl_icon_leaf_line", "leaf_line"),
+}
+
+/** Фон за большим плеером. */
+@Serializable
+enum class PlayerBack(override val key: String) : Labeled {
+    GLOW("d_pback_glow"),
+    BLUR("d_pback_blur"),
+    AURORA("d_pback_aurora"),
+    APP("d_pback_app"),
+    PURE("d_pback_pure"),
+}
+
 /** Какой текст пишется заглавными. */
 @Serializable
 enum class CapsMode(override val key: String) : Labeled {
@@ -338,6 +358,8 @@ data class DSettings(
     val hlCaps: CapsMode = CapsMode.TITLES_LABELS,
     val hlDensity: Density = Density.COMFORTABLE,
     val backdrop: BackdropMode = BackdropMode.TOPO,
+    val appIcon: AppIcon = AppIcon.W,
+    val hlPlayerBack: PlayerBack = PlayerBack.GLOW,
     val hlCoverSize: CoverSize = CoverSize.MEDIUM,
     val hlCoverRing: Boolean = true,
     val hlCoverSpin: Boolean = false,

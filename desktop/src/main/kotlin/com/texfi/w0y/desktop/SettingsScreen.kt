@@ -3,6 +3,7 @@ package com.texfi.w0y.desktop
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -583,6 +584,23 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
                 SetControl.Toggle(st.hlCoverSpin) { v -> set { it.copy(hlCoverSpin = v) } }, "spin disc вращение диск hairline"))
             add(Setting(SSection.LOOK, S("d_poster_dim_title"), S("d_poster_dim_desc"),
                 choice(listOf(20, 35, 45, 60, 75), st.hlPosterDim, { "$it%" }) { v -> set { it.copy(hlPosterDim = v) } }, "poster dim постер затемнение hairline"))
+            add(Setting(SSection.LOOK, S("d_pback_title"), S("d_pback_desc"),
+                choice(PlayerBack.entries, st.hlPlayerBack, { it.label }) { v -> set { it.copy(hlPlayerBack = v) } }, "player background фон плеер свечение hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_appicon"), S("hl_set_appicon_d"), SetControl.Custom {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppIcon.entries.forEach { ic ->
+                        val on = st.appIcon == ic
+                        Column(
+                            Modifier.clip(RoundedCornerShape(Look.control.coerceAtMost(10.dp))).border(Look.line, if (on) C.Blue else C.Border, RoundedCornerShape(Look.control.coerceAtMost(10.dp)))
+                                .clickable { set { it.copy(appIcon = ic) } }.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(AppIcons.resource(ic)), null, Modifier.size(56.dp))
+                            Txt(ic.label, size = 11, color = if (on) C.Text else C.Muted)
+                        }
+                    }
+                }
+            }, "app icon значок иконка приложения"))
             add(Setting(SSection.LOOK, S("hl_set_layout"), S("hl_set_layout_d"),
                 choice(PlayerLayout.entries, st.hlLayout, { it.label }) { v -> set { it.copy(hlLayout = v) } }, "player layout раскладка плеер hairline"))
             add(Setting(SSection.LOOK, S("hl_set_caps"), S("hl_set_caps_d"),

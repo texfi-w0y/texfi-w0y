@@ -1,6 +1,7 @@
 package com.texfi.w0y.desktop
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -64,7 +65,11 @@ fun App(app: AppState) {
     val backdrop = if (Look.glass) rememberBackdrop() else null
     val screens: @Composable () -> Unit = {
         // Смена экрана — мягкое наплывание: у Smooth дольше, у Pixel короче.
-        Crossfade(app.screen, animationSpec = tween(Motion.ms(if (Look.smooth) 240 else 140))) { s ->
+        androidx.compose.animation.AnimatedContent(
+            app.screen,
+            transitionSpec = { if (Look.hair) Anim.screenTransition(this, app.navForward) else androidx.compose.animation.fadeIn(tween(Motion.ms(if (Look.smooth) 240 else 140))) togetherWith androidx.compose.animation.fadeOut(tween(Motion.ms(if (Look.smooth) 240 else 140))) },
+            label = "screens",
+        ) { s ->
         when (s) {
             Screen.Home -> HomeScreen(app)
             Screen.Search -> SearchScreen(app)
@@ -118,7 +123,9 @@ private fun PixelShell(app: AppState, screens: @Composable () -> Unit) {
 private fun HairShell(app: AppState, screens: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < COMPACT_WIDTH
-        HairBackdrop(app)
+        // В плеере свой фон (свечение обложки): общие линии приложения там не нужны.
+        val inPlayer = (app.screen == Screen.Player || app.screen == Screen.Queue) && ThemeState.playerBack != PlayerBack.APP
+        if (!inPlayer) HairBackdrop(app)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Sidebar(app, compact = compact)
@@ -293,13 +300,22 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
                     Gap(w = 6)
                     val liked = song.id in app.likedIds
                     IconButton(if (liked) Glyph.Heart else Glyph.HeartOff, onClick = { app.toggleLike(song) }, color = if (liked) C.Danger else C.Muted, size = 18.dp)
+                    // Закрепить на быстром наборе и скопировать ссылку — здесь, а не в плеере.
+                    val pinned = app.isPinned(app.dialKey(song))
+                    IconButton(Glyph.Pin, onClick = { app.togglePin(app.dialKey(song)) }, color = if (pinned) C.Sand else C.Muted, size = 16.dp)
                     DownloadButton(app, song)
                     PlaylistMenu(app, song)
+                    if (!song.id.startsWith("local:")) {
+                        IconButton(Glyph.Share, onClick = {
+                            java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection("https://music.youtube.com/watch?v=${song.id}"), null)
+                        }, color = C.Muted, size = 16.dp)
+                    }
                 } else {
                     Txt(p.error ?: S("d_idle"), color = if (p.error != null) C.Sand else C.Muted, size = 14)
                 }
             }
             RowCenter {
+                IconButton(Glyph.Shuffle, onClick = p::toggleShuffle, color = if (app.st.shuffle) C.Blue else C.Muted, size = 16.dp, box = 34.dp)
                 IconButton(Glyph.Prev, onClick = p::previous, size = 22.dp, box = 40.dp)
                 Gap(w = 6)
                 Box(
@@ -311,6 +327,10 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
                 ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, if (Look.hair) C.Background else C.OnAccent, 24.dp) }
                 Gap(w = 6)
                 IconButton(Glyph.Next, onClick = { p.nextClick() }, size = 22.dp, box = 40.dp)
+                Box {
+                    IconButton(Glyph.Repeat, onClick = p::cycleRepeat, color = if (app.st.repeat != RepeatMode.OFF) C.Blue else C.Muted, size = 16.dp, box = 34.dp)
+                    if (app.st.repeat == RepeatMode.ONE) Txt("1", size = 9, color = C.Blue, weight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                }
             }
             RowCenter(Modifier.weight(1f), ) {
                 Box(Modifier.weight(1f))

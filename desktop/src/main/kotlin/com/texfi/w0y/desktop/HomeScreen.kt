@@ -31,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.desktop.i18n.S
@@ -125,7 +127,7 @@ fun HairSection(index: Int, label: String, hint: String? = null, action: @Compos
         hint?.let { Txt(it, color = C.Muted, size = 11, modifier = Modifier.padding(bottom = 8.dp)) }
         return
     }
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp).hairEnter(0)) {
         RowCenter(Modifier.fillMaxWidth()) {
             Txt("%02d".format(index), color = C.Muted.copy(alpha = 0.6f), size = 11, pixel = true)
             Gap(w = 8)
@@ -133,7 +135,10 @@ fun HairSection(index: Int, label: String, hint: String? = null, action: @Compos
             Gap(w = 8)
             Txt(Look.label(label), color = C.Muted, size = 11, pixel = true)
             Gap(w = 12)
-            Box(Modifier.weight(1f).height(Look.line).background(C.Border))
+            // Линия выезжает слева направо.
+            val draw = remember { androidx.compose.animation.core.Animatable(if (Anim.fresh && !Motion.off) 0f else 1f) }
+            androidx.compose.runtime.LaunchedEffect(Unit) { if (draw.value < 1f) draw.animateTo(1f, tween(Motion.ms(700), delayMillis = 120, easing = EaseOut)) }
+            Box(Modifier.weight(1f).height(Look.line).graphicsLayer { scaleX = draw.value; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }.background(C.Border))
             Gap(w = 8)
             action()
         }
@@ -156,8 +161,8 @@ fun PicksShelf(app: AppState, title: String, songs: List<SongItem>, modifier: Mo
         }
         val state = rememberLazyListState()
         LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            items(columns) { column ->
-                Column(Modifier.width(380.dp)) {
+            itemsIndexed(columns) { ci, column ->
+                Column(Modifier.width(380.dp).hairEnter(ci)) {
                     column.forEach { (index, song) -> PickRow(app, song, songs, index) }
                 }
             }

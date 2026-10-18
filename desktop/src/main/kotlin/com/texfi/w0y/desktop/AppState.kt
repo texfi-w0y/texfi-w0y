@@ -95,6 +95,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         ThemeState.caps = st.hlCaps
         ThemeState.density = st.hlDensity
         ThemeState.backdrop = st.backdrop
+        ThemeState.playerBack = st.hlPlayerBack
+        if (ThemeState.appIcon != st.appIcon) { ThemeState.appIcon = st.appIcon; AppIcons.applyLauncher(st.appIcon) }
         ThemeState.coverSize = st.hlCoverSize
         ThemeState.coverRing = st.hlCoverRing
         ThemeState.coverSpin = st.hlCoverSpin
@@ -150,12 +152,20 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     }
 
     // ---- навигация
+    /** Куда идём: вперёд (новый экран) или назад — от этого зависит направление анимации перехода. */
+    var navForward by mutableStateOf(true)
+        private set
+
     fun open(screen: Screen) {
         selection.clear()
+        navForward = true
+        Anim.screenAt = System.currentTimeMillis()
         if (stack.last() != screen) stack.add(screen)
     }
 
     fun tab(screen: Screen) {
+        navForward = true
+        Anim.screenAt = System.currentTimeMillis()
         stack.clear()
         stack.add(screen)
         when (screen) {
@@ -168,6 +178,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     }
 
     fun back() {
+        navForward = false
+        Anim.screenAt = System.currentTimeMillis()
         if (stack.size > 1) stack.removeAt(stack.lastIndex)
     }
 

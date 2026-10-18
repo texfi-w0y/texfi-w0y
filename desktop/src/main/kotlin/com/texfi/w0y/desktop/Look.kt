@@ -49,6 +49,8 @@ object ThemeState {
     var density by mutableStateOf(Density.COMFORTABLE)
     var backdrop by mutableStateOf(BackdropMode.TOPO)
     var coverSize by mutableStateOf(CoverSize.MEDIUM)
+    var playerBack by mutableStateOf(PlayerBack.GLOW)
+    var appIcon by mutableStateOf(AppIcon.W)
     var coverRing by mutableStateOf(true)
     var coverSpin by mutableStateOf(false)
     var posterDim by mutableStateOf(45)

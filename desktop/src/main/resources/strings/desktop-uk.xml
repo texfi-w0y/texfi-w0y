@@ -188,4 +188,11 @@
     <string name="d_cover_spin_desc">Обкладинка повільно крутиться, поки грає музика. Лише з повними анімаціями.</string>
     <string name="d_poster_dim_title">Затемнення постера</string>
     <string name="d_poster_dim_desc">Наскільки темна обкладинка за розкладкою «Постер».</string>
+    <string name="d_pback_title">Тло у плеєрі</string>
+    <string name="d_pback_desc">Що за плеєром: м’яке сяйво кольорів обкладинки, розмита обкладинка, переливи, загальне тло застосунку або чорне.</string>
+    <string name="d_pback_glow">Сяйво обкладинки</string>
+    <string name="d_pback_blur">Розмита обкладинка</string>
+    <string name="d_pback_aurora">Переливи</string>
+    <string name="d_pback_app">Як у застосунку</string>
+    <string name="d_pback_pure">Чорне</string>
 </resources>

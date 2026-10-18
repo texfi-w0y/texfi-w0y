@@ -188,4 +188,11 @@
     <string name="d_cover_spin_desc">Обложка медленно крутится, пока играет музыка. Только при полных анимациях.</string>
     <string name="d_poster_dim_title">Затемнение постера</string>
     <string name="d_poster_dim_desc">Насколько тёмная обложка за раскладкой «Постер».</string>
+    <string name="d_pback_title">Фон в плеере</string>
+    <string name="d_pback_desc">Что лежит за плеером: мягкое свечение цветов обложки, размытая обложка, переливы, общий фон приложения или чёрный.</string>
+    <string name="d_pback_glow">Свечение обложки</string>
+    <string name="d_pback_blur">Размытая обложка</string>
+    <string name="d_pback_aurora">Переливы</string>
+    <string name="d_pback_app">Как в приложении</string>
+    <string name="d_pback_pure">Чёрный</string>
 </resources>
