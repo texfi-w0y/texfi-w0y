@@ -527,6 +527,14 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
             SetControl.Toggle(st.searchSuggestions) { v -> set { it.copy(searchSuggestions = v) } }))
         add(Setting(SSection.SEARCH, S("settings_search_history_title"), S("settings_search_history_desc"),
             SetControl.Toggle(st.saveSearchHistory) { v -> set { it.copy(saveSearchHistory = v) } }))
+        add(Setting(SSection.SEARCH, S("taste_learning_title"), S("taste_learning_desc"),
+            SetControl.Toggle(st.tasteLearning) { v -> set { it.copy(tasteLearning = v) } }, "taste вкус рекомендации"))
+        add(Setting(SSection.SEARCH, S("taste_row_title"), S("taste_row_desc"),
+            SetControl.Act(S("taste_row_button")) { app.open(Screen.Taste) }, "taste вкус исключить"))
+        add(Setting(SSection.SEARCH, S("rec_novelty_title"), S("rec_novelty_desc"),
+            choice(listOf(0, 15, 30, 50, 70), st.recNovelty, { "$it%" }) { v -> set { it.copy(recNovelty = v) } }, "novelty новое знакомое"))
+        add(Setting(SSection.SEARCH, S("weekly_title"), S("weekly_desc"),
+            SetControl.Toggle(st.weeklyDiscovery) { v -> set { it.copy(weeklyDiscovery = v) }; if (v) app.weeklyIfDue(force = true) }, "weekly открытия неделя"))
         // ---- Аккаунт
         add(Setting(SSection.ACCOUNT, S("settings_account_title"),
             if (app.signedIn) S("settings_account_in", app.lib.accountName ?: S("settings_account_unnamed")) else S("settings_account_out"),
@@ -715,7 +723,7 @@ internal fun EqPanel(app: AppState) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Txt(if (gain > 0) "+$gain" else "$gain", size = 10, color = if (gain == 0) C.Muted else C.Blue)
                     VerticalGain(gain, enabled = st.eqEnabled) { v ->
-                        app.setSt { s -> s.copy(eqBands = s.eqBands.toMutableList().also { it[i] = v }) }
+                        app.setSt { s -> s.copy(eqEnabled = true, eqBands = s.eqBands.toMutableList().also { it[i] = v }) }
                         app.player.reapplyAudio()
                     }
                     Txt(EqFreqs[i], size = 10, color = C.Muted)

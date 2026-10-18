@@ -27,11 +27,15 @@ class Recommender(private val app: AppState, private val yt: Yt) {
         val merged = LinkedHashMap<String, SongItem>()
         val longest = pools.maxOfOrNull { it.size } ?: 0
         for (i in 0 until longest) pools.forEach { pool -> pool.getOrNull(i)?.let { merged.putIfAbsent(it.id, it) } }
-        val candidates = app.visible(merged.values.filter { it.id !in exclude && it.id != seed.id })
+        val excluded = app.st.tasteExcluded
+        val candidates = app.visible(merged.values.filter { it.id !in exclude && it.id != seed.id && norm(it.artist) !in excluded })
         if (candidates.isEmpty()) return@coroutineScope emptyList()
 
-        val plays = app.lib.artistPlays
-        val likedArtists = app.lib.liked.map { norm(it.artist) }.toSet()
+        // «Учитывать мой вкус» выключено — подборка без данных о слушателе; «знакомое ↔ новое» двигает вес известных исполнителей.
+        val taste = app.st.tasteLearning
+        val plays = if (taste) app.lib.artistPlays else emptyMap()
+        val likedArtists = if (taste) app.lib.liked.map { norm(it.artist) }.toSet() else emptySet()
+        val novelty = app.st.recNovelty.coerceIn(0, 100)
         val recent = app.lib.history.take(30).map { it.id }.toSet()
         val words =
             app.lib.searchHistory.flatMap { it.lowercase(Locale.ROOT).split(' ') }.filter { it.length >= 3 }.toSet()
@@ -41,7 +45,8 @@ class Recommender(private val app: AppState, private val yt: Yt) {
             candidates.sortedByDescending { c ->
                 val artist = norm(c.artist)
                 var score = 0
-                score += 3 * (plays[artist] ?: 0).coerceAtMost(5)
+                score += (3 * (plays[artist] ?: 0).coerceAtMost(5) * (100 - novelty)) / 50
+                if (taste && artist.isNotBlank() && artist !in plays && artist !in likedArtists) score += novelty / 10
                 if (artist.isNotBlank() && artist == seedArtist) score += 4
                 if (artist in likedArtists) score += 3
                 if (words.any { it in "$artist ${c.title.lowercase(Locale.ROOT)}" }) score += 6

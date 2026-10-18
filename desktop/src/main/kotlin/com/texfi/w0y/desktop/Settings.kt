@@ -249,7 +249,7 @@ data class DSettings(
     val speed: Float = 1f,
     val pitch: Float = 1f,
     val reverb: Reverb = Reverb.OFF,
-    val eqEnabled: Boolean = false,
+    val eqEnabled: Boolean = true,
     /** Десять полос, дБ ×1: 31 Гц … 16 кГц. */
     val eqBands: List<Int> = List(10) { 0 },
     // ---- плеер
@@ -320,6 +320,14 @@ data class DSettings(
     val motion: MotionMode = MotionMode.AUTO,
     val compactRows: Boolean = false,
     val dialMinPlays: Int = 1,
+    /** Учитывать мой вкус: подборки по прослушиваниям и лайкам. */
+    val tasteLearning: Boolean = true,
+    /** Знакомое ↔ новое в подборках, % нового. */
+    val recNovelty: Int = 30,
+    /** Исполнители (нижний регистр), которых не предлагать. */
+    val tasteExcluded: Set<String> = emptySet(),
+    val weeklyDiscovery: Boolean = false,
+    val lastWeekly: Long = 0L,
     /** Подборки на главной: быстрый выбор, забытые любимые, под время суток. */
     val homeRecBlocks: Boolean = true,
     // ---- вид Hairline

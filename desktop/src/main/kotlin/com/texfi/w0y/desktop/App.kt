@@ -73,6 +73,7 @@ fun App(app: AppState) {
             Screen.Downloaded -> DownloadedScreen(app)
             Screen.Settings -> SettingsScreen(app)
             Screen.Stats -> StatsScreen(app)
+            Screen.Taste -> TasteScreen(app)
             Screen.Liked -> LikedScreen(app)
             Screen.History -> HistoryScreen(app)
             is Screen.Album -> AlbumScreen(app, s)

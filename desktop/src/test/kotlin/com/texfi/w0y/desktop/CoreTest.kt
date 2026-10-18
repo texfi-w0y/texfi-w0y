@@ -78,4 +78,27 @@ class CoreTest {
         val stamp = Diag.stamp(java.time.Instant.parse("2026-10-17T17:08:00Z").toEpochMilli(), java.util.TimeZone.getTimeZone("Europe/Warsaw"))
         assertEquals("17 Oct, 19:08", stamp)
     }
+
+    @Test
+    fun visualizerStylesFollowTheLook() {
+        assertEquals(listOf(VisualizerStyle.LINES, VisualizerStyle.ORBIT, VisualizerStyle.TERRAIN), VisualizerStyle.of(UiStyle.HAIRLINE))
+        // Старый выбор из Pixel/Smooth превращается в ближайший свой стиль Hairline.
+        assertEquals(VisualizerStyle.LINES, VisualizerStyle.SEGMENTS.forUi(UiStyle.HAIRLINE))
+        assertEquals(VisualizerStyle.ORBIT, VisualizerStyle.WAVE.forUi(UiStyle.HAIRLINE))
+        assertEquals(VisualizerStyle.SEGMENTS, VisualizerStyle.LINES.forUi(UiStyle.PIXEL))
+        assertTrue(VisualizerStyle.of(UiStyle.PIXEL).none { it.hair })
+    }
+
+    @Test
+    fun newDefaultsMatchThePhone() {
+        val d = DSettings()
+        assertFalse(d.doubleClickPlay) // один клик включает трек, как на телефоне
+        assertTrue(d.eqEnabled)
+        assertEquals(CoverShape.ROUNDED, d.hlCoverShape)
+        assertEquals(RecEndMode.CONTINUE, d.recEndMode)
+        assertTrue(d.homeRecBlocks)
+        // Старый файл настроек читается: новых полей в нём нет.
+        val old = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(DSettings.serializer(), "{\"language\":\"RU\"}")
+        assertEquals(LineWeight.THIN, old.hlWeight)
+    }
 }

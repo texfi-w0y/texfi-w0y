@@ -32,6 +32,7 @@ sealed interface Screen {
     data object Player : Screen
     data object Settings : Screen
     data object Stats : Screen
+    data object Taste : Screen
 }
 
 /** Всё состояние приложения в одном месте: экран, библиотека, аккаунт, плеер. */
@@ -118,6 +119,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         player.start(lib.queue.map { it.toItem() }, if (lib.queue.isEmpty()) -1 else lib.queueIndex, lib.volume)
         mpris = if (Platform.isLinux) Mpris(this, scope).takeIf { it.start() } else null
         loadHome()
+        weeklyIfDue()
         if (signedIn) syncAccount(force = true)
         updater.checkOnStart()
     }
@@ -208,7 +210,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         update {
             it.copy(
                 history = (listOf(song.stored()) + it.history.filterNot { h -> h.id == song.id }).take(300),
-                artistPlays = if (artist.isBlank()) it.artistPlays else it.artistPlays + (artist to ((it.artistPlays[artist] ?: 0) + 1)),
+                artistPlays = if (artist.isBlank() || !it.settings.tasteLearning) it.artistPlays else it.artistPlays + (artist to ((it.artistPlays[artist] ?: 0) + 1)),
             )
         }
     }

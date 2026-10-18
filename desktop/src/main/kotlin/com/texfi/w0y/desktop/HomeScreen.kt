@@ -193,7 +193,7 @@ private fun forgottenFavorites(app: AppState): List<SongItem> {
     val cutoff = System.currentTimeMillis() - 21L * 24 * 3600 * 1000
     val recent = app.lib.playLog.filter { it.at >= cutoff }.mapTo(HashSet()) { it.song.id }
     val day = System.currentTimeMillis() / (24L * 3600 * 1000)
-    return app.lib.liked.filter { it.id !in recent }.shuffled(Random(day)).take(12).map { it.toItem() }
+    return app.lib.liked.filter { it.id !in recent && it.artist.substringBefore(',').trim().lowercase() !in app.st.tasteExcluded }.shuffled(Random(day)).take(12).map { it.toItem() }
 }
 
 /** Под это время суток: что чаще всего включали в такие же часы (±2 ч), кроме слушанного за последние два часа. */
@@ -206,7 +206,7 @@ private fun timeOfDayPicks(app: AppState): List<SongItem> {
     val fresh = app.lib.playLog.filter { it.at >= now - 2 * 3600 * 1000 }.mapTo(HashSet()) { it.song.id }
     val counts = HashMap<String, Int>()
     val songs = HashMap<String, com.texfi.w0y.desktop.StoredSong>()
-    app.lib.playLog.filter { near(hourOf(it.at)) && it.song.id !in fresh }.forEach {
+    app.lib.playLog.filter { near(hourOf(it.at)) && it.song.id !in fresh && it.song.artist.substringBefore(',').trim().lowercase() !in app.st.tasteExcluded }.forEach {
         songs[it.song.id] = it.song
         counts.merge(it.song.id, 1, Int::plus)
     }
