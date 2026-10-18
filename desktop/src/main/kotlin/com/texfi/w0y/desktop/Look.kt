@@ -24,16 +24,23 @@ object ThemeState {
  * форма, рамка и тень приходят отсюда, поэтому новый экран сразу рисуется в обоих.
  */
 object Look {
-    val smooth: Boolean get() = ThemeState.style == UiStyle.SMOOTH
+    /** Hairline: линия 1px вместо теней, плоские карточки, один акцент. */
+    val hair: Boolean get() = ThemeState.style == UiStyle.HAIRLINE
 
-    /** Стекло: панели полупрозрачные и размывают то, что под ними. */
-    val glass: Boolean get() = smooth && ThemeState.glass
+    /** Скруглённые формы: Smooth и Hairline (у Pixel квадратные). Особенности Hairline — через [hair]. */
+    val smooth: Boolean get() = ThemeState.style != UiStyle.PIXEL
 
-    /** Скругление карточек: у Pixel почти квадрат, у Smooth крупно, как на телефоне. */
-    val card: Dp get() = if (smooth) 22.dp else 6.dp
-    val control: Dp get() = if (smooth) 50.dp else 4.dp
-    val cover: Dp get() = if (smooth) 12.dp else 4.dp
-    val row: Dp get() = if (smooth) 14.dp else 6.dp
+    /** Стекло: панели полупрозрачные и размывают то, что под ними. Только у Smooth. */
+    val glass: Boolean get() = ThemeState.style == UiStyle.SMOOTH && ThemeState.glass
+
+    /** Скругление карточек: Pixel почти квадрат, Smooth крупно, Hairline 10. */
+    val card: Dp get() = if (hair) 10.dp else if (smooth) 22.dp else 6.dp
+    val control: Dp get() = if (hair) 3.dp else if (smooth) 50.dp else 4.dp
+    val cover: Dp get() = if (hair) 6.dp else if (smooth) 12.dp else 4.dp
+    val row: Dp get() = if (hair) 8.dp else if (smooth) 14.dp else 6.dp
+
+    /** Толщина линии: у Hairline 1px, у Pixel 2. */
+    val line: Dp get() = if (hair) 1.dp else 2.dp
 }
 
 /**
@@ -51,13 +58,14 @@ object C {
     val BlueLight = Color(0xFF7FB5FF)
     val Sand: Color get() = if (light && accent == Accent.BLUE) Color(0xFFB98232) else Color(accent.secondary)
     val SandDeep = Color(0xFF8A5F26)
-    val Background: Color get() = if (light) Color(0xFFF7F1E4) else if (oled) Color(0xFF000000) else Color(0xFF15151B)
-    val Surface: Color get() = if (light) Color(0xFFFFFDF7) else if (oled) Color(0xFF000000) else Color(0xFF1F1F27)
-    val SurfaceHigh: Color get() = if (light) Color(0xFFEDE4D2) else if (oled) Color(0xFF101014) else Color(0xFF2A2A34)
-    val Border: Color get() = if (light) Color(0xFFD5C7AC) else if (oled) Color(0xFF2C2C36) else Color(0xFF383845)
+    private val hair get() = Look.hair
+    val Background: Color get() = if (hair) (if (light) Color(0xFFF6F6F3) else if (oled) Color(0xFF000000) else Color(0xFF0A0A0C)) else if (light) Color(0xFFF7F1E4) else if (oled) Color(0xFF000000) else Color(0xFF15151B)
+    val Surface: Color get() = if (hair) (if (light) Color(0xFFFFFFFF) else if (oled) Color(0xFF0A0A0C) else Color(0xFF111114)) else if (light) Color(0xFFFFFDF7) else if (oled) Color(0xFF000000) else Color(0xFF1F1F27)
+    val SurfaceHigh: Color get() = if (hair) (if (light) Color(0xFFEFEFEB) else if (oled) Color(0xFF111114) else Color(0xFF18181C)) else if (light) Color(0xFFEDE4D2) else if (oled) Color(0xFF101014) else Color(0xFF2A2A34)
+    val Border: Color get() = if (hair) (if (light) Color(0xFFDCDCD6) else Color(0xFF26262C)) else if (light) Color(0xFFD5C7AC) else if (oled) Color(0xFF2C2C36) else Color(0xFF383845)
     val Shadow: Color get() = if (light) Color(0xFFC9B99B) else if (oled) Color(0xFF17171D) else Color(0xFF0A0A0E)
-    val Text: Color get() = if (light) Color(0xFF191921) else Color(0xFFF6F1E5)
-    val Muted: Color get() = if (light) Color(0xFF6B6455) else Color(0xFF8A8A96)
+    val Text: Color get() = if (hair) (if (light) Color(0xFF0C0C0F) else Color(0xFFF4F4F6)) else if (light) Color(0xFF191921) else Color(0xFFF6F1E5)
+    val Muted: Color get() = if (hair) (if (light) Color(0xFF55555E) else Color(0xFFA3A3AD)) else if (light) Color(0xFF6B6455) else Color(0xFF8A8A96)
     val Danger = Color(0xFFFF5A5A)
 
     /** Текст на заливке акцентом — светлый или тёмный по контрасту, как на телефоне. */
@@ -81,3 +89,10 @@ object C {
 }
 
 val PixelFont = FontFamily(Font(resource = "press_start_2p.ttf"))
+
+/** Шрифты Hairline: Unbounded — заголовки и крупные числа, JetBrains Mono — подписи; текст читают системным. */
+val UnboundedFont = FontFamily(
+    Font(resource = "unbounded_semibold.ttf", weight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+    Font(resource = "unbounded_extrabold.ttf", weight = androidx.compose.ui.text.font.FontWeight.ExtraBold),
+)
+val MonoFont = FontFamily(Font(resource = "jetbrains_mono_medium.ttf"))

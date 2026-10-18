@@ -61,6 +61,9 @@ fun Txt(
     weight: FontWeight = FontWeight.Normal,
     maxLines: Int = 1,
 ) {
+    // Hairline: крупные заголовки — Unbounded, мелкие подписи — моно с разрядкой; читаемый текст — системный.
+    val hairHeading = Look.hair && pixel && size >= 16
+    val hairLabel = Look.hair && pixel && size < 16
     BasicText(
         text = text,
         modifier = modifier,
@@ -70,21 +73,33 @@ fun Txt(
             TextStyle(
                 color = color,
                 fontSize = size.sp,
-                fontFamily = if (pixel && !Look.smooth) PixelFont else FontFamily.Default,
-                fontWeight = if (pixel && Look.smooth) FontWeight.SemiBold else weight,
+                fontFamily = when {
+                    hairHeading -> UnboundedFont
+                    hairLabel -> MonoFont
+                    pixel && !Look.smooth -> PixelFont
+                    else -> FontFamily.Default
+                },
+                fontWeight = if (hairHeading) FontWeight.SemiBold else if (pixel && Look.smooth && !hairLabel) FontWeight.SemiBold else if (hairLabel) FontWeight.Medium else weight,
                 lineHeight = (size * 1.35f).sp,
+                letterSpacing = if (hairLabel) (size * 0.1f).sp else if (hairHeading) (-size * 0.02f).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
             ),
     )
 }
 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) =
-    if (Look.smooth) Txt(text, modifier, color = C.Muted, size = 13, pixel = true) else Txt(text.uppercase(), modifier, color = C.Blue, size = 11, pixel = true)
+    if (Look.hair) Txt(text.uppercase(), modifier, color = C.Muted, size = 11, pixel = true)
+    else if (Look.smooth) Txt(text, modifier, color = C.Muted, size = 13, pixel = true)
+    else Txt(text.uppercase(), modifier, color = C.Blue, size = 11, pixel = true)
 
 /** Карточка: у Pixel жёсткая граница и сдвинутая тень без размытия, у Smooth — скруглённая подложка (стекло или матовая). */
 @Composable
 fun PixelCard(modifier: Modifier = Modifier, padding: Dp = 14.dp, content: @Composable () -> Unit) {
-    if (Look.smooth) {
+    if (Look.hair) {
+        // Линия вместо тени: поверхность, рамка 1px, радиус 10.
+        val shape = RoundedCornerShape(Look.card)
+        Box(modifier.background(C.Surface, shape).border(Look.line, C.Border, shape).padding(padding)) { content() }
+    } else if (Look.smooth) {
         val shape = RoundedCornerShape(Look.card)
         Box(modifier.smoothSurface(shape).padding(padding)) { content() }
     } else {
@@ -105,6 +120,20 @@ fun PixelButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
     val fill = if (primary) C.Blue else C.SurfaceHigh
+    if (Look.hair) {
+        // Основная — светлая плашка цвета текста, при наведении «пустая»; вторичная — только рамка.
+        val shape = RoundedCornerShape(Look.control)
+        val filled = primary && !(hovered && enabled)
+        Box(
+            modifier.hoverable(source).clip(shape)
+                .background(if (filled) C.Text.copy(alpha = if (enabled) 1f else 0.3f) else Color.Transparent)
+                .border(Look.line, if (primary) C.Text.copy(alpha = if (enabled) 1f else 0.3f) else if (hovered && enabled) C.Text else C.Border, shape)
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) { Txt(text.uppercase(), color = if (!enabled) C.Muted else if (filled) C.Background else C.Text, size = 11, pixel = true) }
+        return
+    }
     if (Look.smooth) {
         val shape = RoundedCornerShape(Look.control)
         Box(
@@ -391,6 +420,13 @@ fun PixelSlider(value: Float, range: ClosedFloatingPointRange<Float>, onChange: 
             .pointerInput(Unit) { detectTapGestures { onChange(at(it.x, size.width)) } }
             .pointerInput(Unit) { detectDragGestures { c, _ -> onChange(at(c.position.x, size.width)) } }
             .drawBehind {
+                if (Look.hair) {
+                    val f = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+                    drawRect(C.Border, Offset(0f, size.height / 2 - 0.5.dp.toPx()), Size(size.width, 1.dp.toPx()))
+                    drawRect(color, Offset(0f, size.height / 2 - 0.5.dp.toPx()), Size(size.width * f, 1.dp.toPx()))
+                    drawCircle(color, 4.dp.toPx(), Offset(size.width * f, size.height / 2))
+                    return@drawBehind
+                }
                 val gap = 2.dp.toPx()
                 val w = (size.width - gap * (segments - 1)) / segments
                 val filled = (((value - range.start) / (range.endInclusive - range.start)) * segments).toInt()

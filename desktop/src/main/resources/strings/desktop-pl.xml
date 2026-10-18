@@ -132,4 +132,6 @@
     <string name="stand_flip_desc">Dla ekranu ustawionego do góry nogami. Przycisk w trybie podstawki też go obraca.</string>
     <string name="stand_view_desc">Co jest duże na ekranie podstawki. Przytrzymaj przycisk myszy, aby przełączyć.</string>
     <string name="welcome_intro">Muzyka z YouTube bez reklam i ograniczeń. Z twoim kontem — twoje playlisty i pobrania na komputerze.</string>
+    <string name="style_hairline">Hairline</string>
+    <string name="style_hairline_hint">Cichy i cienki: linie zamiast cieni, jeden akcent. Domyślny wygląd.</string>
 </resources>

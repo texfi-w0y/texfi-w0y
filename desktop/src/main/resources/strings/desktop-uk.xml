@@ -132,4 +132,6 @@
     <string name="stand_flip_desc">Для екрана, що стоїть догори дриґом. Кнопка в режимі підставки теж перевертає.</string>
     <string name="stand_view_desc">Що великим на екрані підставки. Затисни кнопку миші, щоб перемкнути.</string>
     <string name="welcome_intro">Музика з YouTube без реклами й обмежень. З вашим акаунтом — ваші плейлисти та завантаження на комп\'ютері.</string>
+    <string name="style_hairline">Hairline</string>
+    <string name="style_hairline_hint">Строгий і тонкий: лінії замість тіней, один акцент. Основний вигляд.</string>
 </resources>

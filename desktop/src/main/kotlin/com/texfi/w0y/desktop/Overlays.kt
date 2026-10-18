@@ -242,7 +242,9 @@ fun KeyCap(combo: String) {
 
 @Composable
 private fun WelcomeOverlay(app: AppState) {
-    var style by remember { mutableStateOf(app.st.uiStyle) }
+    // Новому пользователю сразу показываем Hairline — он основной; выбор сохраняется кнопкой «Начать».
+    var style by remember { mutableStateOf(if (app.st.stylePicked) app.st.uiStyle else UiStyle.HAIRLINE) }
+    LaunchedEffect(Unit) { if (!app.st.stylePicked) app.setSt { it.copy(uiStyle = UiStyle.HAIRLINE, accent = Accent.BLUE) } }
     val langs = Language.entries
     Box(Modifier.fillMaxSize().background(C.Background), contentAlignment = Alignment.Center) {
         Column(Modifier.width(720.dp).verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -278,7 +280,7 @@ private fun WelcomeOverlay(app: AppState) {
                 }
             }
             Gap(h = 28)
-            PixelButton(S("welcome_start"), onClick = { app.setSt { it.copy(welcomeSeen = true, stylePicked = true, uiStyle = style) } })
+            PixelButton(S("welcome_start"), onClick = { app.setSt { it.copy(welcomeSeen = true, stylePicked = true, uiStyle = style, accent = if (style == UiStyle.HAIRLINE) Accent.BLUE else it.accent) } })
         }
     }
 }
@@ -286,7 +288,8 @@ private fun WelcomeOverlay(app: AppState) {
 @Composable
 private fun StyleCard(s: UiStyle, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val smooth = s == UiStyle.SMOOTH
-    val shape = RoundedCornerShape(if (smooth) 22.dp else 6.dp)
+    val hair = s == UiStyle.HAIRLINE
+    val shape = RoundedCornerShape(if (hair) 10.dp else if (smooth) 22.dp else 6.dp)
     Column(
         modifier.clip(shape).background(if (selected) C.SurfaceHigh else C.Surface)
             .border(if (selected) 2.dp else 1.dp, if (selected) C.Blue else C.Border, shape)
@@ -295,7 +298,13 @@ private fun StyleCard(s: UiStyle, selected: Boolean, modifier: Modifier, onClick
         // Миниатюра: боковая панель и плеер так, как их рисует этот стиль.
         Box(Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(if (smooth) 14.dp else 3.dp)).background(Color(0xFF15151B)).drawBehind {
             val bar = if (smooth) 14.dp.toPx() else 2.dp.toPx()
-            if (smooth) {
+            if (hair) {
+                drawRect(Color(0xFF0A0A0C))
+                drawRect(Color(0xFF26262C), Offset(60.dp.toPx(), 0f), androidx.compose.ui.geometry.Size(1.dp.toPx(), size.height))
+                drawRect(Color(0xFF26262C), Offset(0f, size.height - 28.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                drawRect(Color(0xFF4A7DFB), Offset(0f, 20.dp.toPx()), androidx.compose.ui.geometry.Size(2.dp.toPx(), 14.dp.toPx()))
+                drawRect(Color(0xFFF4F4F6), Offset(size.width - 34.dp.toPx(), size.height - 22.dp.toPx()), androidx.compose.ui.geometry.Size(16.dp.toPx(), 16.dp.toPx()))
+            } else if (smooth) {
                 drawCircle(Brush.radialGradient(listOf(C.Blue.copy(alpha = .4f), Color.Transparent), Offset(size.width * .2f, size.height * .1f), size.width * .5f), size.width * .5f, Offset(size.width * .2f, size.height * .1f))
                 drawRoundRect(Color.White.copy(alpha = .12f), Offset(8.dp.toPx(), 8.dp.toPx()), androidx.compose.ui.geometry.Size(52.dp.toPx(), size.height - 16.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(bar))
                 drawRoundRect(Color.White.copy(alpha = .12f), Offset(68.dp.toPx(), size.height - 30.dp.toPx()), androidx.compose.ui.geometry.Size(size.width - 76.dp.toPx(), 22.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(bar))
@@ -317,7 +326,7 @@ private fun StyleCard(s: UiStyle, selected: Boolean, modifier: Modifier, onClick
 /** Выбор из нескольких: плашка, выбранная подсвечена акцентом. */
 @Composable
 fun ChoiceChip(text: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(if (Look.smooth) 50.dp else 4.dp)
+    val shape = RoundedCornerShape(if (Look.hair) 3.dp else if (Look.smooth) 50.dp else 4.dp)
     Box(
         Modifier.clip(shape).background(if (selected) C.Blue else C.SurfaceHigh)
             .border(if (Look.smooth) 0.dp else 2.dp, if (selected) C.BlueDeep else C.Border, shape)

@@ -81,6 +81,7 @@ enum class Accent(override val key: String, val accent: Long, val deep: Long, va
 /** Оформление: Pixel — родной язык TexFi, Smooth — скругления и стекло. */
 @Serializable
 enum class UiStyle(override val key: String, val hintKey: String) : Labeled {
+    HAIRLINE("style_hairline", "style_hairline_hint"),
     PIXEL("style_pixel", "style_pixel_hint"),
     SMOOTH("style_smooth", "style_smooth_hint"),
     ;
@@ -108,7 +109,7 @@ enum class VisualizerStyle(override val key: String, val smooth: Boolean) : Labe
 
     /** Стиль под оформление: чужой заменяется ближайшим своим. */
     fun forUi(style: UiStyle): VisualizerStyle =
-        if (style == UiStyle.SMOOTH) {
+        if (style != UiStyle.PIXEL) {
             when (this) {
                 SEGMENTS, MOSAIC -> BARS
                 SCOPE, RING -> WAVE

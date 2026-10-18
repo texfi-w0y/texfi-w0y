@@ -65,7 +65,7 @@ fun ScreenFrame(title: String, app: AppState, canBack: Boolean, actions: @Compos
                 IconButton(Glyph.Prev, onClick = app::back)
                 Gap(w = 8)
             }
-            if (Look.smooth) Txt(title.replaceFirstChar(Char::uppercase), size = 28, weight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (Look.smooth) Txt(title.replaceFirstChar(Char::uppercase), size = 28, pixel = Look.hair, weight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
             else Txt(title.uppercase(), pixel = true, size = 18, modifier = Modifier.weight(1f))
             actions()
         }

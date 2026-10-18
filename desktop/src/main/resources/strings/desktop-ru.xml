@@ -132,4 +132,6 @@
     <string name="stand_flip_desc">Для экрана, стоящего вверх ногами. Кнопка в режиме подставки тоже переворачивает.</string>
     <string name="stand_view_desc">Что крупно на экране подставки. Зажми кнопку мыши, чтобы переключить.</string>
     <string name="welcome_intro">Музыка из YouTube без рекламы и ограничений. С вашим аккаунтом — ваши плейлисты и загрузки на компьютере.</string>
+    <string name="style_hairline">Hairline</string>
+    <string name="style_hairline_hint">Строгий и тонкий: линии вместо теней, один акцент. Основной вид.</string>
 </resources>

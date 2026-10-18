@@ -132,4 +132,6 @@
     <string name="stand_flip_desc">For a screen mounted upside down. The button in stand mode flips it too.</string>
     <string name="stand_view_desc">What is big on the stand screen. Click and hold to switch.</string>
     <string name="welcome_intro">Music from YouTube with no ads and no limits. With your account, your playlists and downloads on your computer.</string>
+    <string name="style_hairline">Hairline</string>
+    <string name="style_hairline_hint">Quiet and thin: lines instead of shadows, one accent. The default look.</string>
 </resources>

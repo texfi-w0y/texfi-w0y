@@ -10,7 +10,10 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -80,7 +83,9 @@ fun App(app: AppState) {
         }
     }
     Box(Modifier.fillMaxSize().background(C.Background).focusRequester(focus).focusable().appKeys(app)) {
-        if (Look.smooth) {
+        if (Look.hair) {
+            HairShell(app, screens)
+        } else if (Look.smooth) {
             SmoothShell(app, backdrop, screens)
         } else {
             PixelShell(app, screens)
@@ -103,6 +108,28 @@ private fun PixelShell(app: AppState, screens: @Composable () -> Unit) {
         }
     }
 }
+
+/**
+ * Hairline: слева постоянная панель, по центру экран, внизу на всю ширину полоса плеера.
+ * Тонкие линии вместо теней, острова нет. Окно уже ~1100dp — панель сжимается до значков.
+ */
+@Composable
+private fun HairShell(app: AppState, screens: @Composable () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < COMPACT_WIDTH
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                Sidebar(app, compact = compact)
+                Box(Modifier.width(1.dp).fillMaxHeight().background(C.Border))
+                Box(Modifier.weight(1f).fillMaxHeight()) { screens() }
+            }
+            PlayerBar(app)
+        }
+    }
+}
+
+/** Ширина окна, ниже которой боковая панель показывает только значки. */
+private val COMPACT_WIDTH = 1100.dp
 
 private val SidebarWidth = 208.dp
 private val BarHeight = 84.dp
@@ -184,41 +211,56 @@ fun Starfield(animated: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Sidebar(app: AppState, modifier: Modifier = Modifier) {
-    val smooth = Look.smooth
+private fun Sidebar(app: AppState, modifier: Modifier = Modifier, compact: Boolean = false) {
+    val smooth = Look.smooth && !Look.hair
+    val width = if (Look.hair) (if (compact) 72.dp else 220.dp) else 190.dp
     Column(
-        (if (smooth) modifier else modifier.width(190.dp).fillMaxHeight().background(C.Surface)).padding(vertical = 22.dp, horizontal = 14.dp),
+        (if (smooth) modifier else modifier.width(width).fillMaxHeight().background(if (Look.hair) C.Background else C.Surface)).padding(vertical = 22.dp, horizontal = if (compact) 10.dp else 14.dp),
     ) {
-        Txt("w0y", pixel = true, size = if (smooth) 26 else 22, color = C.Blue, weight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
-        Txt("texfi", pixel = true, size = if (smooth) 12 else 9, color = C.Sand, modifier = Modifier.padding(start = 8.dp, bottom = 24.dp))
-        NavItem(S("tab_home"), Glyph.Home, app.screen == Screen.Home) { app.tab(Screen.Home) }
-        NavItem(S("tab_search"), Glyph.Search, app.screen == Screen.Search) { app.tab(Screen.Search) }
-        NavItem(S("tab_library"), Glyph.Library, app.screen in listOf(Screen.Library, Screen.Liked, Screen.History, Screen.Downloaded, Screen.Stats) || app.screen is Screen.Local) { app.tab(Screen.Library) }
-        NavItem(S("d_tab_player"), Glyph.Wave, app.screen == Screen.Player || app.screen == Screen.Queue) { app.tab(Screen.Player) }
-        NavItem(S("settings_title"), Glyph.Gear, app.screen == Screen.Settings) { app.tab(Screen.Settings) }
+        if (compact) {
+            Txt("w0y", pixel = true, size = 16, color = C.Text, modifier = Modifier.padding(start = 4.dp, bottom = 24.dp))
+        } else {
+            Txt("w0y", pixel = true, size = if (smooth) 26 else 22, color = if (Look.hair) C.Text else C.Blue, weight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
+            Txt("texfi", pixel = true, size = if (smooth) 12 else if (Look.hair) 11 else 9, color = if (Look.hair) C.Muted else C.Sand, modifier = Modifier.padding(start = 8.dp, bottom = 24.dp))
+        }
+        NavItem(S("tab_home"), Glyph.Home, app.screen == Screen.Home, compact) { app.tab(Screen.Home) }
+        NavItem(S("tab_search"), Glyph.Search, app.screen == Screen.Search, compact) { app.tab(Screen.Search) }
+        NavItem(S("tab_library"), Glyph.Library, app.screen in listOf(Screen.Library, Screen.Liked, Screen.History, Screen.Downloaded, Screen.Stats) || app.screen is Screen.Local, compact) { app.tab(Screen.Library) }
+        NavItem(S("d_tab_player"), Glyph.Wave, app.screen == Screen.Player || app.screen == Screen.Queue, compact) { app.tab(Screen.Player) }
+        NavItem(S("settings_title"), Glyph.Gear, app.screen == Screen.Settings, compact) { app.tab(Screen.Settings) }
         Box(Modifier.weight(1f))
         app.lib.accountName?.let {
             RowCenter(Modifier.padding(8.dp)) {
                 Cover(app.lib.accountAvatar, 28.dp, circle = true)
-                Gap(w = 8)
-                Txt(it, color = C.Muted, size = 12)
+                if (!compact) {
+                    Gap(w = 8)
+                    Txt(it, color = C.Muted, size = 12)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun NavItem(label: String, glyph: Glyph, active: Boolean, onClick: () -> Unit) {
+private fun NavItem(label: String, glyph: Glyph, active: Boolean, compact: Boolean = false, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(if (Look.smooth) 18.dp else 6.dp)
-    RowCenter(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp).hoverable(source).clip(shape)
-            .background(if (active) (if (Look.smooth) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else hoverBackground(source))
+    val shape = RoundedCornerShape(if (Look.hair) 3.dp else if (Look.smooth) 18.dp else 6.dp)
+    val focused by source.collectIsFocusedAsState()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).hoverable(source).clip(shape)
+            .background(if (active) (if (Look.smooth && !Look.hair) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else hoverBackground(source))
+            .then(if (focused) Modifier.border(1.dp, C.Blue, shape) else Modifier)
+            .drawBehind { if (Look.hair && active) drawRect(C.Blue, Offset.Zero, Size(2.dp.toPx(), size.height)) }
+            .focusable(interactionSource = source)
             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start,
     ) {
         Icon(glyph, if (active) C.Blue else C.Muted, 20.dp)
-        Gap(w = 12)
-        Txt(label, color = if (active) C.Text else C.Muted, size = 15, weight = if (active && Look.smooth) FontWeight.SemiBold else FontWeight.Normal)
+        if (!compact) {
+            Gap(w = 12)
+            Txt(label, color = if (active) C.Text else C.Muted, size = 15, weight = if (active && Look.smooth) FontWeight.SemiBold else FontWeight.Normal)
+        }
     }
 }
 
@@ -231,9 +273,9 @@ private fun fmt(seconds: Double): String {
 private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
     val p = app.player
     val song = p.current
-    val smooth = Look.smooth
-    Column(if (smooth) modifier else modifier.fillMaxWidth().background(C.Surface)) {
-        if (!smooth) Box(Modifier.fillMaxWidth().height(2.dp).background(C.Border))
+    val smooth = Look.smooth && !Look.hair
+    Column(if (smooth) modifier else modifier.fillMaxWidth().background(if (Look.hair) C.Background else C.Surface)) {
+        if (!smooth) Box(Modifier.fillMaxWidth().height(Look.line).background(C.Border))
         Box(Modifier.fillMaxWidth().padding(horizontal = if (smooth) 26.dp else 18.dp).padding(top = if (smooth) 10.dp else 10.dp)) {
             SegmentedSeek(p.position, p.duration, onSeek = p::seekFraction)
         }
@@ -259,11 +301,12 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
                 IconButton(Glyph.Prev, onClick = p::previous, size = 22.dp, box = 40.dp)
                 Gap(w = 6)
                 Box(
-                    (if (smooth) Modifier.size(48.dp).clip(CircleShape).background(C.Blue)
+                    (if (Look.hair) Modifier.size(42.dp).clip(RoundedCornerShape(3.dp)).background(C.Text)
+                    else if (smooth) Modifier.size(48.dp).clip(CircleShape).background(C.Blue)
                     else Modifier.size(46.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue).border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)))
                         .clickable(onClick = p::toggle),
                     contentAlignment = Alignment.Center,
-                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.OnAccent, 24.dp) }
+                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, if (Look.hair) C.Background else C.OnAccent, 24.dp) }
                 Gap(w = 6)
                 IconButton(Glyph.Next, onClick = { p.nextClick() }, size = 22.dp, box = 40.dp)
             }
@@ -293,6 +336,14 @@ fun SegmentedSeek(position: Double, duration: Double, onSeek: (Double) -> Unit) 
             }.pointerInput(duration) {
                 detectDragGestures { change, _ -> onSeek((change.position.x / size.width).toDouble().coerceIn(0.0, 1.0)) }
             }.drawBehind {
+                if (Look.hair) {
+                    // Линия 1px, пройденная часть акцентом, точка на текущем месте.
+                    val y = size.height / 2
+                    drawRect(C.Border, Offset(0f, y - 0.5.dp.toPx()), Size(size.width, 1.dp.toPx()))
+                    drawRect(C.Blue, Offset(0f, y - 0.5.dp.toPx()), Size(size.width * fraction, 1.dp.toPx()))
+                    drawCircle(C.Blue, 4.dp.toPx(), Offset(size.width * fraction, y))
+                    return@drawBehind
+                }
                 if (Look.smooth) {
                     val h = 5.dp.toPx()
                     val y = (size.height - h) / 2
@@ -323,6 +374,13 @@ private fun VolumeBar(volume: Int, onChange: (Int) -> Unit) {
             .pointerInput(Unit) { detectTapGestures { onChange((it.x / size.width * 100).toInt()) } }
             .pointerInput(Unit) { detectDragGestures { c, _ -> onChange((c.position.x / size.width * 100).toInt().coerceIn(0, 100)) } }
             .drawBehind {
+                if (Look.hair) {
+                    val f = volume / 100f
+                    drawRect(C.Border, Offset(0f, size.height / 2 - 0.5.dp.toPx()), Size(size.width, 1.dp.toPx()))
+                    drawRect(C.Text, Offset(0f, size.height / 2 - 0.5.dp.toPx()), Size(size.width * f, 1.dp.toPx()))
+                    drawCircle(C.Text, 4.dp.toPx(), Offset(size.width * f, size.height / 2))
+                    return@drawBehind
+                }
                 if (Look.smooth) {
                     val h = 5.dp.toPx()
                     val y = (size.height - h) / 2

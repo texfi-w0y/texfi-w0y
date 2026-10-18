@@ -48,6 +48,13 @@ val sharedPlayback = tasks.register<Sync>("sharedPlayback") {
 sourceSets.main { kotlin.srcDir(layout.buildDirectory.dir("generated/shared")) }
 tasks.named("compileKotlin") { dependsOn(sharedSources, sharedIcons, sharedPlayback) }
 
+// Шрифты Hairline — те же файлы, что у телефона (Unbounded, JetBrains Mono).
+val androidFonts = tasks.register<Sync>("androidFonts") {
+    from("../app/src/main/res/font") { include("unbounded_semibold.ttf", "unbounded_extrabold.ttf", "jetbrains_mono_medium.ttf") }
+    into(layout.buildDirectory.dir("generated/fonts"))
+}
+sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/fonts")) }
+
 // Строки интерфейса — те же файлы, что у Android: один перевод на оба приложения.
 // Читаются при запуске как обычный XML (см. i18n/Strings.kt), ничего не копируется руками.
 val androidStrings = tasks.register<Sync>("androidStrings") {
@@ -59,7 +66,7 @@ val androidStrings = tasks.register<Sync>("androidStrings") {
     into(layout.buildDirectory.dir("generated/strings/strings"))
 }
 sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/strings")) }
-tasks.named("processResources") { dependsOn(androidStrings) }
+tasks.named("processResources") { dependsOn(androidStrings, androidFonts) }
 
 // Версия для самого приложения (экран «О приложении», проверка обновлений, Copy debug info).
 val versionFile = tasks.register("versionFile") {
