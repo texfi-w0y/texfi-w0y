@@ -30,7 +30,7 @@ sourceSets.main {
 // Только то, что не знает про Android.
 val sharedSources = tasks.register<Sync>("sharedSources") {
     from(shared) {
-        include("YtJson.kt", "SongItem.kt", "SyncMerge.kt", "CleanMatch.kt", "Profanity.kt")
+        include("YtJson.kt", "SongItem.kt", "SyncMerge.kt", "CleanMatch.kt", "Profanity.kt", "UpdateCore.kt")
     }
     into(layout.buildDirectory.dir("generated/shared/com/texfi/w0y/data"))
 }
@@ -55,6 +55,14 @@ val androidFonts = tasks.register<Sync>("androidFonts") {
 }
 sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/fonts")) }
 
+// Лицензии составных частей: текст из корня репозитория лежит в ресурсах приложения («Настройки → Приложение → Лицензии»).
+val licenseFiles = tasks.register<Sync>("licenseFiles") {
+    from("..") { include("THIRD_PARTY_LICENSES.md") }
+    from("../licenses") { into("licenses") }
+    into(layout.buildDirectory.dir("generated/licenses"))
+}
+sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/licenses")) }
+
 // Строки интерфейса — те же файлы, что у Android: один перевод на оба приложения.
 // Читаются при запуске как обычный XML (см. i18n/Strings.kt), ничего не копируется руками.
 val androidStrings = tasks.register<Sync>("androidStrings") {
@@ -66,7 +74,7 @@ val androidStrings = tasks.register<Sync>("androidStrings") {
     into(layout.buildDirectory.dir("generated/strings/strings"))
 }
 sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/strings")) }
-tasks.named("processResources") { dependsOn(androidStrings, androidFonts) }
+tasks.named("processResources") { dependsOn(androidStrings, androidFonts, licenseFiles) }
 
 // Версия для самого приложения (экран «О приложении», проверка обновлений, Copy debug info).
 val versionFile = tasks.register("versionFile") {

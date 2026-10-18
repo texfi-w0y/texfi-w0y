@@ -1,45 +1,86 @@
 package com.texfi.w0y.desktop
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.isTraySupported
 import androidx.compose.ui.window.rememberWindowState
+import com.texfi.w0y.desktop.i18n.S
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 fun main(args: Array<String>) {
+    Diag.installCrashHandler()
     // `w0y --do play_pause` — команда уже запущенному приложению (для горячих клавиш окружения).
     if (Control.sendIfRequested(args)) return
     application {
         val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main) }
         val app = remember { AppState(scope, Yt(), Store()).also { it.start() } }
         val state = rememberWindowState(size = DpSize(1180.dp, 760.dp))
+        var visible by remember { mutableStateOf(true) }
+        val trayOn = isTraySupported
         LaunchedEffect(Unit) {
             Actions.quit = {
                 app.shutdown()
                 exitApplication()
             }
-            Control.start(app, scope) { state.isMinimized = false }
+            Control.start(app, scope) {
+                visible = true
+                state.isMinimized = false
+            }
         }
         LaunchedEffect(Actions.fullscreen) {
             state.placement = if (Actions.fullscreen) WindowPlacement.Fullscreen else WindowPlacement.Floating
         }
+        // Трей: окно можно убрать, не останавливая музыку; управление — из меню значка.
+        if (trayOn) {
+            Tray(
+                icon = painterResource("icon.png"),
+                tooltip = "w0y",
+                onAction = { visible = true; state.isMinimized = false },
+                menu = {
+                    Item(S("d_tray_show"), onClick = { visible = true; state.isMinimized = false })
+                    Item(S("d_act_play_pause"), onClick = { app.player.toggle() })
+                    Item(S("d_act_next"), onClick = { app.player.nextClick() })
+                    Item(S("d_act_previous"), onClick = { app.player.previous() })
+                    Separator()
+                    Item(S("d_tray_quit"), onClick = { Actions.quit() })
+                },
+            )
+        }
         Window(
             onCloseRequest = {
-                app.shutdown()
-                exitApplication()
+                if (trayOn && app.st.closeToTray) {
+                    visible = false
+                } else {
+                    app.shutdown()
+                    exitApplication()
+                }
             },
+            visible = visible,
             title = "w0y",
             icon = painterResource("icon.png"),
             state = state,
         ) {
-            App(app)
+            // Масштаб интерфейса: всё окно крупнее или мельче, шрифты вместе с размерами.
+            val density = LocalDensity.current
+            val scale = app.st.uiScale.coerceIn(0.7f, 2f)
+            CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale)) {
+                App(app)
+            }
         }
     }
 }

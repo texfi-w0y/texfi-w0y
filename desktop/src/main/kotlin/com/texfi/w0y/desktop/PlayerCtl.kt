@@ -55,6 +55,10 @@ class PlayerCtl(
     private var startJob: Job? = null
     private var mpvOk = true
 
+    /** Какой движок звука работает и его версия — для `Copy debug info`. */
+    val engineName: String get() = mpv.name
+    val engineVersion: String? get() = mpv.version
+
     private val mpv: AudioEngine =
         AudioEngine.create(
             onTime = { t -> countPlayed(t); position = t },

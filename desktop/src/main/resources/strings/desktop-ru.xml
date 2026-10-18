@@ -134,4 +134,25 @@
     <string name="welcome_intro">Музыка из YouTube без рекламы и ограничений. С вашим аккаунтом — ваши плейлисты и загрузки на компьютере.</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Строгий и тонкий: линии вместо теней, один акцент. Основной вид.</string>
+    <string name="d_set_scale_title">Масштаб интерфейса</string>
+    <string name="d_set_scale_desc">Всё окно крупнее или мельче. Меняется сразу; на большом мониторе удобно 125–150%.</string>
+    <string name="d_set_tray_title">Крестик убирает в трей</string>
+    <string name="d_set_tray_desc">Окно закрывается, музыка играет дальше. Вернуть окно и выйти совсем можно из значка в трее.</string>
+    <string name="d_set_autostart_title">Запускать при входе в систему</string>
+    <string name="d_set_autostart_desc">Выключено по умолчанию. Включение добавляет запись автозапуска только для вашего пользователя.</string>
+    <string name="d_set_debug_title">Copy debug info</string>
+    <string name="d_set_debug_desc">Версия, система, движок звука, последние события и записи о вылетах. Токены и cookie не попадают. Текст копируется в буфер, никуда не отправляется.</string>
+    <string name="d_set_debug_btn">Копировать</string>
+    <string name="d_debug_copied">Скопировано в буфер обмена.</string>
+    <string name="d_set_conn_title">Test connection</string>
+    <string name="d_set_conn_desc">Проверяет связь с YouTube Music и GitHub — единственными адресами, куда ходит приложение.</string>
+    <string name="d_set_conn_btn">Проверить</string>
+    <string name="d_set_update_open">Открыть релиз</string>
+    <string name="d_update_banner">Доступна версия %1$s</string>
+    <string name="d_update_fail_noasset">В последнем релизе нет файла для этой системы.</string>
+    <string name="d_tray_show">Показать окно</string>
+    <string name="d_tray_quit">Выйти</string>
+    <string name="d_set_licenses_title">Лицензии</string>
+    <string name="d_set_licenses_desc">Что внутри приложения: libmpv, шрифты, библиотеки. Тексты лицензий лежат рядом с приложением.</string>
+    <string name="d_set_licenses_btn">Открыть</string>
 </resources>

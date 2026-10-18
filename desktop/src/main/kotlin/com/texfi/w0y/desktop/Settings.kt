@@ -219,6 +219,17 @@ data class DSettings(
     // ---- устройства и система
     val audioDevice: String = "auto",
     val notifyTrackChange: Boolean = false,
+    // ---- окно и система (ПК)
+    /** Масштаб интерфейса: 0.8–1.6. */
+    val uiScale: Float = 1f,
+    /** Крестик окна убирает приложение в трей, а не закрывает. */
+    val closeToTray: Boolean = false,
+    val autostart: Boolean = false,
+    // ---- обновления
+    val checkUpdates: Boolean = true,
+    val lastUpdateCheck: Long = 0L,
+    /** Релиз, для которого нажали «Позже»: плашка про него больше не всплывает. */
+    val skippedUpdate: String = "",
     /** Свои сочетания клавиш: id действия → сочетания; чего нет — действует стандартное. */
     val keymap: Map<String, List<String>> = emptyMap(),
 )

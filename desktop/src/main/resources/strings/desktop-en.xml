@@ -134,4 +134,25 @@
     <string name="welcome_intro">Music from YouTube with no ads and no limits. With your account, your playlists and downloads on your computer.</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Quiet and thin: lines instead of shadows, one accent. The default look.</string>
+    <string name="d_set_scale_title">Interface scale</string>
+    <string name="d_set_scale_desc">Makes the whole window larger or smaller. Applies at once; 125–150% suits a big monitor.</string>
+    <string name="d_set_tray_title">Close button hides to tray</string>
+    <string name="d_set_tray_desc">The window closes, music keeps playing. Bring it back or quit from the tray icon.</string>
+    <string name="d_set_autostart_title">Start when you sign in</string>
+    <string name="d_set_autostart_desc">Off by default. Turning it on adds an autostart entry for your user only.</string>
+    <string name="d_set_debug_title">Copy debug info</string>
+    <string name="d_set_debug_desc">Version, system, audio engine, recent events and crash records. No tokens or cookies. The text is copied to the clipboard and sent nowhere.</string>
+    <string name="d_set_debug_btn">Copy</string>
+    <string name="d_debug_copied">Copied to the clipboard.</string>
+    <string name="d_set_conn_title">Test connection</string>
+    <string name="d_set_conn_desc">Checks the connection to YouTube Music and GitHub — the only places the app talks to.</string>
+    <string name="d_set_conn_btn">Run</string>
+    <string name="d_set_update_open">Open release</string>
+    <string name="d_update_banner">Version %1$s is available</string>
+    <string name="d_update_fail_noasset">The latest release has no file for this system.</string>
+    <string name="d_tray_show">Show window</string>
+    <string name="d_tray_quit">Quit</string>
+    <string name="d_set_licenses_title">Licenses</string>
+    <string name="d_set_licenses_desc">What is inside: libmpv, fonts, libraries. License texts ship next to the app.</string>
+    <string name="d_set_licenses_btn">Open</string>
 </resources>

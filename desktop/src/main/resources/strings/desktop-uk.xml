@@ -134,4 +134,25 @@
     <string name="welcome_intro">Музика з YouTube без реклами й обмежень. З вашим акаунтом — ваші плейлисти та завантаження на комп\'ютері.</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Строгий і тонкий: лінії замість тіней, один акцент. Основний вигляд.</string>
+    <string name="d_set_scale_title">Масштаб інтерфейсу</string>
+    <string name="d_set_scale_desc">Усе вікно більше або менше. Змінюється одразу; на великому моніторі зручно 125–150%.</string>
+    <string name="d_set_tray_title">Хрестик ховає в трей</string>
+    <string name="d_set_tray_desc">Вікно закривається, музика грає далі. Повернути вікно і вийти можна зі значка в треї.</string>
+    <string name="d_set_autostart_title">Запускати при вході в систему</string>
+    <string name="d_set_autostart_desc">Вимкнено за замовчуванням. Увімкнення додає запис автозапуску лише для вашого користувача.</string>
+    <string name="d_set_debug_title">Copy debug info</string>
+    <string name="d_set_debug_desc">Версія, система, рушій звуку, останні події та записи про збої. Токени й cookie не потрапляють. Текст копіюється в буфер і нікуди не надсилається.</string>
+    <string name="d_set_debug_btn">Копіювати</string>
+    <string name="d_debug_copied">Скопійовано в буфер обміну.</string>
+    <string name="d_set_conn_title">Test connection</string>
+    <string name="d_set_conn_desc">Перевіряє зв\'язок з YouTube Music і GitHub — єдиними адресами, куди ходить застосунок.</string>
+    <string name="d_set_conn_btn">Перевірити</string>
+    <string name="d_set_update_open">Відкрити реліз</string>
+    <string name="d_update_banner">Доступна версія %1$s</string>
+    <string name="d_update_fail_noasset">В останньому релізі немає файлу для цієї системи.</string>
+    <string name="d_tray_show">Показати вікно</string>
+    <string name="d_tray_quit">Вийти</string>
+    <string name="d_set_licenses_title">Ліцензії</string>
+    <string name="d_set_licenses_desc">Що всередині: libmpv, шрифти, бібліотеки. Тексти ліцензій лежать поряд із застосунком.</string>
+    <string name="d_set_licenses_btn">Відкрити</string>
 </resources>

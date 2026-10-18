@@ -144,6 +144,7 @@ fun HomeScreen(app: AppState) {
         val state = rememberLazyListState()
         Box(Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
+                if (app.updater.bannerVisible) item { UpdateBanner(app) }
                 item { DialSection(app) }
                 if (!app.st.showRecommendations) {
                     item { Empty(S("home_empty")) }
@@ -165,6 +166,24 @@ fun HomeScreen(app: AppState) {
                 item { Gap(h = 24) }
             }
             VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+        }
+    }
+}
+
+/** Плашка «доступна новая версия» на главной: «Обновить» или «Позже» (после «Позже» остаётся кнопка в настройках). */
+@Composable
+private fun UpdateBanner(app: AppState) {
+    val info = (app.updater.state as? com.texfi.w0y.data.UpdateState.Available)?.info ?: return
+    PixelCard(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
+        RowCenter {
+            Column(Modifier.weight(1f)) {
+                Txt(S("d_update_banner", info.label), size = 15, weight = androidx.compose.ui.text.font.FontWeight.Medium)
+                Txt(S("update_dialog_hint"), color = C.Muted, size = 12, maxLines = 2, modifier = Modifier.padding(top = 3.dp))
+            }
+            Gap(w = 14)
+            PixelButton(S("update_dialog_later"), onClick = { app.updater.later() }, primary = false)
+            Gap(w = 8)
+            PixelButton(if (Platform.isWindows) S("update_btn_update") else S("d_set_update_open"), onClick = { app.updater.update() })
         }
     }
 }

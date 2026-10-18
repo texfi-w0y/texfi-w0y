@@ -64,6 +64,9 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
 
     val st: DSettings get() = lib.settings
 
+    /** Проверка обновлений на GitHub (см. [Updater]). */
+    val updater = Updater(this, scope)
+
     fun setSt(block: (DSettings) -> DSettings) {
         val before = st.language
         update { it.copy(settings = block(it.settings)) }
@@ -100,6 +103,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         mpris = if (Platform.isLinux) Mpris(this, scope).takeIf { it.start() } else null
         loadHome()
         if (signedIn) syncAccount(force = true)
+        updater.checkOnStart()
     }
 
     private var mpris: Mpris? = null

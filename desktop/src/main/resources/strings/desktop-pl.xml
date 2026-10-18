@@ -134,4 +134,25 @@
     <string name="welcome_intro">Muzyka z YouTube bez reklam i ograniczeń. Z twoim kontem — twoje playlisty i pobrania na komputerze.</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Cichy i cienki: linie zamiast cieni, jeden akcent. Domyślny wygląd.</string>
+    <string name="d_set_scale_title">Skala interfejsu</string>
+    <string name="d_set_scale_desc">Całe okno większe lub mniejsze. Działa od razu; na dużym monitorze wygodne jest 125–150%.</string>
+    <string name="d_set_tray_title">Zamknięcie chowa do zasobnika</string>
+    <string name="d_set_tray_desc">Okno się zamyka, muzyka gra dalej. Przywrócisz je lub zamkniesz z ikony w zasobniku.</string>
+    <string name="d_set_autostart_title">Uruchamiaj po zalogowaniu</string>
+    <string name="d_set_autostart_desc">Domyślnie wyłączone. Włączenie dodaje wpis autostartu tylko dla Twojego użytkownika.</string>
+    <string name="d_set_debug_title">Copy debug info</string>
+    <string name="d_set_debug_desc">Wersja, system, silnik dźwięku, ostatnie zdarzenia i zapisy awarii. Bez tokenów i cookie. Tekst trafia do schowka i nigdzie nie jest wysyłany.</string>
+    <string name="d_set_debug_btn">Kopiuj</string>
+    <string name="d_debug_copied">Skopiowano do schowka.</string>
+    <string name="d_set_conn_title">Test connection</string>
+    <string name="d_set_conn_desc">Sprawdza połączenie z YouTube Music i GitHub — jedynymi adresami, z którymi łączy się aplikacja.</string>
+    <string name="d_set_conn_btn">Sprawdź</string>
+    <string name="d_set_update_open">Otwórz wydanie</string>
+    <string name="d_update_banner">Dostępna wersja %1$s</string>
+    <string name="d_update_fail_noasset">Najnowsze wydanie nie ma pliku dla tego systemu.</string>
+    <string name="d_tray_show">Pokaż okno</string>
+    <string name="d_tray_quit">Zakończ</string>
+    <string name="d_set_licenses_title">Licencje</string>
+    <string name="d_set_licenses_desc">Co jest w środku: libmpv, czcionki, biblioteki. Teksty licencji są obok aplikacji.</string>
+    <string name="d_set_licenses_btn">Otwórz</string>
 </resources>

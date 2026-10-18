@@ -133,6 +133,26 @@ object Platform {
         return AutoCloseable { p.destroy() }
     }
 
+    /** Автозапуск при входе в систему — только для текущего пользователя, без прав администратора. */
+    fun setAutostart(enabled: Boolean) {
+        runCatching {
+            val exe = ProcessHandle.current().info().command().orElse(null) ?: return
+            if (isWindows) {
+                val key = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+                val args = if (enabled) listOf("reg", "add", key, "/v", "w0y", "/t", "REG_SZ", "/d", "\"$exe\"", "/f") else listOf("reg", "delete", key, "/v", "w0y", "/f")
+                ProcessBuilder(args).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start().waitFor()
+            } else {
+                val file = Path.of(System.getenv("XDG_CONFIG_HOME") ?: "$home/.config", "autostart", "w0y.desktop").toFile()
+                if (enabled) {
+                    file.parentFile.mkdirs()
+                    file.writeText("[Desktop Entry]\nType=Application\nName=w0y\nExec=\"$exe\"\nIcon=w0y\nTerminal=false\n")
+                } else {
+                    file.delete()
+                }
+            }
+        }
+    }
+
     /** Строка для `Copy debug info`. */
     fun describe(): String =
         "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")}), сессия: $sessionType, Java ${System.getProperty("java.version")}"

@@ -55,6 +55,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.texfi.w0y.data.Reverb
+import com.texfi.w0y.data.UpdateState
+import kotlinx.coroutines.launch
 import com.texfi.w0y.desktop.i18n.S
 import java.awt.FileDialog
 import java.awt.Frame
@@ -122,6 +124,7 @@ fun SettingsScreen(app: AppState) {
     var tab by remember { mutableStateOf(STab.PLAYBACK) }
     var query by remember { mutableStateOf("") }
     var aboutOpen by remember { mutableStateOf(false) }
+    var licensesOpen by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
@@ -129,8 +132,12 @@ fun SettingsScreen(app: AppState) {
         AboutPane(app) { aboutOpen = false }
         return
     }
+    if (licensesOpen) {
+        LicensesPane(app) { licensesOpen = false }
+        return
+    }
 
-    val rows = buildRows(app, onAbout = { aboutOpen = true }, onMessage = { message = it }, onReset = { confirmReset = true })
+    val rows = buildRows(app, onAbout = { aboutOpen = true }, onLicenses = { licensesOpen = true }, onMessage = { message = it }, onReset = { confirmReset = true })
     val q = query.trim().lowercase()
     val shown =
         when {
@@ -341,8 +348,43 @@ private fun SettingRowView(r: Setting, showSection: Boolean) {
 
 private fun Float.speedLabel() = "${this}×".replace(".0×", "×")
 
+/** Строка «Обновление приложения»: подпись и кнопка зависят от этапа. */
 @Composable
-private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) -> Unit, onReset: () -> Unit): List<Setting> {
+private fun updateRow(app: AppState): Setting {
+    val u = app.updater
+    val state = u.state
+    val desc: String
+    val action: SetControl.Act?
+    when (state) {
+        UpdateState.Idle -> { desc = S("update_desc_idle", APP_VERSION); action = SetControl.Act(S("update_btn_check")) { u.check() } }
+        UpdateState.Checking -> { desc = S("update_desc_checking"); action = SetControl.Act(S("update_btn_wait")) {} }
+        UpdateState.UpToDate -> { desc = S("update_desc_latest", APP_VERSION); action = SetControl.Act(S("update_btn_check")) { u.check() } }
+        is UpdateState.Available -> {
+            desc = S("update_desc_available", state.info.label, APP_VERSION) + "\n\n" + state.info.notes.take(600)
+            action = SetControl.Act(if (Platform.isWindows) S("update_btn_update") else S("d_set_update_open")) { u.update() }
+        }
+        is UpdateState.Downloading -> {
+            desc = S("update_desc_downloading", state.info.label, if (state.total > 0) (state.done * 100 / state.total).toInt() else 0)
+            action = SetControl.Act(S("update_btn_wait")) {}
+        }
+        is UpdateState.Ready -> { desc = S("update_desc_ready", state.info.label); action = SetControl.Act(S("update_btn_install")) { u.install() } }
+        is UpdateState.Failed -> {
+            desc = when (state.reason) {
+                UpdateState.Reason.OFFLINE -> S("update_fail_offline")
+                UpdateState.Reason.RATE_LIMIT -> S("update_fail_rate")
+                UpdateState.Reason.SERVER -> S("update_fail_server")
+                UpdateState.Reason.BAD_FILE -> S("update_fail_file")
+                UpdateState.Reason.NO_APK -> S("d_update_fail_noasset")
+                UpdateState.Reason.STORAGE -> S("update_fail_storage")
+            }
+            action = SetControl.Act(S("update_btn_retry")) { u.check() }
+        }
+    }
+    return Setting(SSection.DATA, S("update_title"), desc, action ?: SetControl.Info(""), "update обновление")
+}
+
+@Composable
+private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit, onMessage: (String) -> Unit, onReset: () -> Unit): List<Setting> {
     val st = app.st
     val set = app::setSt
     val devices by produceState<List<Pair<String, String>>?>(null) { value = withContext(Dispatchers.IO) { MpvDevices.list() } }
@@ -506,6 +548,8 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) ->
             add(Setting(SSection.LOOK, S("theme_glass"), S("d_set_glass_desc"),
                 choice(listOf(true, false), st.smoothGlass, { if (it) S("style_glass") else S("style_matte") }) { v -> set { it.copy(smoothGlass = v) } }, "glass liquid стекло"))
         }
+        add(Setting(SSection.LOOK, S("d_set_scale_title"), S("d_set_scale_desc"),
+            choice(listOf(0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.5f), st.uiScale, { "${(it * 100).toInt()}%" }) { v -> set { it.copy(uiScale = v) } }, "scale масштаб dpi"))
         add(Setting(SSection.LOOK, S("settings_theme_title"), S("settings_theme_desc"),
             choice(ThemeMode.entries, st.theme, { it.label }) { v -> set { it.copy(theme = v) } }, "оформление тема"))
         add(Setting(SSection.LOOK, S("settings_accent_title"), S("settings_accent_desc"), SetControl.Custom { AccentPicker(app) }, "цвет акцент"))
@@ -559,6 +603,25 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) ->
                 }
             }))
         add(Setting(SSection.DATA, S("d_set_data_title"), S("d_set_data_desc", Store.dirPath()), SetControl.Act(S("download_open")) { Store.openDir() }))
+        // ---- Приложение: окно, обновления, диагностика
+        val debugCopied = S("d_debug_copied")
+        val loadingText = S("d_loading")
+        add(Setting(SSection.DATA, S("d_set_tray_title"), S("d_set_tray_desc"),
+            SetControl.Toggle(st.closeToTray) { v -> set { it.copy(closeToTray = v) } }, "tray трей закрыть close"))
+        add(Setting(SSection.DATA, S("d_set_autostart_title"), S("d_set_autostart_desc"),
+            SetControl.Toggle(st.autostart) { v -> set { it.copy(autostart = v) }; Platform.setAutostart(v) }, "autostart автозапуск"))
+        add(Setting(SSection.DATA, S("update_check_title"), S("update_check_desc"),
+            SetControl.Toggle(st.checkUpdates) { v -> set { it.copy(checkUpdates = v) } }, "update обновление github"))
+        add(updateRow(app))
+        add(Setting(SSection.DATA, S("d_set_debug_title"), S("d_set_debug_desc"), SetControl.Act(S("d_set_debug_btn")) {
+            java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(Diag.text(app)), null)
+            onMessage(debugCopied)
+        }, "debug diagnostics отладка"))
+        add(Setting(SSection.DATA, S("d_set_conn_title"), S("d_set_conn_desc"), SetControl.Act(S("d_set_conn_btn")) {
+            onMessage(loadingText)
+            app.scope.launch { onMessage(Diag.testConnection()) }
+        }, "connection сеть связь"))
+        add(Setting(SSection.DATA, S("d_set_licenses_title"), S("d_set_licenses_desc"), SetControl.Act(S("d_set_licenses_btn"), onLicenses), "licenses лицензии"))
         add(Setting(SSection.DATA, S("settings_reset_title"), S("settings_reset_desc"), SetControl.Act(S("settings_reset_button"), onReset)))
         add(Setting(SSection.DATA, S("settings_about_title"), S("settings_about_desc", APP_VERSION), SetControl.Act(S("settings_about_button"), onAbout)))
     }
@@ -743,7 +806,7 @@ private fun AboutPane(app: AppState, onBack: () -> Unit) {
                     Txt("w0y", pixel = true, size = 26, color = C.Blue)
                     Txt(S("about_tagline"), size = 16, modifier = Modifier.padding(top = 8.dp), maxLines = 2)
                     Txt(S("about_blurb"), color = C.Muted, size = 13, maxLines = 6, modifier = Modifier.padding(top = 8.dp))
-                    Txt(S("settings_version", APP_VERSION) + " · Linux", color = C.Muted, size = 12, modifier = Modifier.padding(top = 10.dp))
+                    Txt(S("settings_version", APP_VERSION) + " · " + Platform.os.name.lowercase().replaceFirstChar(Char::uppercase), color = C.Muted, size = 12, modifier = Modifier.padding(top = 10.dp))
                 }
             }
             PixelCard(Modifier.fillMaxWidth()) {
@@ -766,6 +829,19 @@ private fun AboutPane(app: AppState, onBack: () -> Unit) {
                     Txt("files — " + S("about_files_text"), color = C.Muted, size = 13, maxLines = 2)
                 }
             }
+        }
+    }
+}
+
+/** Лицензии составных частей: текст лежит в ресурсах и совпадает с THIRD_PARTY_LICENSES.md в репозитории. */
+@Composable
+private fun LicensesPane(app: AppState, onBack: () -> Unit) {
+    val text = remember {
+        Platform::class.java.getResourceAsStream("/THIRD_PARTY_LICENSES.md")?.use { it.readBytes().toString(Charsets.UTF_8) } ?: "THIRD_PARTY_LICENSES.md"
+    }
+    ScreenFrame(S("d_set_licenses_title"), app, canBack = false, actions = { IconButton(Glyph.ChevronLeft, onClick = onBack, color = C.Muted, size = 20.dp) }) {
+        Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            PixelCard(Modifier.fillMaxWidth()) { Txt(text, color = C.Muted, size = 12, maxLines = Int.MAX_VALUE) }
         }
     }
 }
