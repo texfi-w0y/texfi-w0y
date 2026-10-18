@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.4 beta-1 (draft)
+
+The computer version grows up: Windows is new, Linux is rebuilt in the Hairline
+look with a side bar, a wide player bar, eight settings tabs, a mini player and
+the built-in libmpv sound. Encrypted session, one-file backup, updates from
+GitHub, local diagnostics. Android only gets small fixes. Details in the
+[release notes](docs/RELEASE_NOTES_0.0.4-beta-1.md).
+
 ## v0.0.3 beta-3
 
 A new player (Framed cover and Poster layouts, the cover flies into the mini

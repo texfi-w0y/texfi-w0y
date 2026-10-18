@@ -1,0 +1,26 @@
+# Черновик манифеста winget (singleton). НЕ отправлен в winget-pkgs: тег релиза и SHA-256 подставляются
+# после публикации v0.0.4-beta-1 (хеш из SHA256SUMS-desktop.txt), затем `winget validate` и PR в microsoft/winget-pkgs.
+PackageIdentifier: texfi-w0y.w0y
+PackageVersion: 0.0.4-beta-1
+PackageLocale: en-US
+Publisher: TexFi
+PublisherUrl: https://github.com/texfi-w0y
+PackageName: w0y
+PackageUrl: https://github.com/texfi-w0y/texfi-w0y
+License: AGPL-3.0
+LicenseUrl: https://github.com/texfi-w0y/texfi-w0y/blob/main/LICENSE
+ShortDescription: A fast, adjustable open client for YouTube Music with no telemetry.
+Moniker: w0y
+Tags:
+  - music
+  - youtube-music
+  - player
+  - open-source
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    Scope: user
+    InstallerUrl: https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.4-beta-1/w0y-windows-x64-setup.exe
+    InstallerSha256: REPLACE_WITH_SHA256_FROM_SHA256SUMS-desktop.txt
+ManifestType: singleton
+ManifestVersion: 1.6.0

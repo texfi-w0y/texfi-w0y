@@ -1,7 +1,7 @@
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-v0.0.3%20beta--2-4a7cfb?style=flat-square">
+  <img alt="version" src="https://img.shields.io/badge/version-v0.0.4%20beta--1-4a7cfb?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-e0a860?style=flat-square">
-  <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%20%C2%B7%20Linux-4a7cfb?style=flat-square">
+  <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%20%C2%B7%20Windows%20%C2%B7%20Linux-4a7cfb?style=flat-square">
 </p>
 
 # w0y
@@ -55,13 +55,20 @@ bottom dock. The older Pixel and Smooth looks are still in Settings → Look.
   normalisation, queue behaviour, seek step, themes and colour schemes, your
   own accent colour, settings export and import.
 - **Languages** — Russian, English, Ukrainian, Polish.
-- **Linux desktop version** — the same ideas on Compose Desktop; sound is
-  played through `mpv`.
+- **Windows and Linux desktop version** — the same ideas on Compose Desktop
+  in the Hairline look, sized for a mouse and a keyboard: a side bar, a wide
+  player bar, a big player with a disc, eight settings tabs, hotkeys, a mini
+  player, a tray icon. Sound is played by libmpv built into the app. See
+  [docs/DESKTOP_PARITY.md](docs/DESKTOP_PARITY.md) for what the desktop has and what it does not yet.
 
 ## Privacy
 
+**What leaves the app:** YouTube (search, music, sign-in) and GitHub (the
+update check, which you can turn off). Everything else stays on your device.
+The full list is in [docs/PRIVACY.md](docs/PRIVACY.md).
+
 - Library, history, settings, downloads and stats are stored **on the device**
-  (the Linux version: in `~/.local/share/w0y`). Nothing is uploaded to any
+  (Windows: `%APPDATA%\w0y`; Linux: `~/.local/share/w0y`). Nothing is uploaded to any
   server of this project; there is none, and there is no analytics or crash
   reporting.
 - Requests the app makes, and why:
@@ -91,10 +98,25 @@ Updates install over the top as long as they come signed with the project key.
 The app also checks this page itself when it starts and offers the update
 (Update / Later); it stays in Settings → App. You can turn the check off there.
 
-**Linux (x86_64):** download
-[`w0y-linux-x86_64.tar.gz`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-3/w0y-linux-x86_64.tar.gz),
-unpack it and run `./install.sh`. You need `mpv` installed. The interface of
-the Linux version is in Russian only.
+**Windows 10/11 (x64):** download `w0y-windows-x64-setup.exe` (or the portable
+`w0y-windows-x64-portable.zip`) from the release page. The installer is not
+signed with a paid certificate, so SmartScreen may warn you: click *More info →
+Run anyway* after checking the hash in `SHA256SUMS-desktop.txt`. Details in
+[docs/WINDOWS_INSTALL.md](docs/WINDOWS_INSTALL.md).
+
+**Linux (x86_64):** download `w0y-linux-x86_64.AppImage` (libmpv inside), make it
+executable and run it; or unpack `w0y-linux-x86_64.tar.gz` and run `./install.sh`
+(it needs `libmpv`/`mpv` from your distribution: `sudo pacman -S mpv` or
+`sudo apt install libmpv2`). Works on Wayland and X11. The interface is in
+Russian, English, Ukrainian and Polish.
+
+### Desktop hotkeys
+
+`Space` play/pause · `←`/`→` seek · `Ctrl+←`/`Ctrl+→` previous/next · `↑`/`↓` volume ·
+`M` mute · `/` or `Ctrl+K` search · `1`–`5` tabs · `Q` player · `Y` lyrics ·
+`B` Stand mode · `Ctrl+M` mini player · `F11` full screen · `Esc` back · `?` the full
+list (rebind in Settings → App). Right click on a track opens its menu; `Ctrl`/`Shift`
+select several; double click plays. The media keys of the keyboard work too.
 
 ## Build from source
 
@@ -105,11 +127,14 @@ You need JDK 21 and the Android SDK (compileSdk 37). Put the SDK path into
 ./gradlew testDebugUnitTest assembleDebug   # Android debug APK
 ```
 
-Linux version (needs `mpv` to run):
+Desktop version (needs `libmpv`/`mpv` on Linux; Windows builds are made by CI):
 
 ```bash
-cd desktop && ./install.sh                  # builds and installs for your user
+cd desktop && ./install.sh                  # builds and installs for your user (Linux)
+cd desktop && ./gradlew test run            # tests / run from source
 ```
+
+The version number lives in one place, `version.properties`, for all platforms.
 
 Some Android tests hit the real YouTube because only a live request catches a
 change in its responses. They are skipped in CI; set `W0Y_LIVE_TESTS=1` to run

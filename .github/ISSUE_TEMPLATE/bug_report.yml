@@ -34,14 +34,32 @@ body:
     id: device
     attributes:
       label: Device and Android version
-      description: "For example: Pixel 7, Android 15 (or Linux + distro)."
+      description: "For example: Pixel 7, Android 15. On a computer write the system instead (see the next fields)."
     validations:
-      required: true
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: OS / distribution (computer only)
+      description: "For example: Windows 11 23H2, EndeavourOS, Ubuntu 24.04."
+    validations:
+      required: false
+  - type: dropdown
+    id: session
+    attributes:
+      label: Wayland or X11 (Linux only)
+      options:
+        - Not Linux
+        - Wayland
+        - X11
+        - Not sure
+    validations:
+      required: false
   - type: input
     id: version
     attributes:
-      label: w0y version
-      description: "Settings → About, for example: v0.0.3 beta-2."
+      label: App version
+      description: "Settings → About (Android) or Settings → App (computer), for example: 0.0.4-beta-1."
     validations:
       required: true
   - type: dropdown
@@ -60,7 +78,7 @@ body:
     id: debug
     attributes:
       label: Debug info
-      description: Paste the text from "Copy debug info" (Settings → About → Diagnostics). It has no account data, cookies or search text.
+      description: 'Paste the text from "Copy debug info" (Android - Settings → About → Diagnostics; computer - Settings → App). It has no account data, cookies or search text.'
       render: text
   - type: checkboxes
     id: privacy

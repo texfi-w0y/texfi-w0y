@@ -147,7 +147,7 @@ enum class RepeatMode { OFF, ALL, ONE }
 data class DSettings(
     // ---- звук
     val quality: Quality = Quality.HIGH,
-    val normalizeVolume: Boolean = true,
+    val normalizeVolume: Boolean = false,
     val skipSilence: Boolean = false,
     val speed: Float = 1f,
     val pitch: Float = 1f,
