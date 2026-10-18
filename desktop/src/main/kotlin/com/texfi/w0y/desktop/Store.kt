@@ -36,6 +36,11 @@ data class StoredPlaylist(
     val base: List<String>? = null,
     val cover: String? = null,
     val syncedAt: Long = 0L,
+    /** Описание, цвет (ARGB), значок и своя обложка: только на этом компьютере, как на телефоне. */
+    val note: String? = null,
+    val accent: Int? = null,
+    val glyph: String? = null,
+    val customCover: String? = null,
 )
 
 @Serializable
@@ -69,6 +74,8 @@ data class Library(
     val dialPins: List<String> = emptyList(),
     /** Спрятанные с «быстрого набора» — не возвращаются, пока их не закрепят. */
     val dialHidden: List<String> = emptyList(),
+    /** Свои файлы («Мои файлы»): треки с идентификатором `local:…`, сами файлы лежат в папке данных. */
+    val localFiles: List<StoredSong> = emptyList(),
 )
 
 /** Одно прослушивание: что, когда (мс) и сколько секунд реально играло. */

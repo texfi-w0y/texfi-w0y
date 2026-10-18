@@ -20,15 +20,17 @@ import kotlinx.coroutines.coroutineScope
  */
 class Recommender(private val app: AppState, private val yt: Yt) {
     suspend fun forSeed(seed: SongItem, exclude: Set<String> = emptySet(), limit: Int = 30): List<SongItem> = coroutineScope {
-        val likedSeed = app.lib.liked.filter { it.id != seed.id }.take(15).shuffled().firstOrNull()?.toItem()
+        val likedSeed = app.lib.liked.filter { it.id != seed.id && !LocalFiles.isLocal(it.id) }.take(15).shuffled().firstOrNull()?.toItem()
+        // Свой файл YouTube не знает: радио строится от его двойника в каталоге (или от близкого по исполнителю).
+        val anchor = if (LocalFiles.isLocal(seed.id)) runCatching { yt.anchorFor(seed) }.getOrNull() else seed
         val pools =
-            listOfNotNull(seed, likedSeed).map { s -> async { runCatching { yt.radio(s.id) }.getOrDefault(emptyList()) } }.map { it.await() }
+            listOfNotNull(anchor, likedSeed).map { s -> async { runCatching { yt.radio(s.id) }.getOrDefault(emptyList()) } }.map { it.await() }
         // Радио текущего трека — главное: его кандидаты чередуются с кандидатами второго семени.
         val merged = LinkedHashMap<String, SongItem>()
         val longest = pools.maxOfOrNull { it.size } ?: 0
         for (i in 0 until longest) pools.forEach { pool -> pool.getOrNull(i)?.let { merged.putIfAbsent(it.id, it) } }
         val excluded = app.st.tasteExcluded
-        val candidates = app.visible(merged.values.filter { it.id !in exclude && it.id != seed.id && norm(it.artist) !in excluded })
+        val candidates = app.visible(merged.values.filter { it.id !in exclude && it.id != seed.id && it.id != anchor?.id && norm(it.artist) !in excluded })
         if (candidates.isEmpty()) return@coroutineScope emptyList()
 
         // «Учитывать мой вкус» выключено — подборка без данных о слушателе; «знакомое ↔ новое» двигает вес известных исполнителей.

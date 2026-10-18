@@ -195,4 +195,10 @@
     <string name="d_pback_aurora">Zorza</string>
     <string name="d_pback_app">Jak w aplikacji</string>
     <string name="d_pback_pure">Czarne</string>
+    <string name="d_pl_in_youtube">na YouTube</string>
+    <string name="d_pl_only_here">tylko tutaj</string>
+    <string name="d_pl_tracks">utworów: %1$d</string>
+    <string name="d_pl_minutes">%1$d min</string>
+    <string name="d_lm_drop">Pliki można przeciągnąć do okna.</string>
+    <string name="d_err_local_missing">Nie znaleziono pliku — mógł zostać usunięty</string>
 </resources>

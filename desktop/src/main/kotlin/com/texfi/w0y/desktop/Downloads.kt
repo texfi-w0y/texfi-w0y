@@ -65,7 +65,7 @@ class Downloads(private val scope: CoroutineScope, private val yt: Yt, private v
     fun isDone(id: String) = app.downloadedPath(id) != null
 
     fun download(song: SongItem) {
-        if (isDone(song.id) || song.id in progress) return
+        if (LocalFiles.isLocal(song.id) || isDone(song.id) || song.id in progress) return
         val limit = app.st.downloadStorageLimitMb
         if (limit > 0 && usedMb() >= limit) {
             notice = S("dl_storage_full", limit)

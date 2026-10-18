@@ -10,6 +10,7 @@ Everything below is the complete list of network requests.
 | `lrclib.net` | lyrics (artist, title, duration of the track) | Settings → Player → Lyrics |
 | `api.lyrics.ovh` | lyrics fallback (artist, title) when LRCLIB has nothing | Settings → Player → «Search lyrics everywhere» (on by default, can be turned off) |
 | `translate.googleapis.com` | only if you turn lyrics translation on; the lyric lines are sent | off by default |
+| `music.youtube.com` | for a file you added yourself (My files): the artist and title are searched there so recommendations can start from a similar track; the file itself never leaves the computer | only when recommendations are used (Settings → Player → what plays next) |
 | `api.github.com`, `github.com` | the update check and the download of a new version | yes: Settings → App → Check for updates |
 
 The Android app additionally uses `music.163.com`, `genius.com` (lyrics fallbacks) and public Piped

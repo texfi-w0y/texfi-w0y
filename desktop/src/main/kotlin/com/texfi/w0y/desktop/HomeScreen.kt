@@ -52,6 +52,7 @@ fun HomeScreen(app: AppState) {
         val shelves = app.shelves
         val quickShelf = if (app.st.homeRecBlocks) shelves.firstOrNull { it.songs.isNotEmpty() } else null
         val forgotten = remember(app.lib.liked.size, app.lib.playLog.size) { if (app.st.homeRecBlocks) forgottenFavorites(app) else emptyList() }
+        val myFiles = remember(app.lib.localFiles.size) { dailyShuffle(app.localSongs) }
         val byTime = remember(app.lib.playLog.size, Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) { if (app.st.homeRecBlocks) timeOfDayPicks(app) else emptyList() }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
@@ -61,8 +62,10 @@ fun HomeScreen(app: AppState) {
                     DialSection(app, header = false)
                 }
                 quickShelf?.let { shelf ->
-                    item { PicksShelf(app, S("home_quick_picks"), shelf.songs, Modifier.padding(top = 4.dp)) }
+                    // Свои файлы подмешиваются в «Быстрый выбор»: несколько штук на сутки, на 3-м, 7-м и 11-м местах.
+                    item { PicksShelf(app, S("home_quick_picks"), withOwnFiles(shelf.songs, myFiles), Modifier.padding(top = 4.dp)) }
                 }
+                if (myFiles.isNotEmpty()) item { PicksShelf(app, S("lm_card"), myFiles.take(12), Modifier.padding(top = 16.dp), playAll = false) }
                 if (forgotten.size >= 4) item { PicksShelf(app, S("home_block_forgotten"), forgotten, Modifier.padding(top = 16.dp), playAll = false) }
                 if (byTime.size >= 4) item { PicksShelf(app, S("home_block_time"), byTime, Modifier.padding(top = 16.dp), playAll = false) }
                 if (!app.st.showRecommendations) {
@@ -191,6 +194,16 @@ private fun PickRow(app: AppState, song: SongItem, all: List<SongItem>, index: I
             if (hovered) IconButton(Glyph.Plus, onClick = { app.player.enqueue(song, next = false) }, color = C.Muted, size = 16.dp)
         }
     }
+}
+
+/** Свои файлы в порядке, который меняется раз в сутки: каждый день наверху разные. */
+private fun dailyShuffle(files: List<SongItem>): List<SongItem> = files.shuffled(Random(System.currentTimeMillis() / (24L * 3600 * 1000)))
+
+private fun withOwnFiles(picks: List<SongItem>, files: List<SongItem>): List<SongItem> {
+    if (files.isEmpty()) return picks
+    val out = picks.toMutableList()
+    files.take(3).forEachIndexed { i, f -> out.add((2 + i * 4).coerceAtMost(out.size), f) }
+    return out
 }
 
 /** Забытые любимые: лайкнутое, чего давно не включали (или не включали вовсе). Набор меняется раз в сутки. */

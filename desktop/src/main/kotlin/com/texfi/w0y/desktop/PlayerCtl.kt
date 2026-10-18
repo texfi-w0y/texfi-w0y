@@ -62,7 +62,11 @@ class PlayerCtl(
     private val mpv: AudioEngine =
         AudioEngine.create(
             onTime = { t -> countPlayed(t); position = t },
-            onDuration = { duration = it },
+            onDuration = {
+                duration = it
+                // Свой файл без длительности в тегах: узнаём её при первом проигрывании и запоминаем.
+                current?.takeIf { s -> LocalFiles.isLocal(s.id) && s.durationText == null && it > 0 }?.let { s -> scope.launch { app.updateLocalDuration(s.id, it) } }
+            },
             onPause = { playing = !it && loaded },
             onEnd = { reason ->
                 when (reason) {
@@ -189,6 +193,20 @@ class PlayerCtl(
 
     fun playOne(song: SongItem) = play(listOf(song), 0)
 
+    /** Свой файл переименовали или сменили обложку: очередь показывает новые данные, играет тот же файл. */
+    fun refreshSong(song: SongItem) {
+        if (queue.none { it.id == song.id }) return
+        queue = queue.map { if (it.id == song.id) song else it }
+    }
+
+    /** Свой файл удалили: из очереди он уходит, кроме играющего (тот доиграет). */
+    fun forget(id: String) {
+        val now = current?.id
+        queue = queue.filterNot { it.id == id && it.id != now }
+        index = if (now == null) index else queue.indexOfFirst { it.id == now }
+        app.saveQueue(queue, index)
+    }
+
     // ---- журнал прослушиваний: засчитывается, если проиграно хотя бы полтрека (для длинных — 4 минуты)
     private var playedSec = 0.0
     private var lastTick = -1.0
@@ -236,6 +254,23 @@ class PlayerCtl(
                     }
                 }
                 val profile = app.soundOf(song.id).also { soundNow = it }
+                if (LocalFiles.isLocal(song.id)) {
+                    // Свой файл играет с диска; YouTube про него ничего не знает.
+                    val file = LocalFiles.file(song.id)
+                    if (!file.isFile) {
+                        loading = false
+                        error = S("d_err_local_missing")
+                        delay(1500)
+                        next(auto = true)
+                        return@launch
+                    }
+                    gainNow = null
+                    mpv.applyAudio(profile, null, app.st.skipSilence, eqNow())
+                    mpv.load(file.absolutePath, emptyMap())
+                    app.remember(song)
+                    notifyTrack(song)
+                    return@launch
+                }
                 val local = app.downloadedPath(song.id)
                 if (local != null) {
                     // Скачанный трек играет с диска: ни сети, ни ссылки, которая истекает.
@@ -254,7 +289,7 @@ class PlayerCtl(
                         notifyTrack(song)
                         watchSwear(song)
                         // Следующий трек греем заранее: старт без паузы.
-                        if (app.st.preloadNext) queue.getOrNull(index + 1)?.let { n -> launch { runCatching { yt.stream(n.id, app.st.quality) } } }
+                        if (app.st.preloadNext) queue.getOrNull(index + 1)?.takeIf { n -> !LocalFiles.isLocal(n.id) }?.let { n -> launch { runCatching { yt.stream(n.id, app.st.quality) } } }
                     }.onFailure {
                         loading = false
                         error = S("d_err_stream")

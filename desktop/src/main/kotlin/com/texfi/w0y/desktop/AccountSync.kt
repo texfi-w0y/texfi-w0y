@@ -101,7 +101,7 @@ class AccountSync(private val app: AppState, private val yt: Yt) {
         val pulled = yt.fetchPlaylist(rid, if (pl.editable) 30 else 10) ?: return
         if (!pulled.exists) return
         val base = pl.base?.toSet() ?: emptySet()
-        val localSet = pl.songs.map { it.id }.toSet()
+        val localSet = pl.songs.map { it.id }.filterNot(LocalFiles::isLocal).toSet()
         val remoteSet = pulled.songs.map { it.id }.toSet()
         val writeBack = app.st.syncPlaylists
         val plan = SyncMerge.plan(base, localSet, remoteSet, pulled.complete)
@@ -125,7 +125,7 @@ class AccountSync(private val app: AppState, private val yt: Yt) {
                         } else {
                             val added = pulled.songs.filter { it.id in plan.pullAdd && cur.songs.none { s -> s.id == it.id } }.map { it.stored() }
                             val kept = if (writeBack) cur.songs.filterNot { it.id in plan.pullRemove } else cur.songs
-                            val finalIds = (kept + added).map { it.id }.toSet()
+                            val finalIds = (kept + added).map { it.id }.filterNot(LocalFiles::isLocal).toSet()
                             cur.copy(
                                 songs = kept + added,
                                 editable = pulled.editable,
@@ -144,7 +144,7 @@ class AccountSync(private val app: AppState, private val yt: Yt) {
         val pulled = yt.allLiked()
         val baseList = app.lib.likesBase
         val base = baseList?.toSet() ?: emptySet()
-        val local = app.lib.liked.map { it.id }.toSet()
+        val local = app.lib.liked.map { it.id }.filterNot(LocalFiles::isLocal).toSet()
         val remote = pulled.items.map { it.id }.toSet()
         val plan = SyncMerge.plan(base, local, remote, pulled.complete)
 
@@ -161,7 +161,7 @@ class AccountSync(private val app: AppState, private val yt: Yt) {
             val fresh = pulled.items.filter { it.id in plan.pullAdd && l.liked.none { s -> s.id == it.id } }.map { it.stored() }
             val kept = if (writeBack) l.liked.filterNot { it.id in plan.pullRemove } else l.liked
             val liked = fresh + kept
-            l.copy(liked = liked, likesBase = if (writeBack) ((liked.map { it.id }.toSet() - failedPush) + failedRemove).toList() else l.likesBase)
+            l.copy(liked = liked, likesBase = if (writeBack) ((liked.map { it.id }.filterNot(LocalFiles::isLocal).toSet() - failedPush) + failedRemove).toList() else l.likesBase)
         }
     }
 

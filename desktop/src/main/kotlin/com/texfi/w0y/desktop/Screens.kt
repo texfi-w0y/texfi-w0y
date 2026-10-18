@@ -12,6 +12,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -161,6 +163,7 @@ internal fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPl
     val artist = S("d_menu_artist")
     val album = S("d_menu_album")
     val copy = S("d_menu_copy_link")
+    val editFile = S("lm_edit")
     return { inSelection ->
         val targets = if (inSelection && songs != null) app.selection.of(songs).ifEmpty { listOf(song) } else listOf(song)
         val single = targets.size == 1
@@ -172,8 +175,11 @@ internal fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPl
             add(androidx.compose.foundation.ContextMenuItem(if (allLiked) unlike else like) {
                 targets.filter { (it.id in app.likedIds) == allLiked }.forEach { app.toggleLike(it) }
             })
-            add(androidx.compose.foundation.ContextMenuItem(download) { targets.forEach { app.downloads.download(it) } })
-            if (single) {
+            if (targets.any { !LocalFiles.isLocal(it.id) }) add(androidx.compose.foundation.ContextMenuItem(download) { targets.forEach { app.downloads.download(it) } })
+            if (single && LocalFiles.isLocal(song.id)) {
+                add(androidx.compose.foundation.ContextMenuItem(editFile) { app.open(Screen.LocalFiles); app.localEditing = song.id })
+            }
+            if (single && !LocalFiles.isLocal(song.id)) {
                 song.artistId?.let { id -> add(androidx.compose.foundation.ContextMenuItem(artist) { app.open(Screen.Artist(id, song.artist, song.thumbnailUrl)) }) }
                 song.albumId?.let { id -> add(androidx.compose.foundation.ContextMenuItem(album) { app.open(Screen.Album(id, song.album ?: song.title, song.thumbnailUrl)) }) }
                 add(androidx.compose.foundation.ContextMenuItem(copy) {
@@ -307,6 +313,16 @@ fun SearchScreen(app: AppState) {
                 else ->
                     Box(Modifier.fillMaxSize()) {
                         LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
+                            // Свои файлы, подходящие под запрос, — сверху: искать их в YouTube незачем.
+                            val words = app.lastSearched.lowercase().split(' ').filter { it.isNotBlank() }
+                            val mine = if (words.isEmpty()) emptyList() else app.localSongs.filter { f ->
+                                val hay = "${f.title} ${f.artist} ${f.album.orEmpty()}".lowercase()
+                                words.all { it in hay }
+                            }
+                            if (mine.isNotEmpty()) {
+                                item { SectionLabel(S("lm_card"), Modifier.padding(vertical = 8.dp)) }
+                                itemsIndexed(mine) { i, song -> SongRow(app, song, onPlay = { app.player.play(mine, i) }) }
+                            }
                             if (result.songs.isNotEmpty()) item { SectionLabel(S("search_filter_songs"), Modifier.padding(vertical = 8.dp)) }
                             itemsIndexed(result.songs) { i, song -> SongRow(app, song, onPlay = { app.player.play(result.songs, i) }) }
                             if (result.albums.isNotEmpty()) {
@@ -503,6 +519,7 @@ fun LibraryScreen(app: AppState) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Shortcut(S("library_downloaded"), "${app.lib.downloads.size}", Modifier.weight(1f), 3, Glyph.Download) { app.open(Screen.Downloaded) }
+                        Shortcut(S("lm_card"), "${app.lib.localFiles.size}", Modifier.weight(1f), 6, Glyph.Note) { app.open(Screen.LocalFiles) }
                         Shortcut(S("library_stats"), "${app.lib.playLog.size}", Modifier.weight(1f), 4, Glyph.Stats) { app.open(Screen.Stats) }
                         Shortcut(S("player_queue"), "${app.player.queue.size}", Modifier.weight(1f), 5, Glyph.Queue) { app.open(Screen.Player) }
                     }
@@ -537,7 +554,7 @@ fun LibraryScreen(app: AppState) {
                             pl.remoteId != null -> S("d_pl_tracks_yt", pl.songs.size)
                             else -> S("d_pl_tracks_local", pl.songs.size)
                         }
-                    ListLine(pl.name, where, pl.cover ?: pl.songs.firstOrNull()?.thumb) { app.open(Screen.Local(pl.id)) }
+                    PlaylistLine(pl, where) { app.open(Screen.Local(pl.id)) }
                 }
                 if (app.accountAlbums.isNotEmpty()) {
                     item { SectionLabel(S("library_albums"), Modifier.padding(top = 8.dp)) }
@@ -578,6 +595,23 @@ private fun Shortcut(label: String, value: String, modifier: Modifier, index: In
     }
 }
 
+/** Строка плейлиста в библиотеке: плитка с обложкой или значком, цвет рамкой. */
+@Composable
+private fun PlaylistLine(pl: StoredPlaylist, subtitle: String, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    RowCenter(
+        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(Look.row)).background(hoverBackground(source))
+            .clickable(interactionSource = source, indication = null, onClick = onClick).padding(8.dp),
+    ) {
+        PlaylistTile(pl, 48.dp)
+        Gap(w = 12)
+        Column(Modifier.weight(1f)) {
+            Txt(pl.name, size = 15)
+            Txt(subtitle, color = C.Muted, size = 12)
+        }
+    }
+}
+
 @Composable
 private fun ListLine(title: String, subtitle: String, thumb: String?, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
@@ -610,65 +644,100 @@ fun HistoryScreen(app: AppState) {
     }
 }
 
+/** «3:47» или «1:02:10» → секунды; не разобралось — 0. */
+private fun parseDuration(text: String?): Int {
+    val parts = text?.split(':')?.mapNotNull { it.trim().toIntOrNull() } ?: return 0
+    return parts.fold(0) { acc, n -> acc * 60 + n }
+}
+
+/**
+ * Плейлист: шапка с обложкой, именем, описанием и счётчиками, «Играть» и «Вперемешку», кнопка настройки.
+ * Настройка (обложка, имя, описание, цвет, значок, удаление) открывается тут же, как на телефоне.
+ */
 @Composable
 fun LocalScreen(app: AppState, s: Screen.Local) {
     val pl = app.playlist(s.id)
-    var renaming by remember { mutableStateOf<String?>(null) }
     // Состав сверяется с аккаунтом при открытии: правили его там — увидим сразу.
     LaunchedEffect(s.id) { app.sync.refreshPlaylist(s.id) }
-    ScreenFrame(pl?.name ?: S("playlist_title"), app, canBack = true, actions = {
-        if (pl != null) {
-            if (pl.editable) {
-                PixelButton(S("playlist_rename"), onClick = { renaming = pl.name }, primary = false)
-                Gap(w = 8)
+    ScreenFrame(S("playlist_title"), app, canBack = true) {
+        if (pl == null) return@ScreenFrame
+        androidx.compose.animation.AnimatedContent(
+            targetState = app.playlistEditing,
+            transitionSpec = { androidx.compose.animation.fadeIn(tween(Motion.ms(240))) togetherWith androidx.compose.animation.fadeOut(tween(Motion.ms(140))) },
+            label = "playlist-editor",
+        ) { editing ->
+            if (editing) {
+                PlaylistEditor(
+                    pl,
+                    onSave = { name, note, accent, glyph, picked, clear ->
+                        app.savePlaylistLook(pl.id, name, note, accent, glyph, picked, clear)
+                        app.playlistEditing = false
+                    },
+                    onDelete = { app.deletePlaylist(pl.id) },
+                    onClose = { app.playlistEditing = false },
+                )
+            } else {
+                PlaylistView(app, pl)
             }
-            // «Защита от случайного удаления»: первое нажатие только просит подтвердить.
-            var sure by remember(s.id) { mutableStateOf(false) }
-            PixelButton(
-                if (sure) S("pl_delete_sure") else if (pl.editable) S("d_delete") else S("d_remove_from_library"),
-                onClick = { if (app.st.deleteProtection && !sure) sure = true else app.deletePlaylist(s.id) },
-                primary = false,
-            )
         }
-    }) {
-        val songs = pl?.songs?.map { it.toItem() }.orEmpty()
-        Column(Modifier.fillMaxSize()) {
-            renaming?.let { value ->
-                PixelCard(Modifier.fillMaxWidth()) {
-                    RowCenter {
-                        Box(Modifier.weight(1f)) {
-                            BasicTextField(value, { renaming = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 14.sp), cursorBrush = SolidColor(C.Blue), modifier = Modifier.fillMaxWidth().textFieldFocus())
+    }
+}
+
+@Composable
+private fun PlaylistView(app: AppState, pl: StoredPlaylist) {
+    val songs = pl.songs.map { it.toItem() }
+    val seconds = pl.songs.sumOf { parseDuration(it.duration) }
+    val where =
+        when {
+            pl.remoteId != null && !pl.editable -> S("d_pl_readonly")
+            pl.remoteId != null -> S("d_pl_in_youtube")
+            else -> S("d_pl_only_here")
+        }
+    val meta = buildList {
+        add(S("d_pl_tracks", songs.size))
+        if (seconds >= 60) add(S("d_pl_minutes", (seconds + 30) / 60))
+        add(where)
+    }.joinToString(" · ")
+    val accent = pl.accent?.let { androidx.compose.ui.graphics.Color(it) }
+    Column(Modifier.fillMaxSize()) {
+        SongList(app, songs, header = {
+            Column {
+                RowCenter(Modifier.padding(bottom = 18.dp)) {
+                    PlaylistTile(pl, 168.dp, Modifier.hairEnter(0))
+                    Gap(w = 24)
+                    Column(Modifier.weight(1f)) {
+                        SectionLabel(meta)
+                        Gap(h = 8)
+                        Txt(pl.name, size = 28, pixel = true, maxLines = 2)
+                        if (accent != null) Box(Modifier.padding(top = 10.dp).width(40.dp).height(3.dp).background(accent))
+                        pl.note?.let { Txt(it, color = C.Muted, size = 13, maxLines = 3, modifier = Modifier.padding(top = 10.dp)) }
+                        if (!pl.editable) Txt(S("playlist_readonly"), color = C.Muted, size = 12, maxLines = 3, modifier = Modifier.padding(top = 8.dp))
+                        Gap(h = 16)
+                        RowCenter {
+                            PixelButton(S("album_play"), onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
+                            Gap(w = 10)
+                            PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
+                            Gap(w = 8)
+                            IconButton(Glyph.Sliders, onClick = { app.playlistEditing = true }, color = C.Muted, size = 20.dp, box = 40.dp)
                         }
-                        Gap(w = 10)
-                        PixelButton(S("playlist_rename_save"), onClick = { app.renamePlaylist(s.id, value); renaming = null })
-                        Gap(w = 8)
-                        PixelButton(S("library_cancel"), onClick = { renaming = null }, primary = false)
                     }
                 }
-                Gap(h = 10)
+                if (songs.isEmpty()) Empty(S("playlist_empty"))
             }
-            if (pl != null && !pl.editable) {
-                Txt(S("playlist_readonly"), color = C.Muted, size = 12, maxLines = 3)
-                Gap(h = 8)
-            }
-            if (pl?.remoteId != null) {
-                Txt(if (pl.editable) "Отражён в аккаунте YouTube: правки уходят туда и приходят оттуда." else S("d_pl_from_account"), color = C.Muted, size = 12)
-                Gap(h = 8)
-            }
-            if (songs.isEmpty()) {
-                Empty(S("playlist_empty"))
-            } else {
-                SongList(app, songs, extra = { song ->
-                    if (pl?.editable != false) IconButton(Glyph.Trash, onClick = { app.removeFromPlaylist(s.id, song.id) }, color = C.Muted, size = 16.dp)
-                })
-            }
-        }
+        }, extra = { song ->
+            if (pl.editable) IconButton(Glyph.Trash, onClick = { app.removeFromPlaylist(pl.id, song.id) }, color = C.Muted, size = 16.dp)
+        })
     }
 }
 
 /** Стрелка «скачать»: ждёт, показывает проценты, превращается в галочку. */
 @Composable
 fun DownloadButton(app: AppState, song: SongItem) {
+    // Свой файл уже на диске: скачивать нечего.
+    if (LocalFiles.isLocal(song.id)) {
+        Box(Modifier.width(34.dp).height(34.dp))
+        return
+    }
     val d = app.downloads
     val done = app.downloadedPath(song.id) != null
     val p = d.progress[song.id]

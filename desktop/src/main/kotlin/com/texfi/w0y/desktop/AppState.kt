@@ -33,6 +33,7 @@ sealed interface Screen {
     data object Settings : Screen
     data object Stats : Screen
     data object Taste : Screen
+    data object LocalFiles : Screen
 }
 
 /** Всё состояние приложения в одном месте: экран, библиотека, аккаунт, плеер. */
@@ -158,6 +159,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
 
     fun open(screen: Screen) {
         selection.clear()
+        playlistEditing = false
+        localEditing = null
         navForward = true
         Anim.screenAt = System.currentTimeMillis()
         if (stack.last() != screen) stack.add(screen)
@@ -168,6 +171,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         Anim.screenAt = System.currentTimeMillis()
         stack.clear()
         stack.add(screen)
+        playlistEditing = false
+        localEditing = null
         when (screen) {
             Screen.Home -> StartTab.HOME
             Screen.Search -> StartTab.SEARCH
@@ -178,6 +183,9 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     }
 
     fun back() {
+        // Открытый редактор (плейлиста или своего файла) закрывается первым «Назад»: экран под ним остаётся.
+        if (screen is Screen.LocalFiles && localEditing != null) { localEditing = null; return }
+        if (screen is Screen.Local && playlistEditing) { playlistEditing = false; return }
         navForward = false
         Anim.screenAt = System.currentTimeMillis()
         if (stack.size > 1) stack.removeAt(stack.lastIndex)
@@ -272,8 +280,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         update {
             it.copy(liked = if (liked) listOf(song.stored()) + it.liked else it.liked.filterNot { s -> s.id == song.id })
         }
-        if (mirror) scope.launch { runCatching { yt.like(song.id, liked) } }
-        if (liked && st.autoDownloadLiked) downloads.download(song)
+        if (mirror && !LocalFiles.isLocal(song.id)) scope.launch { runCatching { yt.like(song.id, liked) } }
+        if (liked && st.autoDownloadLiked && !LocalFiles.isLocal(song.id)) downloads.download(song)
     }
 
     private var queueSave: Job? = null
@@ -363,7 +371,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         val pl = playlist(id) ?: return
         if (!pl.editable || pl.songs.any { it.id == song.id }) return
         mutatePlaylist(id) { it.copy(songs = it.songs + song.stored()) }
-        if (mirror && pl.remoteId != null) scope.launch { runCatching { yt.addToRemote(pl.remoteId, song.id) } }
+        if (mirror && pl.remoteId != null && !LocalFiles.isLocal(song.id)) scope.launch { runCatching { yt.addToRemote(pl.remoteId, song.id) } }
     }
 
     fun removeFromPlaylist(id: String, songId: String) {
@@ -371,13 +379,129 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         if (!pl.editable) return
         mutatePlaylist(id) { it.copy(songs = it.songs.filterNot { s -> s.id == songId }) }
         val rid = pl.remoteId
-        if (mirror && rid != null) {
+        if (mirror && rid != null && !LocalFiles.isLocal(songId)) {
             scope.launch {
                 // Убрать трек из плейлиста YouTube можно только зная его место в нём.
                 val place = yt.fetchPlaylist(rid, 30)?.setVideoIds?.get(songId) ?: return@launch
                 runCatching { yt.removeFromRemote(rid, songId, place) }
             }
         }
+    }
+
+    // ---- вид и описание плейлиста
+
+    /**
+     * Сохраняет настройку плейлиста. Имя уходит и в аккаунт (если плейлист там есть и его можно менять),
+     * остальное — описание, цвет, значок и обложка — остаётся только на этом компьютере.
+     */
+    fun savePlaylistLook(id: String, name: String, note: String, accent: Int?, glyph: String?, pickedCover: java.io.File?, clearCover: Boolean) {
+        val pl = playlist(id) ?: return
+        scope.launch {
+            var cover = pl.customCover
+            if (clearCover) {
+                PlaylistCovers.remove(id)
+                cover = null
+            }
+            if (pickedCover != null) {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { PlaylistCovers.import(id, pickedCover) }
+                if (saved != null) cover = saved
+            }
+            val clean = name.trim()
+            val rename = pl.editable && clean.isNotEmpty() && clean != pl.name
+            mutatePlaylist(id) { it.copy(name = if (rename) clean else it.name, note = note.trim().ifBlank { null }, accent = accent, glyph = glyph, customCover = cover) }
+            if (rename && mirror && pl.remoteId != null) runCatching { yt.renameRemote(pl.remoteId, clean) }
+        }
+    }
+
+    // ---- свои файлы
+
+    /** Открыт ли редактор плейлиста (экран плейлиста). */
+    var playlistEditing by mutableStateOf(false)
+
+    /** Какой файл открыт в редакторе (экран «Мои файлы»); null — виден список. */
+    var localEditing by mutableStateOf<String?>(null)
+
+    val localSongs: List<SongItem> get() = lib.localFiles.map { it.toItem() }
+
+    /** Сколько файлов обработано из скольких; null — импорта нет. */
+    var localImport by mutableStateOf<Pair<Int, Int>?>(null)
+        private set
+
+    /** Итог прошлого импорта: добавлено и не удалось. */
+    var localResult by mutableStateOf<Pair<Int, Int>?>(null)
+
+    /** Добавляет выбранные файлы и папки: папки обходятся целиком, берутся только звуковые файлы. */
+    fun importLocal(picked: List<java.io.File>) {
+        val files = picked.flatMap { f -> if (f.isDirectory) f.walkTopDown().filter(LocalFiles::isAudio).toList() else listOf(f) }
+        if (files.isEmpty() || localImport != null) return
+        localResult = null
+        scope.launch {
+            var failed = 0
+            files.forEachIndexed { i, f ->
+                localImport = i to files.size
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { LocalFiles.import(f) } }
+                result.onSuccess { song -> update { it.copy(localFiles = listOf(song.stored()) + it.localFiles) } }.onFailure { failed++ }
+            }
+            localImport = null
+            localResult = (files.size - failed) to failed
+        }
+    }
+
+    /** Новое название, исполнитель, альбом и обложка своего файла — везде, где этот трек уже лежит. */
+    fun editLocal(id: String, title: String, artist: String, album: String, pickedCover: java.io.File?, clearCover: Boolean) {
+        val old = lib.localFiles.firstOrNull { it.id == id } ?: return
+        scope.launch {
+            val key = LocalFiles.keyOf(id)
+            var thumb = old.thumb
+            if (clearCover) {
+                LocalFiles.clearCover(key)
+                thumb = null
+            }
+            if (pickedCover != null) {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { LocalFiles.importCover(key, pickedCover) }
+                if (saved != null) thumb = LocalFiles.uri(saved)
+            }
+            val newTitle = title.trim().ifBlank { old.title }
+            val change = { s: StoredSong -> s.copy(title = newTitle, artist = artist.trim(), album = album.trim().ifBlank { null }, thumb = thumb) }
+            update { it.rewriteSong(id, change) }
+            player.refreshSong(change(old).toItem())
+        }
+    }
+
+    fun updateLocalDuration(id: String, seconds: Double) {
+        val text = LocalFiles.durationText((seconds * 1000).toLong())
+        update { it.rewriteSong(id) { s -> s.copy(duration = text) } }
+    }
+
+    /** Убирает файл из приложения: из «Моих файлов», плейлистов, лайков, истории и с диска. */
+    fun removeLocal(id: String) {
+        update { l ->
+            l.copy(
+                localFiles = l.localFiles.filterNot { it.id == id },
+                liked = l.liked.filterNot { it.id == id },
+                history = l.history.filterNot { it.id == id },
+                queue = l.queue.filterNot { it.id == id },
+                playLog = l.playLog.filterNot { it.song.id == id },
+                playlists = l.playlists.map { p -> p.copy(songs = p.songs.filterNot { it.id == id }) },
+                dialPins = l.dialPins - "song:$id",
+                sound = l.sound - id,
+            )
+        }
+        player.forget(id)
+        LocalFiles.delete(id)
+    }
+
+    /** Меняет данные трека во всех списках сразу: у каждого списка своя копия записи. */
+    private fun Library.rewriteSong(id: String, change: (StoredSong) -> StoredSong): Library {
+        fun List<StoredSong>.fix() = map { if (it.id == id) change(it) else it }
+        return copy(
+            localFiles = localFiles.fix(),
+            liked = liked.fix(),
+            history = history.fix(),
+            queue = queue.fix(),
+            playLog = playLog.map { if (it.song.id == id) it.copy(song = change(it.song)) else it },
+            playlists = playlists.map { it.copy(songs = it.songs.fix()) },
+        )
     }
 
     // ---- аккаунт

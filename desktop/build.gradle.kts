@@ -93,6 +93,8 @@ dependencies {
     implementation(compose.foundation)
     implementation(compose.components.resources)
     implementation("com.github.MetrolistGroup.innertubex:innertubex:v0.7.0")
+    // Тот же QuickJS, что у innertubex (решает шифр ссылок): нужен напрямую, чтобы загрузить его до libmpv, см. Warmup.kt.
+    implementation("io.github.dokar3:quickjs-kt-jvm:1.0.14")
     implementation("io.ktor:ktor-client-core:3.6.0")
     implementation("io.ktor:ktor-client-okhttp:3.6.0")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
@@ -114,7 +116,11 @@ dependencies {
     testImplementation(compose.uiTest)
 }
 
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    // Кадры интерфейса из тестов: ./gradlew test -Dw0y.shots=папка
+    System.getProperty("w0y.shots")?.let { systemProperty("w0y.shots", it) }
+}
 
 compose.desktop {
     application {

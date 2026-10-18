@@ -195,4 +195,10 @@
     <string name="d_pback_aurora">Переливы</string>
     <string name="d_pback_app">Как в приложении</string>
     <string name="d_pback_pure">Чёрный</string>
+    <string name="d_pl_in_youtube">в YouTube</string>
+    <string name="d_pl_only_here">только здесь</string>
+    <string name="d_pl_tracks">%1$d треков</string>
+    <string name="d_pl_minutes">%1$d мин</string>
+    <string name="d_lm_drop">Файлы можно перетащить в окно.</string>
+    <string name="d_err_local_missing">Файл не найден — возможно, его удалили</string>
 </resources>

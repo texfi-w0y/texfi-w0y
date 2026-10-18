@@ -195,4 +195,10 @@
     <string name="d_pback_aurora">Aurora</string>
     <string name="d_pback_app">Same as the app</string>
     <string name="d_pback_pure">Black</string>
+    <string name="d_pl_in_youtube">in YouTube</string>
+    <string name="d_pl_only_here">only here</string>
+    <string name="d_pl_tracks">%1$d tracks</string>
+    <string name="d_pl_minutes">%1$d min</string>
+    <string name="d_lm_drop">You can drag files into the window.</string>
+    <string name="d_err_local_missing">File not found — it may have been deleted</string>
 </resources>

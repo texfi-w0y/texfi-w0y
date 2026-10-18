@@ -195,4 +195,10 @@
     <string name="d_pback_aurora">Переливи</string>
     <string name="d_pback_app">Як у застосунку</string>
     <string name="d_pback_pure">Чорне</string>
+    <string name="d_pl_in_youtube">у YouTube</string>
+    <string name="d_pl_only_here">тільки тут</string>
+    <string name="d_pl_tracks">%1$d треків</string>
+    <string name="d_pl_minutes">%1$d хв</string>
+    <string name="d_lm_drop">Файли можна перетягнути у вікно.</string>
+    <string name="d_err_local_missing">Файл не знайдено — можливо, його видалили</string>
 </resources>

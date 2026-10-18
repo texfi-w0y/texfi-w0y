@@ -207,7 +207,7 @@ enum class AppIcon(override val key: String, val file: String) : Labeled {
     LEAF("hl_icon_leaf", "leaf"),
     BARS("hl_icon_bars", "bars"),
     RINGS("hl_icon_rings", "rings"),
-    LEAF_LINE("hl_icon_leaf_line", "leaf_line"),
+    LEAF_LINE("hl_icon_leaf_line", "leafline"),
 }
 
 /** Фон за большим плеером. */

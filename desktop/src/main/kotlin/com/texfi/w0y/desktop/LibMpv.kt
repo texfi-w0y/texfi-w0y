@@ -228,6 +228,8 @@ class LibMpv(
             private set
 
         private fun load(): MpvApi? {
+            // QuickJS должен загрузиться раньше libmpv: иначе первая же его среда роняет приложение (см. QuickJsFirst).
+            QuickJsFirst.ensure()
             val options = mapOf(Library.OPTION_STRING_ENCODING to "UTF-8")
             val bundled = bundledDirs().flatMap { dir -> libraryFiles().map { File(dir, it) } }.filter { it.isFile }
             val candidates = bundled.map { it.absolutePath } + listOf("mpv", "libmpv.so.2", "libmpv-2", "mpv-2")

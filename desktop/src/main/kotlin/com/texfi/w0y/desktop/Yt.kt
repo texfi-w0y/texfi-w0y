@@ -100,6 +100,33 @@ class Yt {
     suspend fun cleanVersion(song: SongItem): SongItem? =
         com.texfi.w0y.data.CleanMatch.pick(song, runCatching { songsOnly("${song.title} ${song.artist} clean") }.getOrDefault(emptyList()))
 
+    /**
+     * Опорный трек для рекомендаций к своему файлу: двойник из каталога или, если точного нет,
+     * что-то того же исполнителя, потом просто первая находка. Лучше слегка мимо, чем пусто.
+     */
+    suspend fun anchorFor(local: SongItem): SongItem? {
+        val norm = com.texfi.w0y.data.CleanMatch::normalize
+        val core = norm(local.title)
+        val artistKey = norm(local.artist).split(' ').firstOrNull().orEmpty()
+        val query = "${local.artist} ${local.title}".trim()
+        if (core.isNotBlank()) {
+            val found = runCatching { songsOnly(query) }.getOrDefault(emptyList())
+            found.firstOrNull { c ->
+                val t = norm(c.title)
+                val same = t.isNotBlank() && (t == core || t.contains(core) || core.contains(t))
+                same && (artistKey.isBlank() || norm(c.artist).contains(artistKey))
+            }?.let { return it }
+        }
+        var first: SongItem? = null
+        for (q in listOf(query, local.artist.trim(), local.title.trim()).filter { it.isNotBlank() }.distinct()) {
+            val found = runCatching { songsOnly(q) }.getOrDefault(emptyList())
+            if (first == null) first = found.firstOrNull()
+            val sameArtist = if (artistKey.isBlank()) null else found.firstOrNull { norm(it.artist).contains(artistKey) }
+            if (sameArtist != null) return sameArtist
+        }
+        return first
+    }
+
     suspend fun suggestions(query: String): List<String> = withContext(Dispatchers.IO) {
         YtJson.searchSuggestions(innerTube.getSearchSuggestions(YouTubeClient.WEB_REMIX, query, false).body<JsonObject>()).take(8)
     }
