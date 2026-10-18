@@ -155,4 +155,16 @@
     <string name="d_set_licenses_title">Licencje</string>
     <string name="d_set_licenses_desc">Co jest w środku: libmpv, czcionki, biblioteki. Teksty licencji są obok aplikacji.</string>
     <string name="d_set_licenses_btn">Otwórz</string>
+    <string name="d_menu_play">Odtwórz</string>
+    <string name="d_menu_play_next">Odtwórz jako następny</string>
+    <string name="d_menu_queue_add">Dodaj do kolejki</string>
+    <string name="d_menu_like">Lubię</string>
+    <string name="d_menu_unlike">Usuń z polubionych</string>
+    <string name="d_menu_download">Pobierz</string>
+    <string name="d_menu_artist">Przejdź do wykonawcy</string>
+    <string name="d_menu_album">Przejdź do albumu</string>
+    <string name="d_menu_copy_link">Kopiuj link</string>
+    <string name="d_menu_selected">Zaznaczono: %1$d</string>
+    <string name="d_set_dblclick_title">Podwójne kliknięcie odtwarza utwór</string>
+    <string name="d_set_dblclick_desc">Jedno kliknięcie zaznacza (Ctrl i Shift zaznaczają kilka), podwójne odtwarza. Wyłączone — jedno kliknięcie od razu gra.</string>
 </resources>

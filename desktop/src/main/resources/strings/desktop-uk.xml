@@ -155,4 +155,16 @@
     <string name="d_set_licenses_title">Ліцензії</string>
     <string name="d_set_licenses_desc">Що всередині: libmpv, шрифти, бібліотеки. Тексти ліцензій лежать поряд із застосунком.</string>
     <string name="d_set_licenses_btn">Відкрити</string>
+    <string name="d_menu_play">Грати</string>
+    <string name="d_menu_play_next">Грати наступним</string>
+    <string name="d_menu_queue_add">Додати в чергу</string>
+    <string name="d_menu_like">Подобається</string>
+    <string name="d_menu_unlike">Прибрати з улюблених</string>
+    <string name="d_menu_download">Завантажити</string>
+    <string name="d_menu_artist">Перейти до виконавця</string>
+    <string name="d_menu_album">Перейти до альбому</string>
+    <string name="d_menu_copy_link">Скопіювати посилання</string>
+    <string name="d_menu_selected">Вибрано: %1$d</string>
+    <string name="d_set_dblclick_title">Подвійний клік вмикає трек</string>
+    <string name="d_set_dblclick_desc">Один клік виділяє рядок (Ctrl і Shift виділяють кілька), подвійний вмикає. Вимкнено — один клік одразу грає.</string>
 </resources>

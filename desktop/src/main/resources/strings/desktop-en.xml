@@ -155,4 +155,16 @@
     <string name="d_set_licenses_title">Licenses</string>
     <string name="d_set_licenses_desc">What is inside: libmpv, fonts, libraries. License texts ship next to the app.</string>
     <string name="d_set_licenses_btn">Open</string>
+    <string name="d_menu_play">Play</string>
+    <string name="d_menu_play_next">Play next</string>
+    <string name="d_menu_queue_add">Add to queue</string>
+    <string name="d_menu_like">Like</string>
+    <string name="d_menu_unlike">Remove from liked</string>
+    <string name="d_menu_download">Download</string>
+    <string name="d_menu_artist">Go to artist</string>
+    <string name="d_menu_album">Go to album</string>
+    <string name="d_menu_copy_link">Copy link</string>
+    <string name="d_menu_selected">%1$d selected</string>
+    <string name="d_set_dblclick_title">Double-click plays a track</string>
+    <string name="d_set_dblclick_desc">One click selects (Ctrl and Shift select several), double-click plays. Off — one click plays at once.</string>
 </resources>

@@ -407,6 +407,8 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
         // ---- Плеер
         add(Setting(SSection.PLAYER, S("settings_queue_title"), st.queueMode.hint,
             choice(QueueMode.entries, st.queueMode, { it.label }) { v -> set { it.copy(queueMode = v) } }, "queue radio shuffle очередь"))
+        add(Setting(SSection.PLAYER, S("d_set_dblclick_title"), S("d_set_dblclick_desc"),
+            SetControl.Toggle(st.doubleClickPlay) { v -> set { it.copy(doubleClickPlay = v) } }, "double click двойной клик"))
         add(Setting(SSection.PLAYER, S("settings_seek_step_title"), S("settings_seek_step_desc"),
             choice(listOf(5, 10, 15, 30), st.seekStepSec, { S("settings_seek_step_value", it) }) { v -> set { it.copy(seekStepSec = v) } }))
         add(Setting(SSection.PLAYER, S("settings_cover_glow_title"), S("settings_cover_glow_desc"),

@@ -3,6 +3,13 @@ package com.texfi.w0y.desktop
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -80,31 +87,100 @@ fun Empty(text: String) = Txt(text, color = C.Muted, size = 14, modifier = Modif
 
 /** Строка трека: обложка, название, исполнитель, сердце и «в очередь». */
 @Composable
-fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, extra: @Composable () -> Unit = {}) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, songs: List<SongItem>? = null, extra: @Composable () -> Unit = {}) {
     val source = remember { MutableInteractionSource() }
     val bg = hoverBackground(source)
     val liked = song.id in app.likedIds
     val current = app.player.current?.id == song.id
-    RowCenter(
-        Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(Look.row)).background(bg)
-            .clickable(onClick = onPlay).padding(horizontal = 8.dp, vertical = if (app.st.compactRows) 2.dp else 6.dp),
-    ) {
-        Cover(song.thumbnailUrl, if (app.st.compactRows) 32.dp else 44.dp)
-        Gap(w = 12)
-        Column(Modifier.weight(1f)) {
-            Txt(song.title, color = if (current) C.Blue else C.Text, size = 15, weight = if (current) androidx.compose.ui.text.font.FontWeight.Medium else androidx.compose.ui.text.font.FontWeight.Normal)
-            Txt(song.artist, color = C.Muted, size = 12)
+    val selected = song.id in app.selection.ids
+    val focused by source.collectIsFocusedAsState()
+    val window = androidx.compose.ui.platform.LocalWindowInfo.current
+    val rowShape = RoundedCornerShape(Look.row)
+    // Двойной клик играет, одиночный выделяет (Ctrl — добавить, Shift — диапазон); вне списков с номерами — сразу играет.
+    val selectable = songs != null && index >= 0
+    val menu = rowMenu(app, song, songs, onPlay)
+    androidx.compose.foundation.ContextMenuArea(items = { menu(selected) }) {
+        RowCenter(
+            Modifier.fillMaxWidth().hoverable(source).clip(rowShape).background(if (selected) C.SurfaceHigh else bg)
+                .then(if (focused) Modifier.border(1.dp, C.Blue, rowShape) else Modifier)
+                .drawBehind { if (selected && Look.hair) drawRect(C.Blue, androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height)) }
+                .focusable(interactionSource = source)
+                .onKeyEvent {
+                    if (it.type == androidx.compose.ui.input.key.KeyEventType.KeyDown && (it.key == androidx.compose.ui.input.key.Key.Enter || it.key == androidx.compose.ui.input.key.Key.NumPadEnter)) {
+                        onPlay(); true
+                    } else false
+                }
+                .combinedClickable(
+                    interactionSource = source,
+                    indication = null,
+                    onDoubleClick = if (selectable && app.st.doubleClickPlay) onPlay else null,
+                    onClick = {
+                        val m = window.keyboardModifiers
+                        when {
+                            selectable && m.isShiftPressed -> app.selection.range(songs!!, index)
+                            selectable && m.isCtrlPressed -> app.selection.toggle(song.id, index)
+                            selectable && app.st.doubleClickPlay -> app.selection.only(song.id, index)
+                            else -> onPlay()
+                        }
+                    },
+                ).padding(horizontal = 8.dp, vertical = if (app.st.compactRows) 2.dp else 6.dp),
+        ) {
+            Cover(song.thumbnailUrl, if (app.st.compactRows) 32.dp else 44.dp)
+            Gap(w = 12)
+            Column(Modifier.weight(1f)) {
+                Txt(song.title, color = if (current) C.Blue else C.Text, size = 15, weight = if (current) androidx.compose.ui.text.font.FontWeight.Medium else androidx.compose.ui.text.font.FontWeight.Normal)
+                Txt(song.artist, color = C.Muted, size = 12)
+            }
+            song.durationText?.let { Txt(it, color = C.Muted, size = 12, modifier = Modifier.padding(end = 8.dp)) }
+            extra()
+            DownloadButton(app, song)
+            IconButton(Glyph.Plus, onClick = { app.player.enqueue(song, next = false) }, color = C.Muted, size = 16.dp)
+            IconButton(
+                if (liked) Glyph.Heart else Glyph.HeartOff,
+                onClick = { app.toggleLike(song) },
+                color = if (liked) C.Danger else C.Muted,
+                size = 18.dp,
+            )
         }
-        song.durationText?.let { Txt(it, color = C.Muted, size = 12, modifier = Modifier.padding(end = 8.dp)) }
-        extra()
-        DownloadButton(app, song)
-        IconButton(Glyph.Plus, onClick = { app.player.enqueue(song, next = false) }, color = C.Muted, size = 16.dp)
-        IconButton(
-            if (liked) Glyph.Heart else Glyph.HeartOff,
-            onClick = { app.toggleLike(song) },
-            color = if (liked) C.Danger else C.Muted,
-            size = 18.dp,
-        )
+    }
+}
+
+/**
+ * Меню правой кнопки. Если строка входит в выделение, действия относятся ко всем выделенным;
+ * иначе — к одному треку. Строки читаются здесь (в композиции), а пункты собираются при открытии меню.
+ */
+@Composable
+private fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPlay: () -> Unit): (Boolean) -> List<androidx.compose.foundation.ContextMenuItem> {
+    val play = S("d_menu_play")
+    val next = S("d_menu_play_next")
+    val queue = S("d_menu_queue_add")
+    val like = S("d_menu_like")
+    val unlike = S("d_menu_unlike")
+    val download = S("d_menu_download")
+    val artist = S("d_menu_artist")
+    val album = S("d_menu_album")
+    val copy = S("d_menu_copy_link")
+    return { inSelection ->
+        val targets = if (inSelection && songs != null) app.selection.of(songs).ifEmpty { listOf(song) } else listOf(song)
+        val single = targets.size == 1
+        buildList {
+            if (single) add(androidx.compose.foundation.ContextMenuItem(play, onPlay))
+            add(androidx.compose.foundation.ContextMenuItem(next) { targets.asReversed().forEach { app.player.enqueue(it, next = true) } })
+            add(androidx.compose.foundation.ContextMenuItem(queue) { targets.forEach { app.player.enqueue(it, next = false) } })
+            val allLiked = targets.all { it.id in app.likedIds }
+            add(androidx.compose.foundation.ContextMenuItem(if (allLiked) unlike else like) {
+                targets.filter { (it.id in app.likedIds) == allLiked }.forEach { app.toggleLike(it) }
+            })
+            add(androidx.compose.foundation.ContextMenuItem(download) { targets.forEach { app.downloads.download(it) } })
+            if (single) {
+                song.artistId?.let { id -> add(androidx.compose.foundation.ContextMenuItem(artist) { app.open(Screen.Artist(id, song.artist, song.thumbnailUrl)) }) }
+                song.albumId?.let { id -> add(androidx.compose.foundation.ContextMenuItem(album) { app.open(Screen.Album(id, song.album ?: song.title, song.thumbnailUrl)) }) }
+                add(androidx.compose.foundation.ContextMenuItem(copy) {
+                    java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection("https://music.youtube.com/watch?v=${song.id}"), null)
+                })
+            }
+        }
     }
 }
 
@@ -114,7 +190,7 @@ fun SongList(app: AppState, songs: List<SongItem>, state: LazyListState = rememb
         LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
             item { header() }
             itemsIndexed(songs, key = { i, s -> "${s.id}#$i" }) { i, song ->
-                SongRow(app, song, onPlay = { app.player.play(songs, i) }) { extra(song) }
+                SongRow(app, song, onPlay = { app.player.play(songs, i) }, index = i, songs = songs) { extra(song) }
             }
             item { Gap(h = 24) }
         }

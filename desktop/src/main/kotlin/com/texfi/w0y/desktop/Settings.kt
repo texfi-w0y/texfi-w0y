@@ -227,6 +227,8 @@ data class DSettings(
     val autostart: Boolean = false,
     // ---- обновления
     val checkUpdates: Boolean = true,
+    /** Двойной клик по треку включает его, одиночный выделяет строку. */
+    val doubleClickPlay: Boolean = true,
     val lastUpdateCheck: Long = 0L,
     /** Релиз, для которого нажали «Позже»: плашка про него больше не всплывает. */
     val skippedUpdate: String = "",

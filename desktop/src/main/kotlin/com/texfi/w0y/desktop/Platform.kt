@@ -41,7 +41,8 @@ object Platform {
 
     /** Данные (библиотека, история, загрузки): Windows `%APPDATA%\w0y`, Linux `~/.local/share/w0y`. */
     fun dataDir(): Path =
-        if (isWindows) Path.of(System.getenv("APPDATA") ?: "$home\\AppData\\Roaming", "w0y")
+        // `w0y.data` — своя папка данных для тестов и разработки; настоящая библиотека не трогается.
+        System.getProperty("w0y.data")?.let { Path.of(it) } ?: if (isWindows) Path.of(System.getenv("APPDATA") ?: "$home\\AppData\\Roaming", "w0y")
         else Path.of(System.getenv("XDG_DATA_HOME") ?: "$home/.local/share", "w0y")
 
     /** Настройки и журналы: Windows `%APPDATA%\w0y`, Linux `~/.config/w0y`. */

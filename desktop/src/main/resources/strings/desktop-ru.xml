@@ -155,4 +155,16 @@
     <string name="d_set_licenses_title">Лицензии</string>
     <string name="d_set_licenses_desc">Что внутри приложения: libmpv, шрифты, библиотеки. Тексты лицензий лежат рядом с приложением.</string>
     <string name="d_set_licenses_btn">Открыть</string>
+    <string name="d_menu_play">Играть</string>
+    <string name="d_menu_play_next">Играть следующим</string>
+    <string name="d_menu_queue_add">Добавить в очередь</string>
+    <string name="d_menu_like">Нравится</string>
+    <string name="d_menu_unlike">Убрать из любимых</string>
+    <string name="d_menu_download">Скачать</string>
+    <string name="d_menu_artist">Перейти к исполнителю</string>
+    <string name="d_menu_album">Перейти к альбому</string>
+    <string name="d_menu_copy_link">Скопировать ссылку</string>
+    <string name="d_menu_selected">Выбрано: %1$d</string>
+    <string name="d_set_dblclick_title">Двойной клик включает трек</string>
+    <string name="d_set_dblclick_desc">Один клик выделяет строку (Ctrl и Shift выделяют несколько), двойной включает. Выключено — один клик сразу играет.</string>
 </resources>

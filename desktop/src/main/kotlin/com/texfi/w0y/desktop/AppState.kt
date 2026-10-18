@@ -64,6 +64,9 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
 
     val st: DSettings get() = lib.settings
 
+    /** Выделенные строки в списке треков. */
+    val selection = Selection()
+
     /** Проверка обновлений на GitHub (см. [Updater]). */
     val updater = Updater(this, scope)
 
@@ -133,6 +136,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
 
     // ---- навигация
     fun open(screen: Screen) {
+        selection.clear()
         if (stack.last() != screen) stack.add(screen)
     }
 
