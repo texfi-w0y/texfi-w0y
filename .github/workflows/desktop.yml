@@ -44,7 +44,7 @@ jobs:
           sudo apt-get install -y libmpv2 xvfb libfuse2 desktop-file-utils
       - name: Tests
         working-directory: desktop
-        env: { W0Y_AO: "null" }
+        env: { W0Y_AO: "null", W0Y_MPV_LOG: "1" }
         run: xvfb-run -a ./gradlew test --no-daemon
       - name: Build app image
         working-directory: desktop
@@ -83,9 +83,11 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: libmpv (pinned build)
         shell: pwsh
+        # Без токена api.github.com пускает 60 запросов в час на адрес раннера, и шаг иногда падает по лимиту.
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           $asset = "mpv-dev-x86_64-$env:MPV_WIN_TAG-git-"
-          $rel = Invoke-RestMethod "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/tags/$env:MPV_WIN_TAG"
+          $rel = Invoke-RestMethod "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/tags/$env:MPV_WIN_TAG" -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
           $a = $rel.assets | Where-Object { $_.name -like "$asset*.7z" -and $_.name -notlike "*v3*" } | Select-Object -First 1
           if (-not $a) { throw "в релизе $env:MPV_WIN_TAG нет $asset*.7z" }
           Invoke-WebRequest $a.browser_download_url -OutFile mpv-dev.7z
@@ -98,7 +100,7 @@ jobs:
       - name: Tests
         working-directory: desktop
         shell: pwsh
-        env: { W0Y_AO: "null" }
+        env: { W0Y_AO: "null", W0Y_MPV_LOG: "1" }
         run: ./gradlew test --no-daemon
       - name: Build app image
         working-directory: desktop

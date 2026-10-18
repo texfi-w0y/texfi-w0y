@@ -23,6 +23,8 @@ interface MpvApi : Library {
 
     fun mpv_observe_property(ctx: Pointer, userdata: Long, name: String, format: Int): Int
 
+    fun mpv_request_log_messages(ctx: Pointer, minLevel: String): Int
+
     fun mpv_wait_event(ctx: Pointer, timeout: Double): Pointer
 
     fun mpv_terminate_destroy(ctx: Pointer)
@@ -82,6 +84,8 @@ class LibMpv(
             return false
         }
         ctx = handle
+        // Для разбора проблем на чужой машине или CI: W0Y_MPV_LOG=1 печатает предупреждения mpv в stderr.
+        if (System.getenv("W0Y_MPV_LOG") == "1") lib.mpv_request_log_messages(handle, "warn")
         observe(handle, 1, "time-pos", FORMAT_DOUBLE)
         observe(handle, 2, "duration", FORMAT_DOUBLE)
         observe(handle, 3, "pause", FORMAT_FLAG)
@@ -124,6 +128,11 @@ class LibMpv(
                             else -> "redirect"
                         },
                     )
+                }
+                EVENT_LOG_MESSAGE -> {
+                    // mpv_event_log_message: prefix (0), level (8), text (16).
+                    val data = event.getPointer(16)
+                    if (data != null) System.err.print("mpv[${data.getPointer(0)?.getString(0)}]: ${data.getPointer(16)?.getString(0)}")
                 }
                 EVENT_FILE_LOADED -> {
                     endFired = false
@@ -264,6 +273,7 @@ class LibMpv(
         private const val FORMAT_FLAG = 3
         private const val FORMAT_DOUBLE = 5
         private const val EVENT_SHUTDOWN = 1
+        private const val EVENT_LOG_MESSAGE = 2
         private const val EVENT_END_FILE = 7
         private const val EVENT_FILE_LOADED = 8
         private const val EVENT_PROPERTY_CHANGE = 22
