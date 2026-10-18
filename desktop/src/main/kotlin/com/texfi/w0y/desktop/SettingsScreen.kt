@@ -7,6 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,10 +76,26 @@ private enum class SSection(val key: String, val glyph: Glyph) {
     KEYS("d_section_keys", Glyph.Sliders),
     DEVICES("settings_section_devices", Glyph.Headphones),
     DATA("settings_section_data", Glyph.Box),
+    STAND("cat_stand", Glyph.Box),
     ;
 
     val title: String get() = S(key)
     val summary: String get() = S("${key}_sum")
+}
+
+/** Восемь вкладок, как на телефоне: у Hairline они стоят слева, содержимое справа. */
+private enum class STab(val key: String, val glyph: Glyph, val sections: List<SSection>) {
+    PLAYBACK("cat_playback", Glyph.Play, listOf(SSection.PLAYER, SSection.SPEED)),
+    SOUND("cat_sound", Glyph.Volume, listOf(SSection.SOUND, SSection.TONE, SSection.DEVICES)),
+    STORAGE("cat_storage", Glyph.Download, listOf(SSection.DOWNLOADS)),
+    FEEDS("cat_search_feeds", Glyph.Search, listOf(SSection.SEARCH, SSection.CLEAN)),
+    LOOK("cat_look", Glyph.Palette, listOf(SSection.LOOK)),
+    STAND("cat_stand", Glyph.Box, listOf(SSection.STAND)),
+    ACCOUNT("cat_account", Glyph.Library, listOf(SSection.ACCOUNT)),
+    APP("cat_data", Glyph.Sliders, listOf(SSection.KEYS, SSection.DATA)),
+    ;
+
+    val title: String get() = S(key)
 }
 
 private sealed interface SetControl {
@@ -98,6 +119,7 @@ private fun <T> choice(options: List<T>, selected: T, label: (T) -> String, onSe
 @Composable
 fun SettingsScreen(app: AppState) {
     var section by remember { mutableStateOf<SSection?>(null) }
+    var tab by remember { mutableStateOf(STab.PLAYBACK) }
     var query by remember { mutableStateOf("") }
     var aboutOpen by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
@@ -117,8 +139,8 @@ fun SettingsScreen(app: AppState) {
             else -> emptyList()
         }
 
-    ScreenFrame(section?.title ?: S("settings_title"), app, canBack = false, actions = {
-        if (section != null && q.isEmpty()) IconButton(Glyph.ChevronLeft, onClick = { section = null }, color = C.Muted, size = 20.dp)
+    ScreenFrame(if (Look.hair) S("settings_title") else section?.title ?: S("settings_title"), app, canBack = false, actions = {
+        if (!Look.hair && section != null && q.isEmpty()) IconButton(Glyph.ChevronLeft, onClick = { section = null }, color = C.Muted, size = 20.dp)
     }) {
         Column(Modifier.fillMaxSize()) {
             AppTextField(query, { query = it }, S("settings_search_placeholder"), leading = Glyph.Search, size = 14, onClear = { query = "" })
@@ -142,6 +164,10 @@ fun SettingsScreen(app: AppState) {
                 }
             }
             Gap(h = 12)
+            if (Look.hair) {
+                HairSettingsBody(rows, q, shown, tab) { tab = it }
+                return@Column
+            }
             val state = rememberLazyListState()
             Box(Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -165,6 +191,87 @@ fun SettingsScreen(app: AppState) {
                 VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
             }
         }
+    }
+}
+
+/** Hairline: слева столбец вкладок, справа широкие строки по группам, между ними линии. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HairSettingsBody(rows: List<Setting>, q: String, shown: List<Setting>, tab: STab, onTab: (STab) -> Unit) {
+    Row(Modifier.fillMaxSize()) {
+        Column(Modifier.width(210.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = 12.dp)) {
+            STab.entries.forEach { t ->
+                val active = q.isEmpty() && t == tab
+                val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val focused by source.collectIsFocusedAsState()
+                val shape = RoundedCornerShape(3.dp)
+                RowCenter(
+                    Modifier.fillMaxWidth().padding(vertical = 1.dp).hoverable(source).clip(shape)
+                        .background(if (active) C.SurfaceHigh else hoverBackground(source))
+                        .then(if (focused) Modifier.border(1.dp, C.Blue, shape) else Modifier)
+                        .drawBehind { if (active) drawRect(C.Blue, Offset.Zero, Size(2.dp.toPx(), size.height)) }
+                        .focusable(interactionSource = source)
+                        .clickable { onTab(t) }.padding(horizontal = 12.dp, vertical = 11.dp),
+                ) {
+                    Icon(t.glyph, if (active) C.Blue else C.Muted, 18.dp)
+                    Gap(w = 10)
+                    Txt(t.title, pixel = true, size = 11, color = if (active) C.Text else C.Muted, maxLines = 2)
+                }
+            }
+        }
+        Box(Modifier.width(1.dp).fillMaxHeight().background(C.Border))
+        val state = rememberLazyListState()
+        val list = if (q.isNotEmpty()) shown else rows.filter { it.section in tab.sections }
+        // Вкладка сменилась — список начинается сверху.
+        LaunchedEffect(tab, q) { state.scrollToItem(0) }
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            LazyColumn(Modifier.fillMaxSize().padding(start = 24.dp, end = 14.dp), state = state, contentPadding = PaddingValues(bottom = 32.dp)) {
+                if (list.isEmpty()) {
+                    item {
+                        Txt(S("settings_search_nothing_title"), pixel = true, size = 12, color = C.Blue, modifier = Modifier.padding(top = 12.dp))
+                        Txt(S("settings_search_nothing_text"), color = C.Muted, size = 13, maxLines = 2, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
+                var lastSection: SSection? = null
+                list.forEachIndexed { i, r ->
+                    if (r.section != lastSection) {
+                        lastSection = r.section
+                        item(key = "h-${r.section}-$i") { SectionLabel(r.section.title, Modifier.padding(top = if (i == 0) 4.dp else 28.dp, bottom = 6.dp)) }
+                    }
+                    item(key = "r-$i-${r.title}") { HairSettingLine(r) }
+                }
+            }
+            VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HairSettingLine(r: Setting) {
+    Column(Modifier.fillMaxWidth()) {
+        RowCenter(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
+            Column(Modifier.weight(0.5f).padding(end = 20.dp)) {
+                Txt(r.title, size = 15, weight = FontWeight.Medium, maxLines = 2)
+                Txt(r.description, color = C.Muted, size = 12, maxLines = 6, modifier = Modifier.padding(top = 3.dp))
+            }
+            Box(Modifier.weight(0.5f), contentAlignment = Alignment.CenterEnd) {
+                when (val c = r.control) {
+                    is SetControl.Toggle -> AppToggle(c.checked, c.onChange)
+                    is SetControl.Act -> PixelButton(c.button, onClick = c.onClick, primary = false)
+                    is SetControl.Info -> Txt(c.value, color = C.Blue, size = 14, weight = FontWeight.Medium)
+                    is SetControl.Choice ->
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            c.labels.forEachIndexed { i, label -> ChoiceChip(label, i == c.selected) { c.onSelect(i) } }
+                        }
+                    is SetControl.Custom -> Unit
+                }
+            }
+        }
+        (r.control as? SetControl.Custom)?.let {
+            Box(Modifier.fillMaxWidth().padding(bottom = 14.dp)) { it.content() }
+        }
+        Divider()
     }
 }
 
@@ -290,16 +397,16 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) ->
                 SetControl.Toggle(st.visualizerCoverBackdrop) { v -> set { it.copy(visualizerCoverBackdrop = v) } }))
         }
         // подставка
-        add(Setting(SSection.PLAYER, S("stand_lyrics_title"), S("stand_lyrics_desc"), SetControl.Toggle(st.standLyrics) { v -> set { it.copy(standLyrics = v) } }, "stand подставка"))
-        if (vizOk) add(Setting(SSection.PLAYER, S("stand_viz_title"), S("stand_viz_desc"), SetControl.Toggle(st.standVisualizer) { v -> set { it.copy(standVisualizer = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("stand_view_title"), S("stand_view_desc"), choice(StandView.entries, st.standView, { it.label }) { v -> set { it.copy(standView = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("stand_marquee_title"), S("stand_marquee_desc"), SetControl.Toggle(st.standMarquee) { v -> set { it.copy(standMarquee = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("stand_flip_title"), S("stand_flip_desc"), SetControl.Toggle(st.standFlipped) { v -> set { it.copy(standFlipped = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("stand_max_title"), S("stand_max_desc"),
+        add(Setting(SSection.STAND, S("stand_lyrics_title"), S("stand_lyrics_desc"), SetControl.Toggle(st.standLyrics) { v -> set { it.copy(standLyrics = v) } }, "stand подставка"))
+        if (vizOk) add(Setting(SSection.STAND, S("stand_viz_title"), S("stand_viz_desc"), SetControl.Toggle(st.standVisualizer) { v -> set { it.copy(standVisualizer = v) } }, "stand подставка"))
+        add(Setting(SSection.STAND, S("stand_view_title"), S("stand_view_desc"), choice(StandView.entries, st.standView, { it.label }) { v -> set { it.copy(standView = v) } }, "stand подставка"))
+        add(Setting(SSection.STAND, S("stand_marquee_title"), S("stand_marquee_desc"), SetControl.Toggle(st.standMarquee) { v -> set { it.copy(standMarquee = v) } }, "stand подставка"))
+        add(Setting(SSection.STAND, S("stand_flip_title"), S("stand_flip_desc"), SetControl.Toggle(st.standFlipped) { v -> set { it.copy(standFlipped = v) } }, "stand подставка"))
+        add(Setting(SSection.STAND, S("stand_max_title"), S("stand_max_desc"),
             choice(listOf(0, 30, 60, 120, 240), st.standMaxMinutes, { if (it == 0) S("dl_no_limit") else S("settings_sleep_minutes", it) }) { v -> set { it.copy(standMaxMinutes = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("d_set_stand_awake_title"), S("d_set_stand_awake_desc"),
+        add(Setting(SSection.STAND, S("d_set_stand_awake_title"), S("d_set_stand_awake_desc"),
             SetControl.Toggle(st.standKeepAwake) { v -> set { it.copy(standKeepAwake = v) } }, "stand подставка"))
-        add(Setting(SSection.PLAYER, S("d_act_stand"), S("d_set_stand_open_desc"), SetControl.Act(S("download_open")) { app.stand.enter() }, "stand подставка"))
+        add(Setting(SSection.STAND, S("d_act_stand"), S("d_set_stand_open_desc"), SetControl.Act(S("download_open")) { app.stand.enter() }, "stand подставка"))
         // ---- Скорость
         add(Setting(SSection.SPEED, S("settings_startup_title"), S("settings_startup_desc", app.player.startupSummary()),
             SetControl.Info(app.player.lastStartupMs?.let { S("settings_startup_value_ms", it) } ?: "—")))

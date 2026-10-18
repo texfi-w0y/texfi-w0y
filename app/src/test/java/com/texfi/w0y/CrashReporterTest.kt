@@ -24,6 +24,15 @@ class CrashReporterTest {
     }
 
     @Test
+    fun logLineShowsLocalTimeInFullFormat() {
+        val event = CrashReporter.parseForTest(describeForTest(IllegalStateException("x"), "LIBRARY"))!!
+            .copy(timeMs = java.time.Instant.parse("2026-10-17T17:08:00Z").toEpochMilli())
+        val line = DebugInfoFormatter.line(event, java.util.TimeZone.getTimeZone("Europe/Warsaw"))
+        assertTrue(line, line.startsWith("17 Oct, 19:08  "))
+        assertFalse("зона не дописывается буквой Z", line.contains("Z  "))
+    }
+
+    @Test
     fun brokenFileIsIgnored() {
         assertEquals(null, CrashReporter.parseForTest("garbage"))
     }

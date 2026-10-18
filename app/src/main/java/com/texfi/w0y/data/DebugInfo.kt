@@ -57,10 +57,11 @@ object DebugInfoFormatter {
             },
         )
 
-    fun line(event: LogEvent): String {
-        val stamp = SimpleDateFormat("MM-dd HH:mm:ss", Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(event.timeMs))
+    /** Время записи — в местной зоне и полным форматом («17 Oct, 19:08»): прежнее «01-04 …Z» читалось как неверное. */
+    fun line(event: LogEvent, zone: TimeZone = TimeZone.getDefault()): String {
+        val stamp = SimpleDateFormat("dd MMM, HH:mm", Locale.ENGLISH).apply { timeZone = zone }.format(Date(event.timeMs))
         return buildString {
-            append(stamp).append("Z  ").append(event.kind).append("  ").append(event.result)
+            append(stamp).append("  ").append(event.kind).append("  ").append(event.result)
             event.httpCode?.let { append("  http=").append(it) }
             event.durationMs?.let { append("  ").append(it).append("ms") }
             event.bytes?.let { append("  ").append(it).append("B") }
