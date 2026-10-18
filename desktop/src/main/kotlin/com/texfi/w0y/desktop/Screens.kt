@@ -90,7 +90,7 @@ fun Empty(text: String) = Txt(text, color = C.Muted, size = 14, modifier = Modif
 /** Строка трека: обложка, название, исполнитель, сердце и «в очередь». */
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, songs: List<SongItem>? = null, extra: @Composable () -> Unit = {}) {
+fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, songs: List<SongItem>? = null, wide: Boolean = false, extra: @Composable () -> Unit = {}) {
     val source = remember { MutableInteractionSource() }
     val bg = hoverBackground(source)
     val liked = song.id in app.likedIds
@@ -128,7 +128,8 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, 
                     },
                 ).padding(horizontal = 8.dp, vertical = if (app.st.compactRows || Look.compact) 2.dp else 6.dp),
         ) {
-            Cover(song.thumbnailUrl, if (app.st.compactRows || Look.compact) 32.dp else 44.dp)
+            if (wide) WideCover(song.thumbnailUrl, if (app.st.compactRows || Look.compact) 56.dp else 78.dp)
+            else Cover(song.thumbnailUrl, if (app.st.compactRows || Look.compact) 32.dp else 44.dp)
             Gap(w = 12)
             Column(Modifier.weight(1f)) {
                 Txt(song.title, color = if (current) C.Blue else C.Text, size = 15, weight = if (current) androidx.compose.ui.text.font.FontWeight.Medium else androidx.compose.ui.text.font.FontWeight.Normal)
@@ -176,6 +177,10 @@ internal fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPl
                 targets.filter { (it.id in app.likedIds) == allLiked }.forEach { app.toggleLike(it) }
             })
             if (targets.any { !LocalFiles.isLocal(it.id) }) add(androidx.compose.foundation.ContextMenuItem(download) { targets.forEach { app.downloads.download(it) } })
+            // Вставка в плейлист прямо из строки: первые плейлисты, куда можно добавлять.
+            app.editablePlaylists.take(6).forEach { pl ->
+                add(androidx.compose.foundation.ContextMenuItem("+ ${pl.name}") { targets.forEach { app.addToPlaylist(pl.id, it) } })
+            }
             if (single && LocalFiles.isLocal(song.id)) {
                 add(androidx.compose.foundation.ContextMenuItem(editFile) { app.open(Screen.LocalFiles); app.localEditing = song.id })
             }
@@ -245,115 +250,7 @@ fun AppState.openCard(card: PlaylistCard) {
 }
 
 @Composable
-fun SearchScreen(app: AppState) {
-    ScreenFrame(S("tab_search"), app, canBack = false) {
-        val state = rememberLazyListState()
-        val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-        LaunchedEffect(Actions.searchFocusTick) { if (Actions.searchFocusTick > 0) runCatching { searchFocus.requestFocus() } }
-        Column(Modifier.fillMaxSize()) {
-            RowCenter(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(if (Look.smooth) 50.dp else 6.dp)).background(if (Look.smooth) C.SurfaceHigh.copy(alpha = 0.7f) else C.Surface).padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
-                Icon(Glyph.Search, C.Muted, 18.dp)
-                Gap(w = 10)
-                Box(Modifier.weight(1f)) {
-                    if (app.searchQuery.isEmpty()) Txt(S("search_placeholder"), color = C.Muted, size = 15)
-                    BasicTextField(
-                        value = app.searchQuery,
-                        onValueChange = { app.searchQuery = it },
-                        singleLine = true,
-                        textStyle = TextStyle(color = C.Text, fontSize = 15.sp),
-                        cursorBrush = SolidColor(C.Blue),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { app.search(app.searchQuery) }),
-                        modifier = Modifier.fillMaxWidth().textFieldFocus().focusRequester(searchFocus).onKeyEvent {
-                            if (it.type == KeyEventType.KeyDown && it.key == Key.Enter) {
-                                app.search(app.searchQuery)
-                                true
-                            } else {
-                                false
-                            }
-                        },
-                    )
-                }
-                if (app.searchQuery.isNotEmpty()) IconButton(Glyph.Close, onClick = { app.searchQuery = ""; app.searchResult = null }, color = C.Muted, size = 14.dp, box = 28.dp)
-            }
-            Gap(h = 12)
-            val result = app.searchResult
-            val suggestions by produceState<List<String>>(emptyList(), app.searchQuery, app.st.searchSuggestions) {
-                value = emptyList()
-                val q = app.searchQuery.trim()
-                if (app.st.searchSuggestions && q.isNotEmpty() && q != app.lastSearched) {
-                    kotlinx.coroutines.delay(250)
-                    value = runCatching { app.yt.suggestions(q) }.getOrDefault(emptyList())
-                }
-            }
-            val typing = app.searchQuery.isNotBlank() && app.searchQuery.trim() != app.lastSearched
-            when {
-                typing && suggestions.isNotEmpty() ->
-                    Column(Modifier.fillMaxWidth()) {
-                        SectionLabel(S("d_search_suggestions"), Modifier.padding(bottom = 6.dp))
-                        suggestions.forEach { sug ->
-                            Txt(sug, size = 15, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).clickable { app.searchQuery = sug; app.search(sug) }.padding(10.dp))
-                        }
-                    }
-                app.searchQuery.isEmpty() && result == null && app.lib.searchHistory.isNotEmpty() && app.st.saveSearchHistory ->
-                    Column(Modifier.fillMaxWidth()) {
-                        SectionLabel(S("search_recent"), Modifier.padding(bottom = 6.dp))
-                        app.lib.searchHistory.forEach { h ->
-                            RowCenter(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).clickable { app.searchQuery = h; app.search(h) }.padding(horizontal = 10.dp, vertical = 4.dp)) {
-                                Txt(h, size = 15, modifier = Modifier.weight(1f))
-                                IconButton(Glyph.Close, onClick = { app.forgetSearch(h) }, color = C.Muted, size = 12.dp, box = 26.dp)
-                            }
-                        }
-                    }
-                app.searching -> Empty(S("d_searching"))
-                app.searchError != null -> Empty(app.searchError!!)
-                result == null -> Empty(S("d_search_enter"))
-                else ->
-                    Box(Modifier.fillMaxSize()) {
-                        LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
-                            // Свои файлы, подходящие под запрос, — сверху: искать их в YouTube незачем.
-                            val words = app.lastSearched.lowercase().split(' ').filter { it.isNotBlank() }
-                            val mine = if (words.isEmpty()) emptyList() else app.localSongs.filter { f ->
-                                val hay = "${f.title} ${f.artist} ${f.album.orEmpty()}".lowercase()
-                                words.all { it in hay }
-                            }
-                            if (mine.isNotEmpty()) {
-                                item { SectionLabel(S("lm_card"), Modifier.padding(vertical = 8.dp)) }
-                                itemsIndexed(mine) { i, song -> SongRow(app, song, onPlay = { app.player.play(mine, i) }) }
-                            }
-                            if (result.songs.isNotEmpty()) item { SectionLabel(S("search_filter_songs"), Modifier.padding(vertical = 8.dp)) }
-                            itemsIndexed(result.songs) { i, song -> SongRow(app, song, onPlay = { app.player.play(result.songs, i) }) }
-                            if (result.albums.isNotEmpty()) {
-                                item {
-                                    SectionLabel(S("search_filter_albums"), Modifier.padding(top = 16.dp, bottom = 8.dp))
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        items(result.albums) { c -> CardTile(c.title, c.subtitle, c.thumbnailUrl) { app.openCard(c) } }
-                                    }
-                                }
-                            }
-                            if (result.artists.isNotEmpty()) {
-                                item {
-                                    SectionLabel(S("search_filter_artists"), Modifier.padding(top = 16.dp, bottom = 8.dp))
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        items(result.artists) { a ->
-                                            CardTile(a.name, a.subtitle, a.thumbnailUrl, circle = true) { app.open(Screen.Artist(a.browseId, a.name, a.thumbnailUrl)) }
-                                        }
-                                    }
-                                }
-                            }
-                            item { Gap(h = 24) }
-                        }
-                        VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
-                    }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DetailHeader(app: AppState, title: String, subtitle: String?, thumb: String?, songs: List<SongItem>, circle: Boolean = false) {
+private fun DetailHeader(app: AppState, title: String, subtitle: String?, thumb: String?, songs: List<SongItem>, circle: Boolean = false, pinKey: String? = null) {
     RowCenter(Modifier.padding(bottom = 16.dp)) {
         Cover(thumb, 120.dp, circle = circle)
         Gap(w = 18)
@@ -365,6 +262,10 @@ private fun DetailHeader(app: AppState, title: String, subtitle: String?, thumb:
                 PixelButton(S("album_play"), onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
                 Gap(w = 10)
                 PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
+                if (pinKey != null) {
+                    Gap(w = 8)
+                    PinButton(app, pinKey, title, subtitle, thumb)
+                }
             }
         }
     }
@@ -377,7 +278,7 @@ fun AlbumScreen(app: AppState, s: Screen.Album) {
     }
     ScreenFrame(s.title, app, canBack = true) {
         val songs = page?.songs.orEmpty()
-        if (page == null) Empty(S("common_loading")) else SongList(app, songs, header = { DetailHeader(app, s.title, page?.subtitle, page?.thumbnailUrl ?: s.thumb, songs) })
+        if (page == null) Empty(S("common_loading")) else SongList(app, songs, header = { DetailHeader(app, s.title, page?.subtitle, page?.thumbnailUrl ?: s.thumb, songs, pinKey = "album:${s.browseId}") })
     }
 }
 
@@ -410,6 +311,8 @@ fun ArtistScreen(app: AppState, s: Screen.Artist) {
                                 PixelButton(S("album_play"), onClick = { if (songs.isNotEmpty()) app.player.play(songs, 0) }, enabled = songs.isNotEmpty())
                                 Gap(w = 10)
                                 PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
+                                Gap(w = 8)
+                                PinButton(app, "artist:${s.browseId}", pg.name.ifBlank { s.name }, pg.subtitle, pg.thumbnailUrl ?: s.thumb)
                                 if (pg.allSongsBrowseId != null && allSongs == null) {
                                     Gap(w = 10)
                                     PixelButton(if (loadingAll) S("d_loading") else S("artist_all_songs"), onClick = {
@@ -460,7 +363,7 @@ fun RemoteScreen(app: AppState, s: Screen.Remote) {
     }
     ScreenFrame(s.title, app, canBack = true) {
         val list = songs
-        if (list == null) Empty(S("common_loading")) else if (list.isEmpty()) Empty(S("d_playlist_empty_or_failed")) else SongList(app, list, header = { DetailHeader(app, s.title, "${list.size} треков", s.thumb, list) })
+        if (list == null) Empty(S("common_loading")) else if (list.isEmpty()) Empty(S("d_playlist_empty_or_failed")) else SongList(app, list, header = { DetailHeader(app, s.title, "${list.size} треков", s.thumb, list, pinKey = "remote:${s.browseId}") })
     }
 }
 
@@ -718,6 +621,7 @@ private fun PlaylistView(app: AppState, pl: StoredPlaylist) {
                             Gap(w = 10)
                             PixelButton(S("album_shuffle"), onClick = { if (songs.isNotEmpty()) app.player.play(songs.shuffled(), 0) }, primary = false, enabled = songs.isNotEmpty())
                             Gap(w = 8)
+                            PinButton(app, "playlist:${pl.id}", pl.name, null, pl.customCover ?: pl.cover ?: pl.songs.firstOrNull()?.thumb)
                             IconButton(Glyph.Sliders, onClick = { app.playlistEditing = true }, color = C.Muted, size = 20.dp, box = 40.dp)
                         }
                     }
@@ -764,51 +668,6 @@ fun DownloadedScreen(app: AppState) {
                 SongList(app, songs, extra = { song ->
                     IconButton(Glyph.Trash, onClick = { app.downloads.remove(song.id) }, color = C.Muted, size = 16.dp)
                 })
-            }
-        }
-    }
-}
-
-/** «Быстрый набор»: закреплённое и самое играемое; на плитке — кнопки «закрепить» и «убрать». */
-@Composable
-fun DialSection(app: AppState, header: Boolean = true) {
-    val entries = app.dialEntries()
-    if (header) {
-        SectionLabel(S("home_dial"), Modifier.padding(top = 8.dp, bottom = 4.dp))
-        Txt(S("home_dial_hint"), color = C.Muted, size = 11, modifier = Modifier.padding(bottom = 8.dp))
-    }
-    if (entries.isEmpty()) {
-        Txt(S("home_dial_empty"), color = C.Muted, size = 13, maxLines = 3, modifier = Modifier.padding(bottom = 14.dp))
-        return
-    }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        items(entries, key = { it.key }) { e -> DialTile(app, e, entries) }
-    }
-    Gap(h = 14)
-}
-
-@Composable
-private fun DialTile(app: AppState, e: DialEntry, all: List<DialEntry>) {
-    val source = remember { MutableInteractionSource() }
-    val hovered by source.collectIsHoveredAsState()
-    Box(
-        Modifier.width(150.dp).hairEnter(0).hoverLift(source).hoverable(source).clip(RoundedCornerShape(Look.row)).background(if (hovered) C.Surface else Color.Transparent)
-            .clickable {
-                val song = e.song
-                if (song != null) app.player.play(all.mapNotNull { it.song }, all.mapNotNull { it.song }.indexOfFirst { it.id == song.id }.coerceAtLeast(0))
-                else e.artistId?.let { app.open(Screen.Artist(it, e.title, e.thumb)) }
-            }.padding(8.dp),
-    ) {
-        Column {
-            Cover(e.thumb, 134.dp, circle = e.artistId != null)
-            Gap(h = 8)
-            Txt(e.title, size = 13)
-            e.subtitle?.let { Txt(it, color = C.Muted, size = 11) }
-        }
-        if (hovered || e.pinned) {
-            RowCenter(Modifier.align(Alignment.TopEnd).padding(4.dp)) {
-                IconButton(Glyph.Pin, onClick = { app.togglePin(e.key) }, color = if (e.pinned) C.Sand else C.Text, size = 14.dp, box = 28.dp)
-                if (hovered) IconButton(Glyph.Close, onClick = { app.hideFromDial(e.key) }, color = C.Text, size = 12.dp, box = 28.dp)
             }
         }
     }

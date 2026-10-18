@@ -201,4 +201,6 @@
     <string name="d_pl_minutes">%1$d min</string>
     <string name="d_lm_drop">You can drag files into the window.</string>
     <string name="d_err_local_missing">File not found — it may have been deleted</string>
+    <string name="d_search_corrected">Showing results for “%1$s”</string>
+    <string name="d_search_original">Search “%1$s”</string>
 </resources>

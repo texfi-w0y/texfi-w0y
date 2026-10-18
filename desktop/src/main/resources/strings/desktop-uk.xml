@@ -201,4 +201,6 @@
     <string name="d_pl_minutes">%1$d хв</string>
     <string name="d_lm_drop">Файли можна перетягнути у вікно.</string>
     <string name="d_err_local_missing">Файл не знайдено — можливо, його видалили</string>
+    <string name="d_search_corrected">Показано за запитом «%1$s»</string>
+    <string name="d_search_original">Шукати «%1$s»</string>
 </resources>

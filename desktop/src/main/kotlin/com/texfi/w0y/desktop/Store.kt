@@ -76,7 +76,13 @@ data class Library(
     val dialHidden: List<String> = emptyList(),
     /** Свои файлы («Мои файлы»): треки с идентификатором `local:…`, сами файлы лежат в папке данных. */
     val localFiles: List<StoredSong> = emptyList(),
+    /** Названия и обложки закреплённых плиток быстрого набора по ключу («artist:…», «album:…»). */
+    val dialInfo: Map<String, StoredDial> = emptyMap(),
 )
+
+/** Снимок закреплённой плитки быстрого набора: артист, альбом или трек из поиска в журнале не лежат. */
+@Serializable
+data class StoredDial(val title: String, val subtitle: String? = null, val thumb: String? = null)
 
 /** Одно прослушивание: что, когда (мс) и сколько секунд реально играло. */
 @Serializable

@@ -303,7 +303,7 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
                     IconButton(if (liked) Glyph.Heart else Glyph.HeartOff, onClick = { app.toggleLike(song) }, color = if (liked) C.Danger else C.Muted, size = 18.dp)
                     // Закрепить на быстром наборе и скопировать ссылку — здесь, а не в плеере.
                     val pinned = app.isPinned(app.dialKey(song))
-                    IconButton(Glyph.Pin, onClick = { app.togglePin(app.dialKey(song)) }, color = if (pinned) C.Sand else C.Muted, size = 16.dp)
+                    IconButton(Glyph.Pin, onClick = { app.togglePinSong(song) }, color = if (pinned) C.Sand else C.Muted, size = 16.dp)
                     DownloadButton(app, song)
                     PlaylistMenu(app, song)
                     if (!song.id.startsWith("local:")) {

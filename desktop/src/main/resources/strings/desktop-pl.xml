@@ -201,4 +201,6 @@
     <string name="d_pl_minutes">%1$d min</string>
     <string name="d_lm_drop">Pliki można przeciągnąć do okna.</string>
     <string name="d_err_local_missing">Nie znaleziono pliku — mógł zostać usunięty</string>
+    <string name="d_search_corrected">Wyniki dla „%1$s”</string>
+    <string name="d_search_original">Szukaj „%1$s”</string>
 </resources>

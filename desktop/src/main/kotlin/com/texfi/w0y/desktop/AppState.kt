@@ -15,7 +15,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-data class DialEntry(val key: String, val title: String, val subtitle: String?, val thumb: String?, val song: SongItem?, val artistId: String?, val pinned: Boolean = false)
+data class DialEntry(val key: String, val title: String, val subtitle: String?, val thumb: String?, val song: SongItem?, val artistId: String?, val pinned: Boolean = false) {
+    val kind: String get() = key.substringBefore(':')
+    val id: String get() = key.substringAfter(':')
+}
+
+/** Пять страниц по девять плиток, как на телефоне. */
+const val DIAL_MAX = 45
 
 sealed interface Screen {
     data object Home : Screen
@@ -54,11 +60,8 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     var homeLoading by mutableStateOf(false)
     var homeError by mutableStateOf<String?>(null)
 
-    var searchQuery by mutableStateOf("")
-    var lastSearched by mutableStateOf("")
-    var searchResult by mutableStateOf<MixedResults?>(null)
-    var searching by mutableStateOf(false)
-    var searchError by mutableStateOf<String?>(null)
+    /** Поиск: запрос, раздел, выдача и кэш живут здесь, чтобы возврат с экрана артиста не стирал результаты. */
+    val searchModel = SearchModel(this)
 
     var accountAlbums by mutableStateOf<List<PlaylistCard>>(emptyList())
     var accountStatus by mutableStateOf<String?>(null)
@@ -204,24 +207,14 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         }
     }
 
-    private var searchJob: Job? = null
-
-    fun search(query: String) {
+    /** Запрос в историю: повтор поднимается наверх без учёта регистра; выключено в настройках — не пишется. */
+    fun rememberSearch(query: String) {
         val q = query.trim()
-        if (q.isEmpty()) return
-        lastSearched = q
-        if (st.saveSearchHistory) update { it.copy(searchHistory = (listOf(q) + it.searchHistory.filterNot { h -> h.equals(q, true) }).take(15)) }
-        searchJob?.cancel()
-        searchJob =
-            scope.launch {
-                searching = true
-                searchError = null
-                runCatching { yt.search(q) }
-                    .onSuccess { searchResult = it.copy(songs = visible(it.songs)) }
-                    .onFailure { searchError = S("d_err_search", it.message ?: "") }
-                searching = false
-            }
+        if (q.length < 2 || !st.saveSearchHistory) return
+        update { it.copy(searchHistory = (listOf(q) + it.searchHistory.filterNot { h -> h.equals(q, true) }).take(20)) }
     }
+
+    fun clearSearchHistory() = update { it.copy(searchHistory = emptyList()) }
 
     // ---- библиотека
     fun remember(song: SongItem) {
@@ -241,38 +234,76 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
     }
 
     // ---- быстрый набор
+    // Ключи плиток: «song:ID», «artist:ID», «album:ID», «remote:ID» (плейлист YouTube), «playlist:ID» (свой плейлист).
     fun dialKey(song: SongItem) = "song:${song.id}"
 
     fun isPinned(key: String) = key in lib.dialPins
 
-    fun togglePin(key: String) = update {
-        it.copy(dialPins = if (key in it.dialPins) it.dialPins - key else listOf(key) + it.dialPins, dialHidden = it.dialHidden - key)
+    /** Закрепляет или открепляет плитку. Снимок запоминается: артиста или трек из поиска в журнале может не быть. */
+    fun togglePin(key: String, title: String? = null, subtitle: String? = null, thumb: String? = null) = update {
+        val pin = key !in it.dialPins
+        it.copy(
+            dialPins = if (pin) listOf(key) + it.dialPins else it.dialPins - key,
+            dialHidden = it.dialHidden - key,
+            dialInfo = if (pin && title != null) it.dialInfo + (key to StoredDial(title, subtitle, thumb)) else it.dialInfo,
+        )
     }
 
+    fun togglePinSong(song: SongItem) = togglePin(dialKey(song), song.title, song.artist.takeIf { it.isNotBlank() }, song.thumbnailUrl)
+
+    /** Убирает плитку из набора; закреплённая сначала открепляется, иначе она вернулась бы первой. */
     fun hideFromDial(key: String) = update { it.copy(dialPins = it.dialPins - key, dialHidden = (it.dialHidden + key).distinct()) }
 
-    /** Плитки быстрого набора: сначала закреплённые, затем самые игранные от порога из настроек. */
+    /** «Отменить» после «убрать»: плитка возвращается на место, закрепление тоже. */
+    fun restoreDial(key: String, wasPinned: Boolean) = update {
+        it.copy(dialHidden = it.dialHidden - key, dialPins = if (wasPinned && key !in it.dialPins) listOf(key) + it.dialPins else it.dialPins)
+    }
+
+    /** Плитка, на которую открыто меню (долгое нажатие или правая кнопка), и плитка, которую только что убрали. */
+    var dialMenu by mutableStateOf<DialEntry?>(null)
+    var dialUndo by mutableStateOf<DialEntry?>(null)
+
+    /**
+     * Плитки быстрого набора, как на телефоне: сначала закреплённое вручную (трек, альбом, плейлист, артист),
+     * следом то, что слушается чаще всего (от порога из настроек; при равенстве свежее выше), затем свои плейлисты.
+     * Убранные плитки вычитаются, на их место встают следующие.
+     */
     fun dialEntries(): List<DialEntry> {
+        val l = lib
         val songs = HashMap<String, StoredSong>()
+        (l.history + l.liked + l.localFiles + l.playlists.flatMap { it.songs }).forEach { songs.putIfAbsent(it.id, it) }
         val counts = HashMap<String, Int>()
-        lib.playLog.forEach { p ->
+        val last = HashMap<String, Long>()
+        l.playLog.forEach { p ->
             songs[p.song.id] = p.song
-            counts.merge("song:${p.song.id}", 1, Int::plus)
+            counts.merge(p.song.id, 1, Int::plus)
+            last[p.song.id] = maxOf(last[p.song.id] ?: 0L, p.at)
         }
-        lib.history.forEach { songs.putIfAbsent(it.id, it) }
-        val out = ArrayList<DialEntry>()
-        fun entry(key: String): DialEntry? {
+        fun entry(key: String, pinned: Boolean): DialEntry? {
             val id = key.substringAfter(':')
+            val info = l.dialInfo[key]
             return when (key.substringBefore(':')) {
-                "song" -> songs[id]?.let { DialEntry(key, it.title, it.artist, it.thumb, it.toItem(), null) }
-                "artist" -> lib.history.firstOrNull { it.artistId == id }?.let { DialEntry(key, it.artist, null, it.thumb, null, id) }
+                "song" ->
+                    songs[id]?.let { DialEntry(key, it.title, it.artist.takeIf { a -> a.isNotBlank() }, it.thumb, it.toItem(), null, pinned) }
+                        ?: info?.let { DialEntry(key, it.title, it.subtitle, it.thumb, SongItem(id = id, title = it.title, artist = it.subtitle.orEmpty(), thumbnailUrl = it.thumb), null, pinned) }
+                "artist" ->
+                    info?.let { DialEntry(key, it.title, it.subtitle, it.thumb, null, id, pinned) }
+                        ?: l.history.firstOrNull { it.artistId == id }?.let { DialEntry(key, it.artist, null, it.thumb, null, id, pinned) }
+                "album", "remote" -> info?.let { DialEntry(key, it.title, it.subtitle, it.thumb, null, null, pinned) }
+                "playlist" ->
+                    l.playlists.firstOrNull { it.id == id }?.let { pl ->
+                        DialEntry(key, pl.name, S("library_own_playlist"), pl.customCover ?: pl.cover ?: pl.songs.firstOrNull()?.thumb, null, null, pinned)
+                    }
                 else -> null
             }
         }
-        lib.dialPins.forEach { k -> entry(k)?.let { out += it.copy(pinned = true) } }
-        counts.entries.filter { it.value >= st.dialMinPlays && it.key !in lib.dialPins && it.key !in lib.dialHidden }
-            .sortedByDescending { it.value }.take(12).forEach { (k, _) -> entry(k)?.let { out += it } }
-        return out
+        val out = LinkedHashMap<String, DialEntry>()
+        l.dialPins.forEach { k -> entry(k, true)?.let { out.putIfAbsent(k, it) } }
+        counts.entries.filter { it.value >= st.dialMinPlays }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenByDescending { last[it.key] ?: 0L })
+            .forEach { (id, _) -> entry("song:$id", false)?.let { out.putIfAbsent(it.key, it) } }
+        l.playlists.forEach { pl -> entry("playlist:${pl.id}", false)?.let { out.putIfAbsent(it.key, it) } }
+        return out.values.filter { it.key !in l.dialHidden }.take(DIAL_MAX)
     }
 
     fun toggleLike(song: SongItem) {

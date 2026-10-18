@@ -96,6 +96,23 @@ class Yt {
         YtJson.songs(innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = SONGS_FILTER).body<JsonObject>())
     }
 
+    /** Один запрос без фильтра: сразу артисты, треки и альбомы — как вкладка «Все» на телефоне. */
+    suspend fun searchEverything(query: String): MixedResults = withContext(Dispatchers.IO) {
+        YtJson.mixed(innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = null).body<JsonObject>())
+    }
+
+    suspend fun searchVideos(query: String): List<SongItem> = withContext(Dispatchers.IO) {
+        YtJson.songs(innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = VIDEOS_FILTER).body<JsonObject>())
+    }
+
+    suspend fun searchAlbums(query: String) = withContext(Dispatchers.IO) {
+        YtJson.playlistCards(innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = ALBUMS_FILTER).body<JsonObject>())
+    }
+
+    suspend fun searchArtists(query: String) = withContext(Dispatchers.IO) {
+        YtJson.artistCards(innerTube.search(client = YouTubeClient.WEB_REMIX, query = query, params = ARTISTS_FILTER).body<JsonObject>())
+    }
+
     /** Официальная clean-версия трека, если выложена. Название сверяет CleanMatch — чужие каверы не подсунет. */
     suspend fun cleanVersion(song: SongItem): SongItem? =
         com.texfi.w0y.data.CleanMatch.pick(song, runCatching { songsOnly("${song.title} ${song.artist} clean") }.getOrDefault(emptyList()))
@@ -327,5 +344,6 @@ class Yt {
         const val SONGS_FILTER = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D"
         const val ALBUMS_FILTER = "EgWKAQIYAWoKEAkQChAFEAMQBA%3D%3D"
         const val ARTISTS_FILTER = "EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D"
+        const val VIDEOS_FILTER = "EgWKAQIQAWoKEAkQChAFEAMQBA%3D%3D"
     }
 }

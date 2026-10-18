@@ -59,7 +59,7 @@ fun HomeScreen(app: AppState) {
                 if (app.updater.bannerVisible) item { UpdateBanner(app) }
                 item {
                     HairSection(1, S("home_dial"), if (app.dialEntries().isEmpty()) null else S("home_dial_hint"))
-                    DialSection(app, header = false)
+                    DialSection(app)
                 }
                 quickShelf?.let { shelf ->
                     // Свои файлы подмешиваются в «Быстрый выбор»: несколько штук на сутки, на 3-м, 7-м и 11-м местах.
@@ -118,6 +118,8 @@ fun HomeScreen(app: AppState) {
                 item { Gap(h = 24) }
             }
             VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+            app.dialMenu?.let { DialMenu(app, it) }
+            app.dialUndo?.let { DialUndoBar(app, it, Modifier.align(Alignment.BottomCenter)) }
         }
     }
 }
