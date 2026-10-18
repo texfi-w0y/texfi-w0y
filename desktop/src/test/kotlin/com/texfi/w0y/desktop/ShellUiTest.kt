@@ -7,7 +7,9 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.runDesktopComposeUiTest
@@ -90,6 +92,26 @@ class ShellUiTest {
             setContent { Box(Modifier.fillMaxSize()) { SongList(app, songs) } }
             onNode(hasScrollAction()).performScrollToNode(hasText("Track number 599"))
             onNodeWithText("Track number 599").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun queueReordersOnlyByDraggingTheHandle() {
+        val app = app()
+        val songs = (0 until 4).map { SongItem(id = "q$it", title = "Queue song $it", artist = "Artist") }
+        app.player.start(songs, 0, 100)
+        runDesktopComposeUiTest(1280, 800) {
+            setContent { Box(Modifier.fillMaxSize()) { QueueList(app) } }
+            waitForIdle()
+            // Перетаскивание за саму строку (не за ручку) ничего не меняет.
+            onNodeWithText("Queue song 3").performMouseInput { moveTo(center); press(); moveBy(androidx.compose.ui.geometry.Offset(0f, -250f)); release() }
+            waitForIdle()
+            assertEquals(listOf("q0", "q1", "q2", "q3"), app.player.queue.map { it.id })
+            // За ручку — меняет: четвёртый трек поднимается вверх.
+            onNodeWithTag("queue-handle-3", useUnmergedTree = true).performMouseInput { moveTo(center); press(); moveBy(androidx.compose.ui.geometry.Offset(0f, -90f)); release() }
+            waitForIdle()
+            assertTrue(app.player.queue.map { it.id } != listOf("q0", "q1", "q2", "q3"), "порядок не изменился")
+            assertEquals(setOf("q0", "q1", "q2", "q3"), app.player.queue.map { it.id }.toSet())
         }
     }
 

@@ -3,6 +3,9 @@ package com.texfi.w0y.desktop
 import com.texfi.w0y.desktop.i18n.S
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -194,13 +197,17 @@ fun QueueList(app: AppState) {
     LaunchedEffect(p.index) { if (p.index >= 0) state.animateScrollToItem((p.index - 2).coerceAtLeast(0)) }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
-            itemsIndexed(p.queue, key = { i, s -> "${s.id}#$i" }) { i, song ->
+            // Ключ — id и порядковый номер повтора, а не позиция: строка, которую тащат за ручку, остаётся той же
+            // и не теряет жест при каждом шаге перестановки.
+            itemsIndexed(p.queue, key = { i, s -> "${s.id}#${p.queue.take(i).count { it.id == s.id }}" }) { i, song ->
                 val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 RowCenter(
-                    Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(6.dp))
+                    Modifier.fillMaxWidth().hoverable(source).clip(RoundedCornerShape(Look.row))
                         .background(if (i == p.index) C.Surface else hoverBackground(source))
                         .clickable { p.jump(i) }.padding(horizontal = 8.dp, vertical = 6.dp),
                 ) {
+                    DragHandle(i, p, state)
+                    Gap(w = 6)
                     Txt(if (i == p.index) "▶" else "${i + 1}", color = if (i == p.index) C.Blue else C.Muted, size = 12, modifier = Modifier.width(30.dp))
                     Cover(song.thumbnailUrl, 40.dp)
                     Gap(w = 12)
@@ -217,6 +224,42 @@ fun QueueList(app: AppState) {
         }
         VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
     }
+}
+
+/**
+ * Ручка перестановки: перетаскивание работает только за неё, поэтому случайное движение мыши по строке
+ * ничего не меняет. Сдвиг на высоту строки меняет трек местами с соседом.
+ */
+@Composable
+private fun DragHandle(index: Int, p: PlayerCtl, state: androidx.compose.foundation.lazy.LazyListState) {
+    var current by remember { androidx.compose.runtime.mutableIntStateOf(index) }
+    current = index
+    var offset by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    Box(
+        Modifier.width(22.dp).height(32.dp).testTag("queue-handle-$index")
+            .pointerInput(Unit) {
+                detectDragGestures(onDragStart = { offset = 0f }, onDragEnd = { offset = 0f }, onDragCancel = { offset = 0f }) { change, drag ->
+                    change.consume()
+                    offset += drag.y
+                    val row = state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == current }?.size?.toFloat() ?: 60f
+                    while (offset > row / 2 && current < p.queue.lastIndex) {
+                        p.moveInQueue(current, current + 1)
+                        current++
+                        offset -= row
+                    }
+                    while (offset < -row / 2 && current > 0) {
+                        p.moveInQueue(current, current - 1)
+                        current--
+                        offset += row
+                    }
+                }
+            }.drawBehind {
+                // Две колонки по три точки.
+                for (c in 0..1) for (r in 0..2) {
+                    drawCircle(C.Muted, 1.6.dp.toPx(), Offset(size.width / 2 + (c - 0.5f) * 6.dp.toPx(), size.height / 2 + (r - 1) * 6.dp.toPx()))
+                }
+            },
+    )
 }
 
 @Composable
