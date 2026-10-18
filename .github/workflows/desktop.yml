@@ -106,8 +106,13 @@ jobs:
       - name: Smoke test (no window, no sound card)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath desktop/build/compose/binaries/main/app/w0y/w0y.exe -ArgumentList "--smoke" -Wait -PassThru -RedirectStandardOutput smoke.txt
-          Get-Content smoke.txt
+          $dir = Join-Path $PWD "desktop/build/compose/binaries/main/app/w0y"
+          Get-ChildItem $dir | Select-Object -First 20 | Format-Table Name
+          $exe = Join-Path $dir "w0y.exe"
+          if (-not (Test-Path $exe)) { throw "нет $exe" }
+          $out = Join-Path $PWD "smoke.txt"
+          $p = Start-Process -FilePath $exe -ArgumentList "--smoke" -Wait -PassThru -RedirectStandardOutput $out
+          Get-Content $out
           if ($p.ExitCode -ne 0) { throw "smoke: код $($p.ExitCode)" }
       - name: Installer and portable zip
         shell: pwsh

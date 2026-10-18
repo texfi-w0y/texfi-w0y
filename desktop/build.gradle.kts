@@ -118,6 +118,12 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Причина падения должна быть видна в журнале CI, а не только в отчёте, которого там не достать.
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
     // Кадры интерфейса из тестов: ./gradlew test -Dw0y.shots=папка
     System.getProperty("w0y.shots")?.let { systemProperty("w0y.shots", it) }
 }
