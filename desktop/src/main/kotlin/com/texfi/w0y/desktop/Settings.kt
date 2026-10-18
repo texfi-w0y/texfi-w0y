@@ -214,6 +214,8 @@ data class DSettings(
     val lastTab: StartTab = StartTab.HOME,
     val showRecommendations: Boolean = true,
     val animatedBackground: Boolean = true,
+    /** Уровень анимаций: «Авто» на слабом компьютере сам берёт лёгкие. */
+    val motion: MotionMode = MotionMode.AUTO,
     val compactRows: Boolean = false,
     val dialMinPlays: Int = 1,
     // ---- устройства и система

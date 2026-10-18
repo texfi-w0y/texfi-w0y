@@ -167,4 +167,10 @@
     <string name="d_menu_selected">Выбрано: %1$d</string>
     <string name="d_set_dblclick_title">Двойной клик включает трек</string>
     <string name="d_set_dblclick_desc">Один клик выделяет строку (Ctrl и Shift выделяют несколько), двойной включает. Выключено — один клик сразу играет.</string>
+    <string name="d_act_mini">Мини-плеер</string>
+    <string name="d_mini_restore">Развернуть</string>
+    <string name="d_set_motion_desc">«Авто» выбирает лёгкие анимации на слабом компьютере. «Выкл.» убирает переходы совсем.</string>
+    <string name="d_tab_view">Вид</string>
+    <string name="d_art_cover">Обложка</string>
+    <string name="d_art_visualizer">Визуализатор</string>
 </resources>

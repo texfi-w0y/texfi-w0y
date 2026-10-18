@@ -552,6 +552,8 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
         }
         add(Setting(SSection.LOOK, S("d_set_scale_title"), S("d_set_scale_desc"),
             choice(listOf(0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.5f), st.uiScale, { "${(it * 100).toInt()}%" }) { v -> set { it.copy(uiScale = v) } }, "scale масштаб dpi"))
+        add(Setting(SSection.LOOK, S("hl_set_motion"), S("d_set_motion_desc"),
+            choice(MotionMode.entries, st.motion, { it.label }) { v -> set { it.copy(motion = v) } }, "motion animation анимации движение"))
         add(Setting(SSection.LOOK, S("settings_theme_title"), S("settings_theme_desc"),
             choice(ThemeMode.entries, st.theme, { it.label }) { v -> set { it.copy(theme = v) } }, "оформление тема"))
         add(Setting(SSection.LOOK, S("settings_accent_title"), S("settings_accent_desc"), SetControl.Custom { AccentPicker(app) }, "цвет акцент"))

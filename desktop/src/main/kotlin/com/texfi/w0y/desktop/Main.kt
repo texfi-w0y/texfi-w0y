@@ -35,6 +35,7 @@ fun main(args: Array<String>) {
     application {
         val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main) }
         val app = remember { AppState(scope, Yt(), Store()).also { it.start() } }
+        LaunchedEffect(Unit) { if (Platform.isWindows) WinMediaKeys.start(app) }
         val state = rememberWindowState(size = DpSize(1180.dp, 760.dp))
         var visible by remember { mutableStateOf(true) }
         val trayOn = isTraySupported
@@ -62,10 +63,29 @@ fun main(args: Array<String>) {
                     Item(S("d_act_play_pause"), onClick = { app.player.toggle() })
                     Item(S("d_act_next"), onClick = { app.player.nextClick() })
                     Item(S("d_act_previous"), onClick = { app.player.previous() })
+                    Item(S("d_act_mini"), onClick = { Actions.mini = true })
                     Separator()
                     Item(S("d_tray_quit"), onClick = { Actions.quit() })
                 },
             )
+        }
+        // Мини-плеер: главное окно прячется, маленькое окно висит поверх остальных.
+        val mini = Actions.mini
+        LaunchedEffect(mini) { if (mini) visible = false else visible = true }
+        if (mini) {
+            Window(
+                onCloseRequest = { Actions.mini = false },
+                title = "w0y",
+                icon = painterResource("icon.png"),
+                undecorated = true,
+                resizable = false,
+                alwaysOnTop = true,
+                state = rememberWindowState(size = DpSize(400.dp, 128.dp)),
+            ) {
+                CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density * app.st.uiScale.coerceIn(0.7f, 2f), LocalDensity.current.fontScale)) {
+                    MiniPlayer(app) { Actions.mini = false }
+                }
+            }
         }
         Window(
             onCloseRequest = {

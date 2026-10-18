@@ -2,7 +2,13 @@ package com.texfi.w0y.desktop
 
 import com.texfi.w0y.desktop.i18n.S
 import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
@@ -51,6 +57,7 @@ private enum class PlayerTab(val key: String) {
     Similar("d_tab_similar"),
     Lyrics("player_lyrics"),
     Sound("player_sound"),
+    View("d_tab_view"),
     ;
 
     val label: String get() = S(key)
@@ -66,17 +73,20 @@ fun PlayerScreen(app: AppState) {
     val tabs = PlayerTab.entries.filter { it != PlayerTab.Lyrics || app.st.showLyrics }
     if (tab !in tabs) tab = PlayerTab.Queue
     val glowBrush = glow?.let { androidx.compose.ui.graphics.Brush.verticalGradient(listOf(it.copy(alpha = 0.30f), androidx.compose.ui.graphics.Color.Transparent)) }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    // Hairline: обложка-диск растёт вместе с окном, но не выше половины высоты и не шире 40% ширины.
+    val coverSize = if (Look.hair) minOf(maxWidth * 0.40f, maxHeight - 250.dp).coerceIn(240.dp, 560.dp) else 340.dp
     Row(Modifier.fillMaxSize().then(if (glowBrush != null) Modifier.background(glowBrush) else Modifier).padding(28.dp)) {
-        Column(Modifier.width(340.dp).fillMaxHeight(), horizontalAlignment = Alignment.Start) {
+        Column(Modifier.width(coverSize).fillMaxHeight(), horizontalAlignment = Alignment.Start) {
             val viz = app.st.playerArt == PlayerArt.VISUALIZER && SpectrumCapture.available
             Box(Modifier.clickable(enabled = SpectrumCapture.available) { app.setSt { it.copy(playerArt = if (viz) PlayerArt.COVER else PlayerArt.VISUALIZER) } }) {
                 if (viz) {
-                    Box(Modifier.width(340.dp).height(340.dp).clip(RoundedCornerShape(Look.cover)).background(C.Surface)) {
-                        if (app.st.visualizerCoverBackdrop) Cover(song?.thumbnailUrl, 340.dp, Modifier.alpha(0.3f))
+                    Box(Modifier.width(coverSize).height(coverSize).clip(RoundedCornerShape(Look.cover)).background(C.Surface)) {
+                        if (app.st.visualizerCoverBackdrop) Cover(song?.thumbnailUrl, coverSize, Modifier.alpha(0.3f))
                         Visualizer(app.st.visualizerStyle, p.playing, app.st.visualizerSensitivity, app.st.visualizerFps, Modifier.fillMaxSize().padding(12.dp))
                     }
                 } else {
-                    PixelCover(song?.thumbnailUrl)
+                    if (Look.hair) HairDisc(song?.thumbnailUrl, coverSize, p.playing) else PixelCover(song?.thumbnailUrl)
                 }
             }
             Gap(h = 20)
@@ -109,11 +119,12 @@ fun PlayerScreen(app: AppState) {
                 IconButton(Glyph.Prev, onClick = p::previous, size = 24.dp, box = 44.dp)
                 Gap(w = 8)
                 Box(
-                    (if (Look.smooth) Modifier.width(54.dp).height(54.dp).clip(androidx.compose.foundation.shape.CircleShape).background(C.Blue)
+                    (if (Look.hair) Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(3.dp)).background(C.Text)
+                    else if (Look.smooth) Modifier.width(54.dp).height(54.dp).clip(androidx.compose.foundation.shape.CircleShape).background(C.Blue)
                     else Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(4.dp)).background(C.Blue).border(2.dp, C.BlueDeep, RoundedCornerShape(4.dp)))
                         .clickable(onClick = p::toggle),
                     contentAlignment = Alignment.Center,
-                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, C.OnAccent, 28.dp) }
+                ) { Icon(if (p.playing) Glyph.Pause else Glyph.Play, if (Look.hair) C.Background else C.OnAccent, 28.dp) }
                 Gap(w = 8)
                 IconButton(Glyph.Next, onClick = { p.nextClick() }, size = 24.dp, box = 44.dp)
                 Box {
@@ -134,10 +145,14 @@ fun PlayerScreen(app: AppState) {
             RowCenter {
                 tabs.forEach { t ->
                     val active = t == tab
+                    // Hairline: подпись заглавными и тонкая линия акцента под активной вкладкой, без «таблеток».
+                    val underline by androidx.compose.animation.core.animateFloatAsState(if (active) 1f else 0f, tween(Motion.ms(200)))
                     Box(
-                        Modifier.clip(RoundedCornerShape(if (Look.smooth) 50.dp else 4.dp)).background(if (active) (if (Look.smooth) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { tab = t }.padding(horizontal = 8.dp, vertical = 10.dp),
-                    ) { Txt(if (Look.smooth) t.label else t.label.uppercase(), pixel = true, size = if (Look.smooth) 14 else 9, color = if (active) C.Blue else C.Muted) }
+                        Modifier.clip(RoundedCornerShape(if (Look.hair) 3.dp else if (Look.smooth) 50.dp else 4.dp))
+                            .background(if (active && !Look.hair) (if (Look.smooth) C.Blue.copy(alpha = 0.22f) else C.SurfaceHigh) else androidx.compose.ui.graphics.Color.Transparent)
+                            .drawBehind { if (Look.hair && underline > 0f) drawRect(C.Blue, Offset(0f, size.height - 1.dp.toPx()), androidx.compose.ui.geometry.Size(size.width * underline, 1.dp.toPx())) }
+                            .clickable { tab = t }.padding(horizontal = 10.dp, vertical = 10.dp),
+                    ) { Txt(if (Look.smooth && !Look.hair) t.label else t.label.uppercase(), pixel = true, size = if (Look.hair) 11 else if (Look.smooth) 14 else 9, color = if (active) (if (Look.hair) C.Text else C.Blue) else C.Muted) }
                     Gap(w = 2)
                 }
             }
@@ -148,6 +163,63 @@ fun PlayerScreen(app: AppState) {
                     PlayerTab.Similar -> SimilarPane(app)
                     PlayerTab.Lyrics -> LyricsPane(app)
                     PlayerTab.Sound -> SoundPane(app)
+                    PlayerTab.View -> ViewPane(app)
+                }
+            }
+        }
+    }
+    }
+}
+
+/**
+ * Hairline: обложка-диск. Тонкое кольцо делений (каждое десятое длиннее), обложка кругом, отверстие в центре.
+ * Диск медленно вращается, пока играет музыка, только при полных анимациях; иначе стоит.
+ */
+@Composable
+fun HairDisc(url: String?, size: Dp, playing: Boolean) {
+    val spin = androidx.compose.animation.core.rememberInfiniteTransition(label = "disc")
+    val turning by spin.animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(tween(36_000, easing = androidx.compose.animation.core.LinearEasing)), label = "disc-angle")
+    val angle = if (playing && Motion.full) turning else 0f
+    val ring = C.Border
+    val tick = C.Muted
+    Box(
+        Modifier.size(size).drawBehind {
+            val r = this.size.minDimension / 2f
+            val c = Offset(this.size.width / 2f, this.size.height / 2f)
+            drawCircle(ring, r - 0.5.dp.toPx(), c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            for (i in 0 until 120) {
+                val a = Math.toRadians(i * 3.0 - 90.0)
+                val long = i % 10 == 0
+                val inner = r - (if (long) 14.dp.toPx() else 7.dp.toPx())
+                drawLine(if (long) tick else ring, Offset(c.x + (r - 2.dp.toPx()) * Math.cos(a).toFloat(), c.y + (r - 2.dp.toPx()) * Math.sin(a).toFloat()), Offset(c.x + inner * Math.cos(a).toFloat(), c.y + inner * Math.sin(a).toFloat()), 1.dp.toPx())
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Cover(url, size * 0.74f, Modifier.rotate(angle), circle = true)
+            Box(Modifier.size(size * 0.05f).clip(androidx.compose.foundation.shape.CircleShape).background(C.Background).border(1.dp, C.Border, androidx.compose.foundation.shape.CircleShape))
+        }
+    }
+}
+
+/** Вкладка «Вид»: что показывать вместо обложки, стиль визуализатора, свечение, текст. */
+@Composable
+private fun ViewPane(app: AppState) {
+    val st = app.st
+    Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
+        SectionLabel(S("settings_cover_glow_title"))
+        RowCenter { AppToggle(st.playerCoverGlow) { v -> app.setSt { it.copy(playerCoverGlow = v) } }; Gap(w = 12); Txt(S("settings_cover_glow_title"), size = 13) }
+        SectionLabel(S("settings_lyrics_title"))
+        RowCenter { AppToggle(st.showLyrics) { v -> app.setSt { it.copy(showLyrics = v) } }; Gap(w = 12); Txt(S("settings_lyrics_title"), size = 13) }
+        if (SpectrumCapture.available) {
+            SectionLabel(S("viz_style_title"))
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                ChoiceChip(S("d_art_cover"), st.playerArt == PlayerArt.COVER) { app.setSt { it.copy(playerArt = PlayerArt.COVER) } }
+                ChoiceChip(S("d_art_visualizer"), st.playerArt == PlayerArt.VISUALIZER) { app.setSt { it.copy(playerArt = PlayerArt.VISUALIZER) } }
+                VisualizerStyle.entries.filter { it.smooth == Look.smooth }.forEach { v ->
+                    ChoiceChip(v.label, st.visualizerStyle == v) { app.setSt { it.copy(visualizerStyle = v) } }
                 }
             }
         }

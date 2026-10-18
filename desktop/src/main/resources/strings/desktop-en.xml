@@ -167,4 +167,10 @@
     <string name="d_menu_selected">%1$d selected</string>
     <string name="d_set_dblclick_title">Double-click plays a track</string>
     <string name="d_set_dblclick_desc">One click selects (Ctrl and Shift select several), double-click plays. Off — one click plays at once.</string>
+    <string name="d_act_mini">Mini player</string>
+    <string name="d_mini_restore">Restore</string>
+    <string name="d_set_motion_desc">"Auto" picks light animations on a weak computer. "Off" removes transitions entirely.</string>
+    <string name="d_tab_view">View</string>
+    <string name="d_art_cover">Cover</string>
+    <string name="d_art_visualizer">Visualizer</string>
 </resources>

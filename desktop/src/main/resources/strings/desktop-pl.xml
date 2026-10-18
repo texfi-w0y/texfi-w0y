@@ -167,4 +167,10 @@
     <string name="d_menu_selected">Zaznaczono: %1$d</string>
     <string name="d_set_dblclick_title">Podwójne kliknięcie odtwarza utwór</string>
     <string name="d_set_dblclick_desc">Jedno kliknięcie zaznacza (Ctrl i Shift zaznaczają kilka), podwójne odtwarza. Wyłączone — jedno kliknięcie od razu gra.</string>
+    <string name="d_act_mini">Mini odtwarzacz</string>
+    <string name="d_mini_restore">Przywróć</string>
+    <string name="d_set_motion_desc">„Auto” wybiera lekkie animacje na słabym komputerze. „Wył.” całkiem usuwa przejścia.</string>
+    <string name="d_tab_view">Widok</string>
+    <string name="d_art_cover">Okładka</string>
+    <string name="d_art_visualizer">Wizualizator</string>
 </resources>

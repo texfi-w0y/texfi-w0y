@@ -64,7 +64,7 @@ fun App(app: AppState) {
     val backdrop = if (Look.glass) rememberBackdrop() else null
     val screens: @Composable () -> Unit = {
         // Смена экрана — мягкое наплывание: у Smooth дольше, у Pixel короче.
-        Crossfade(app.screen, animationSpec = tween(if (Look.smooth) 240 else 140)) { s ->
+        Crossfade(app.screen, animationSpec = tween(Motion.ms(if (Look.smooth) 240 else 140))) { s ->
         when (s) {
             Screen.Home -> HomeScreen(app)
             Screen.Search -> SearchScreen(app)
@@ -101,7 +101,7 @@ private fun PixelShell(app: AppState, screens: @Composable () -> Unit) {
         Box(Modifier.width(2.dp).fillMaxHeight().background(C.Border))
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (app.st.theme != ThemeMode.LIGHT) Starfield(app.st.animatedBackground, Modifier.fillMaxSize())
+                if (app.st.theme != ThemeMode.LIGHT) Starfield(app.st.animatedBackground && Motion.full, Modifier.fillMaxSize())
                 screens()
             }
             PlayerBar(app)

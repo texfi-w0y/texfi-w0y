@@ -86,6 +86,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         ThemeState.custom = st.customAccent
         ThemeState.style = st.uiStyle
         ThemeState.glass = st.smoothGlass
+        Motion.mode = st.motion
         Strings.select(st.language.tag)
     }
 

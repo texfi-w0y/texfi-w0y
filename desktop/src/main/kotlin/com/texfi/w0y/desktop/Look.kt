@@ -10,6 +10,28 @@ import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+/** Уровень анимаций. «Авто» — полные, пока компьютер не слабый (мало ядер или памяти): тогда лёгкие. */
+@kotlinx.serialization.Serializable
+enum class MotionMode(override val key: String) : Labeled {
+    AUTO("hl_motion_auto"),
+    FULL("hl_motion_full"),
+    LITE("hl_motion_lite"),
+    OFF("hl_motion_off"),
+}
+
+object Motion {
+    var mode by mutableStateOf(MotionMode.AUTO)
+
+    /** Слабый компьютер: два ядра и меньше либо меньше гигабайта кучи. */
+    val weak: Boolean = Runtime.getRuntime().availableProcessors() <= 2 || Runtime.getRuntime().maxMemory() < (1L shl 30)
+
+    val off: Boolean get() = mode == MotionMode.OFF
+    val full: Boolean get() = mode == MotionMode.FULL || (mode == MotionMode.AUTO && !weak)
+
+    /** Длительность перехода в мс: полная, треть или ноль. */
+    fun ms(full: Int): Int = if (off) 0 else if (this.full) full else full / 3
+}
+
 /** Состояние оформления: меняется в настройках, всё нарисованное перерисовывается само. */
 object ThemeState {
     var mode by mutableStateOf(ThemeMode.DARK)

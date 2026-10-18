@@ -64,6 +64,7 @@ enum class Action(
     BACK("back", "d_act_back", listOf("escape", "alt+left"), inText = true, group = 2),
     HELP("help", "d_act_help", listOf("shift+slash", "f1"), group = 3),
     FULLSCREEN("fullscreen", "d_act_fullscreen", listOf("f11"), inText = true, group = 3),
+    MINI("mini", "d_act_mini", listOf("ctrl+m"), inText = true, group = 3),
     QUIT("quit", "d_act_quit", listOf("ctrl+q"), inText = true, group = 3),
     ;
 
@@ -205,6 +206,9 @@ object Actions {
     /** Окно ставит сюда выход; до этого действие ничего не делает. */
     var quit: () -> Unit = {}
 
+    /** Мини-плеер: маленькое окно поверх остальных вместо главного. */
+    var mini by mutableStateOf(false)
+
     var helpOpen by mutableStateOf(false)
     var searchFocusTick by mutableStateOf(0)
 
@@ -242,6 +246,7 @@ object Actions {
             Action.BACK -> if (helpOpen) helpOpen = false else if (app.stand.on) app.stand.off() else app.back()
             Action.HELP -> helpOpen = !helpOpen
             Action.FULLSCREEN -> fullscreen = !fullscreen
+            Action.MINI -> mini = !mini
             Action.QUIT -> quit()
         }
     }
