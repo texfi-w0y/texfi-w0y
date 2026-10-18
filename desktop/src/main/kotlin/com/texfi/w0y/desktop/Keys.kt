@@ -65,6 +65,8 @@ enum class Action(
     HELP("help", "d_act_help", listOf("shift+slash", "f1"), group = 3),
     FULLSCREEN("fullscreen", "d_act_fullscreen", listOf("f11"), inText = true, group = 3),
     MINI("mini", "d_act_mini", listOf("ctrl+m"), inText = true, group = 3),
+    SIDEBAR("sidebar", "d_act_sidebar", listOf("ctrl+b"), inText = true, group = 3),
+    BAR("bar", "d_act_bar", listOf("ctrl+shift+b"), inText = true, group = 3),
     QUIT("quit", "d_act_quit", listOf("ctrl+q"), inText = true, group = 3),
     ;
 
@@ -247,6 +249,8 @@ object Actions {
             Action.HELP -> helpOpen = !helpOpen
             Action.FULLSCREEN -> fullscreen = !fullscreen
             Action.MINI -> mini = !mini
+            Action.SIDEBAR -> app.setSt { it.copy(sidebarHidden = !it.sidebarHidden) }
+            Action.BAR -> app.setSt { it.copy(barHidden = !it.barHidden) }
             Action.QUIT -> quit()
         }
     }

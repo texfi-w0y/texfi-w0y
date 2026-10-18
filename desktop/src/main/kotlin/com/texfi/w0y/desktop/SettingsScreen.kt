@@ -604,6 +604,10 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
             }, "app icon значок иконка приложения"))
             add(Setting(SSection.LOOK, S("hl_set_layout"), S("hl_set_layout_d"),
                 choice(PlayerLayout.entries, st.hlLayout, { it.label }) { v -> set { it.copy(hlLayout = v) } }, "player layout раскладка плеер hairline"))
+            add(Setting(SSection.LOOK, S("d_set_sidebar_title"), S("d_set_sidebar_desc"),
+                SetControl.Toggle(!st.sidebarHidden) { v -> set { it.copy(sidebarHidden = !v) } }, "sidebar панель боковая меню"))
+            add(Setting(SSection.LOOK, S("d_set_bar_title"), S("d_set_bar_desc"),
+                SetControl.Toggle(!st.barHidden) { v -> set { it.copy(barHidden = !v) } }, "bar панель нижняя плеер"))
             add(Setting(SSection.LOOK, S("hl_set_caps"), S("hl_set_caps_d"),
                 choice(CapsMode.entries, st.hlCaps, { it.label }) { v -> set { it.copy(hlCaps = v) } }, "caps заглавные hairline"))
             add(Setting(SSection.LOOK, S("hl_set_density"), S("hl_set_density_d"),

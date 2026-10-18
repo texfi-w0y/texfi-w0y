@@ -120,4 +120,25 @@ class NowPlayingUiTest {
         }
         app.stand.off()
     }
+
+    @Test
+    fun sidebarAndBottomBarCanBeHidden() {
+        val app = app()
+        playing(app)
+        runDesktopComposeUiTest(1280, 800) {
+            setContent { App(app) }
+            waitForIdle()
+            onNode(hasText("Hide the bar")).assertExists()
+            onNode(hasText("0:33 / 3:34")).assertExists()
+            shot("panels-shown")
+        }
+        app.setSt { it.copy(sidebarHidden = true, barHidden = true) }
+        runDesktopComposeUiTest(1280, 800) {
+            setContent { App(app) }
+            waitForIdle()
+            assertTrue(onAllNodes(hasText("Hide the bar")).fetchSemanticsNodes().isEmpty(), "боковая панель не спряталась")
+            assertTrue(onAllNodes(hasText("0:33 / 3:34")).fetchSemanticsNodes().isEmpty(), "нижняя панель не спряталась")
+            shot("panels-hidden")
+        }
+    }
 }

@@ -302,6 +302,8 @@ data class DSettings(
     val standMaxMinutes: Int = 60,
     val standKeepAwake: Boolean = true,
     val standClock: Boolean = true,
+    val sidebarHidden: Boolean = false,
+    val barHidden: Boolean = false,
     // ---- скорость и память
     val preloadNext: Boolean = true,
     val autoDownloadLiked: Boolean = false,

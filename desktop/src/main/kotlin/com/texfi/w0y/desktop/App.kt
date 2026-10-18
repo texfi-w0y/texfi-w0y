@@ -1,5 +1,9 @@
 package com.texfi.w0y.desktop
 
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloat
@@ -104,14 +108,17 @@ fun App(app: AppState) {
 @Composable
 private fun PixelShell(app: AppState, screens: @Composable () -> Unit) {
     Row(Modifier.fillMaxSize()) {
-        Sidebar(app)
-        Box(Modifier.width(2.dp).fillMaxHeight().background(C.Border))
+        if (!app.st.sidebarHidden) {
+            Sidebar(app)
+            Box(Modifier.width(2.dp).fillMaxHeight().background(C.Border))
+        }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (app.st.theme != ThemeMode.LIGHT) Starfield(app.st.animatedBackground && Motion.full, Modifier.fillMaxSize())
                 screens()
+                EdgeTabs(app, barAvailable = true)
             }
-            PlayerBar(app)
+            if (!app.st.barHidden) PlayerBar(app)
         }
     }
 }
@@ -129,13 +136,30 @@ private fun HairShell(app: AppState, screens: @Composable () -> Unit) {
         if (!inPlayer) HairBackdrop(app)
         // В большом плеере раскладки «Обложка» всё управление уже под обложкой: нижняя полоса не нужна.
         val ownControls = (app.screen == Screen.Player || app.screen == Screen.Queue) && ThemeState.layout == PlayerLayout.COVER
+        val fade = tween<Float>(Motion.ms(200))
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
-                Sidebar(app, compact = compact)
-                Box(Modifier.width(1.dp).fillMaxHeight().background(C.Border))
-                Box(Modifier.weight(1f).fillMaxHeight()) { screens() }
+                // Боковую панель можно спрятать (кнопка внизу панели, Ctrl+B); вернуть — вкладкой у левого края.
+                androidx.compose.animation.AnimatedVisibility(
+                    !app.st.sidebarHidden,
+                    enter = androidx.compose.animation.fadeIn(fade) + androidx.compose.animation.expandHorizontally(tween(Motion.ms(240))),
+                    exit = androidx.compose.animation.fadeOut(fade) + androidx.compose.animation.shrinkHorizontally(tween(Motion.ms(240))),
+                ) {
+                    Row {
+                        Sidebar(app, compact = compact)
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(C.Border))
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    screens()
+                    EdgeTabs(app, barAvailable = !ownControls)
+                }
             }
-            if (!ownControls) PlayerBar(app)
+            androidx.compose.animation.AnimatedVisibility(
+                !ownControls && !app.st.barHidden,
+                enter = androidx.compose.animation.fadeIn(fade) + androidx.compose.animation.expandVertically(tween(Motion.ms(240))),
+                exit = androidx.compose.animation.fadeOut(fade) + androidx.compose.animation.shrinkVertically(tween(Motion.ms(240))),
+            ) { PlayerBar(app) }
         }
     }
 }
@@ -155,23 +179,29 @@ private val Gutter = 12.dp
 @Composable
 private fun SmoothShell(app: AppState, backdrop: Backdrop?, screens: @Composable () -> Unit) {
     val cover = rememberCoverColor(app.player.current?.thumbnailUrl)
+    val sideOn = !app.st.sidebarHidden
+    val barOn = !app.st.barHidden
+    val startInset = if (sideOn) SidebarWidth + Gutter * 2 else Gutter
     CompositionLocalProvider(
         LocalBackdrop provides backdrop,
-        LocalBarsInset provides BarsInset(bottom = BarHeight + Gutter * 2, start = SidebarWidth + Gutter * 2),
+        LocalBarsInset provides BarsInset(bottom = if (barOn) BarHeight + Gutter * 2 else Gutter, start = startInset),
     ) {
         Box(Modifier.fillMaxSize()) {
             Box(
                 Modifier.fillMaxSize().let { if (backdrop != null) it.backdropSource(backdrop) else it },
             ) {
                 SmoothBackground(cover)
-                Box(Modifier.fillMaxSize().padding(start = SidebarWidth + Gutter * 2)) { screens() }
+                Box(Modifier.fillMaxSize().padding(start = startInset)) { screens() }
             }
-            Sidebar(app, Modifier.padding(Gutter).width(SidebarWidth).fillMaxHeight().glassOrMatte(RoundedCornerShape(28.dp), backdrop))
-            PlayerBar(
-                app,
-                Modifier.align(Alignment.BottomCenter).padding(start = SidebarWidth + Gutter * 2, end = Gutter, bottom = Gutter)
-                    .fillMaxWidth().height(BarHeight).glassOrMatte(RoundedCornerShape(28.dp), backdrop),
-            )
+            if (sideOn) Sidebar(app, Modifier.padding(Gutter).width(SidebarWidth).fillMaxHeight().glassOrMatte(RoundedCornerShape(28.dp), backdrop))
+            if (barOn) {
+                PlayerBar(
+                    app,
+                    Modifier.align(Alignment.BottomCenter).padding(start = startInset, end = Gutter, bottom = Gutter)
+                        .fillMaxWidth().height(BarHeight).glassOrMatte(RoundedCornerShape(28.dp), backdrop),
+                )
+            }
+            EdgeTabs(app, barAvailable = true)
         }
     }
 }
@@ -241,6 +271,7 @@ private fun Sidebar(app: AppState, modifier: Modifier = Modifier, compact: Boole
         NavItem(S("d_tab_player"), Glyph.Wave, app.screen == Screen.Player || app.screen == Screen.Queue, compact) { app.tab(Screen.Player) }
         NavItem(S("settings_title"), Glyph.Gear, app.screen == Screen.Settings, compact) { app.tab(Screen.Settings) }
         Box(Modifier.weight(1f))
+        NavItem(S("d_hide_sidebar"), Glyph.ChevronLeft, false, compact) { app.setSt { it.copy(sidebarHidden = true) } }
         app.lib.accountName?.let {
             RowCenter(Modifier.padding(8.dp)) {
                 Cover(app.lib.accountAvatar, 28.dp, circle = true)
@@ -344,6 +375,8 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
                 Icon(Glyph.Volume, C.Muted, 18.dp)
                 Gap(w = 6)
                 VolumeBar(p.volume, onChange = p::changeVolume)
+                Gap(w = 8)
+                Box(Modifier.rotate(180f)) { IconButton(Glyph.ChevronUp, onClick = { app.setSt { it.copy(barHidden = true) } }, color = C.Muted, size = 16.dp, box = 32.dp) }
             }
         }
     }
@@ -451,4 +484,34 @@ fun PlaylistMenu(app: AppState, song: com.texfi.w0y.data.SongItem) {
             }
         }
     }
+}
+
+
+/**
+ * Узкие вкладки у края окна, пока панель спрятана: слева — вернуть боковую панель, снизу — нижнюю панель плеера.
+ * Они почти не заметны, пока на них не навести мышь.
+ */
+@Composable
+private fun BoxScope.EdgeTabs(app: AppState, barAvailable: Boolean) {
+    if (app.st.sidebarHidden) {
+        EdgeTab(Modifier.align(Alignment.CenterStart), vertical = true, glyph = Glyph.ChevronRight, turn = 0f) { app.setSt { it.copy(sidebarHidden = false) } }
+    }
+    if (app.st.barHidden && barAvailable) {
+        EdgeTab(Modifier.align(Alignment.BottomCenter), vertical = false, glyph = Glyph.ChevronUp, turn = 0f) { app.setSt { it.copy(barHidden = false) } }
+    }
+}
+
+@Composable
+private fun EdgeTab(modifier: Modifier, vertical: Boolean, glyph: Glyph, turn: Float, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val hovered by source.collectIsHoveredAsState()
+    val alpha by androidx.compose.animation.core.animateFloatAsState(if (hovered) 1f else 0.45f, tween(Motion.ms(160)))
+    val shape = if (vertical) RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp) else RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
+    Box(
+        modifier.then(if (vertical) Modifier.size(width = 20.dp, height = 64.dp) else Modifier.size(width = 72.dp, height = 20.dp))
+            .graphicsLayer { this.alpha = alpha }
+            .clip(shape).background(C.SurfaceHigh).border(1.dp, C.Border, shape)
+            .hoverable(source).clickable(interactionSource = source, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Box(Modifier.rotate(turn)) { Icon(glyph, C.Text, 14.dp) } }
 }

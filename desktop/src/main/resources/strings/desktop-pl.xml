@@ -210,4 +210,11 @@
     <string name="d_queue_end">Dalej nic nie ma. Zajrzyj do zakładki „Podobne”.</string>
     <string name="d_stand_clock_title">Zegar na podstawce</string>
     <string name="d_stand_clock_desc">Duży zegar obok tytułu.</string>
+    <string name="d_act_sidebar">Pokaż lub ukryj panel boczny</string>
+    <string name="d_act_bar">Pokaż lub ukryj dolny pasek odtwarzacza</string>
+    <string name="d_hide_sidebar">Ukryj panel</string>
+    <string name="d_set_sidebar_title">Panel boczny</string>
+    <string name="d_set_sidebar_desc">Menu po lewej. Ukryty wraca z zakładki przy lewej krawędzi albo przez Ctrl+B.</string>
+    <string name="d_set_bar_title">Dolny pasek odtwarzacza</string>
+    <string name="d_set_bar_desc">Sterowanie na dole okna. Ukryty wraca z zakładki przy dolnej krawędzi albo przez Ctrl+Shift+B. Duży odtwarzacz go nie potrzebuje: całe sterowanie jest pod okładką.</string>
 </resources>

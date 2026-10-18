@@ -27,6 +27,16 @@ a couple of small fixes.
   limit, checksum check on Windows).
 - **Copy debug info**, **Test connection** and a local crash record, all kept on the
   computer. Times are in your time zone.
+- **A new big player.** The cover, title, seek bar, big buttons and every action (like, pin,
+  download, add to playlist, link, sleep timer, volume) are on the left; the lyrics are huge on
+  the right, the line that is sung stays in focus and the rest fades out. The Queue tab is laid
+  out as Now playing / Up next (drag by the handle, Clear) / Already played, with History beside it.
+  The bottom bar is not needed there, so it is hidden in this layout.
+- **Stand mode** grows a glow out of the cover, a big cover, a clock (can be switched off), three
+  lines of lyrics and a thin progress line along the bottom edge.
+- **Hide the side bar and the bottom player bar** when you want more room: the button at the bottom
+  of the side bar, `Ctrl+B` and `Ctrl+Shift+B`, or Settings → Look. A small tab at the edge brings
+  them back.
 - **Search like on the phone.** Tabs All / Tracks / Videos / Albums / Artists, search as
   you type, suggestions over the results, a "You already have it" block from your own
   library, artists first, wide covers for videos, readable errors with Retry, and a

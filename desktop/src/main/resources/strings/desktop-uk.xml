@@ -210,4 +210,11 @@
     <string name="d_queue_end">Далі нічого немає. Зазирни у вкладку «Схоже».</string>
     <string name="d_stand_clock_title">Годинник на підставці</string>
     <string name="d_stand_clock_desc">Великий годинник поруч із назвою.</string>
+    <string name="d_act_sidebar">Показати або сховати бічну панель</string>
+    <string name="d_act_bar">Показати або сховати нижню панель плеєра</string>
+    <string name="d_hide_sidebar">Сховати панель</string>
+    <string name="d_set_sidebar_title">Бічна панель</string>
+    <string name="d_set_sidebar_desc">Меню ліворуч. Сховану повертає вкладка біля лівого краю або Ctrl+B.</string>
+    <string name="d_set_bar_title">Нижня панель плеєра</string>
+    <string name="d_set_bar_desc">Керування внизу вікна. Сховану повертає вкладка біля нижнього краю або Ctrl+Shift+B. У великому плеєрі вона не потрібна: усе керування там під обкладинкою.</string>
 </resources>
