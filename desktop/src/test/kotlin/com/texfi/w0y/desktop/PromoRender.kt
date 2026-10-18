@@ -172,9 +172,14 @@ class PromoRender {
         var captionSub by mutableStateOf("")
         var captionAt by mutableDoubleStateOf(-10.0)
         var scale by mutableStateOf(1.0f)
+        var rot by mutableStateOf(0f)
         var focus by mutableStateOf(Offset(0.5f, 0.5f))
-        var flash by mutableStateOf(0f)
-        var title by mutableStateOf(0.0)
+        var hitAt by mutableDoubleStateOf(-10.0)
+        var flashAt by mutableDoubleStateOf(-10.0)
+        var flashPow by mutableStateOf(0f)
+        var word by mutableStateOf("")
+        var wordAt by mutableDoubleStateOf(-10.0)
+        var fx by mutableStateOf(Fx())
         var windowShown by mutableStateOf(1f)
         var endCard by mutableDoubleStateOf(-1.0)
         var dim by mutableStateOf(0f)
@@ -183,11 +188,80 @@ class PromoRender {
         var sceneAt by mutableDoubleStateOf(-10.0)
         var captionEnd by mutableDoubleStateOf(0.0)
         var captionIndex by mutableStateOf(1)
+        /** Преобразование, с которым слой окна был нарисован в последний раз (для пересчёта координат курсора). */
+        var drawnCam: Cam = Cam(1f, 0f, 0f, 0f, 960f, 540f)
+    }
+
+    /** Эффект перехода между сценами: меняется только по времени. */
+    private data class Fx(val scale: Float = 1f, val rotX: Float = 0f, val rotY: Float = 0f, val rotZ: Float = 0f, val tx: Float = 0f, val alpha: Float = 1f)
+
+    private enum class Tr { FLIPY, FLIPX, SPIN, ZOOM, WHIP }
+
+    /** Камера как матрица: поворот и масштаб вокруг точки (ox, oy), потом сдвиг. */
+    private class Cam(val s: Float, val rz: Float, val tx: Float, val ty: Float, val ox: Float, val oy: Float) {
+        private val c = kotlin.math.cos(Math.toRadians(rz.toDouble())).toFloat()
+        private val n = sin(Math.toRadians(rz.toDouble())).toFloat()
+        fun map(p: Offset): Offset { val dx = (p.x - ox) * s; val dy = (p.y - oy) * s; return Offset(ox + c * dx - n * dy + tx, oy + n * dx + c * dy + ty) }
+        fun inv(p: Offset): Offset { val dx = p.x - ox - tx; val dy = p.y - oy - ty; return Offset(ox + (c * dx + n * dy) / s, oy + (-n * dx + c * dy) / s) }
     }
 
     private fun ease(x: Double) = FastOutSlowInEasing.transform(x.coerceIn(0.0, 1.0).toFloat()).toDouble()
 
     private fun lerp(a: Double, b: Double, t: Double) = a + (b - a) * t
+
+    /** Быстрый выход с «перелётом» — удар. */
+    private fun back(x: Double): Double { val p = x.coerceIn(0.0, 1.0) - 1.0; return 1.0 + 3.2 * p * p * p + 2.2 * p * p }
+
+    /** Разгон: медленно, потом резко. */
+    private fun inn(x: Double): Double { val p = x.coerceIn(0.0, 1.0); return p * p * p }
+
+    /** Эффект перехода в момент [t]: 0.16 с окно «уходит», потом 0.4 с возвращается с переворотом и отскоком. */
+    private fun fxAt(t: Double, trs: List<Pair<Double, Tr>>): Fx {
+        for ((t0, kind) in trs) {
+            val tt = t - t0
+            if (tt < -0.16 || tt > 0.4) continue
+            if (tt < 0) {
+                val p = inn((tt + 0.16) / 0.16).toFloat()
+                return when (kind) {
+                    Tr.FLIPY -> Fx(rotY = 90f * p, scale = 1f - 0.1f * p)
+                    Tr.FLIPX -> Fx(rotX = -90f * p, scale = 1f - 0.1f * p)
+                    Tr.SPIN -> Fx(rotZ = -80f * p, scale = 1f - 0.6f * p, alpha = 1f - p)
+                    Tr.ZOOM -> Fx(scale = 1f + 2.4f * p, alpha = 1f - p)
+                    Tr.WHIP -> Fx(tx = -1.1f * p)
+                }
+            }
+            val q = tt / 0.4
+            val b = back(q).toFloat()
+            val al = (q * 5).coerceAtMost(1.0).toFloat()
+            return when (kind) {
+                Tr.FLIPY -> Fx(rotY = -90f * (1f - b))
+                Tr.FLIPX -> Fx(rotX = 90f * (1f - b))
+                Tr.SPIN -> Fx(rotZ = 110f * (1f - b), scale = 0.4f + 0.6f * b, alpha = al)
+                Tr.ZOOM -> Fx(scale = 0.45f + 0.55f * b, alpha = al)
+                Tr.WHIP -> Fx(tx = 1.1f * (1f - b))
+            }
+        }
+        return Fx()
+    }
+
+    /** Итоговая камера окна в кадре [t]: рабочий масштаб + пульс на долю + дрейф + встряска после удара + переход. */
+    private fun camOf(d: Director, t: Double): Cam {
+        val ph = (t % 0.5) / 0.5
+        val live = t in 6.0..43.0
+        val pulse = if (live) 1f + (if (t % 2.0 < 0.5) 0.028f else 0.014f) * (1f - out(ph / 0.55).toFloat()) else 1f
+        val drift = 0.01f * sin(t.toFloat() * 0.7f)
+        val age = t - d.hitAt
+        val shake = if (age in 0.0..0.3) (1f - out(age / 0.3).toFloat()) * 11f * scale else 0f
+        val fx = d.fx
+        val sc = (d.scale + drift) * pulse * fx.scale
+        val shift = ((d.scale - 1f) * 3f).coerceIn(0f, 1f)
+        return Cam(
+            s = sc, rz = d.rot + fx.rotZ,
+            tx = (0.5f - d.focus.x) * w * shift + fx.tx * w + shake * sin(age.toFloat() * 75f),
+            ty = (0.5f - d.focus.y) * h * shift + shake * 0.6f * sin(age.toFloat() * 63f + 1f),
+            ox = d.focus.x * w, oy = d.focus.y * h,
+        )
+    }
 
     // ------------------------------------------------------------ сцена (окно, фон, надписи)
 
@@ -203,11 +277,13 @@ class PromoRender {
     @androidx.compose.runtime.Composable
     private fun Stage(app: AppState, d: Director) {
         val t = d.time
+        val dens = androidx.compose.ui.platform.LocalDensity.current.density
         Box(Modifier.fillMaxSize().background(ink)) {
-            // Фон: синее свечение, которое медленно дышит, и точечная сетка.
+            // Фон: синее свечение, вспыхивающее на каждую долю, и точечная сетка.
+            val beatGlow = if (t in 6.0..43.0) 0.12f * (1f - out(((t % 0.5) / 0.5) / 0.5).toFloat()) else 0f
             Canvas(Modifier.fillMaxSize()) {
                 val breathe = 1f + 0.05f * sin(t.toFloat() * 0.9f)
-                drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.28f), 1f to Color.Transparent, center = Offset(size.width * 0.5f, size.height * 0.42f), radius = size.width * 0.7f * breathe))
+                drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.28f + beatGlow), 1f to Color.Transparent, center = Offset(size.width * 0.5f, size.height * 0.42f), radius = size.width * 0.7f * breathe))
                 val step = 48.dp.toPx()
                 var x = 0f
                 while (x < size.width) {
@@ -216,21 +292,17 @@ class PromoRender {
                     x += step
                 }
             }
-            // Камера: приближение к окну, лёгкий дрейф и «вдох» в начале каждой сцены.
-            val sinceScene = t - d.sceneAt
-            val kick = 0.035f * (1f - out(sinceScene / 0.9).toFloat())
-            val drift = 0.012f * sin(t.toFloat() * 0.7f)
-            // Появление окна из вступления: из 0.9 в рабочий масштаб, без вспышек.
-            val enter = out((t - 3.4) / 2.6).toFloat()
-            val entrance = if (t < 6.0) 0.88f + 0.12f * enter else 1f
             Box(
                 Modifier.fillMaxSize().graphicsLayer {
-                    val sc = (d.scale + kick + drift) * entrance
-                    scaleX = sc; scaleY = sc
-                    translationX = (d.focus.x - 0.5f) * -90f * (d.scale - 1f) * 6f + drift * 120f
-                    translationY = (d.focus.y - 0.5f) * -90f * (d.scale - 1f) * 6f
+                    val cam = camOf(d, t)
+                    d.drawnCam = cam
+                    scaleX = cam.s; scaleY = cam.s
+                    rotationZ = cam.rz
+                    rotationX = d.fx.rotX; rotationY = d.fx.rotY
+                    cameraDistance = 22f * dens
+                    translationX = cam.tx; translationY = cam.ty
                     transformOrigin = TransformOrigin(d.focus.x, d.focus.y)
-                    alpha = d.windowShown * (if (t < 6.0) enter else 1f)
+                    alpha = if (t < 6.0) 0f else d.windowShown * d.fx.alpha
                 },
                 contentAlignment = Alignment.Center,
             ) {
@@ -296,17 +368,58 @@ class PromoRender {
     @androidx.compose.runtime.Composable
     private fun androidx.compose.foundation.layout.BoxScope.PromoOverlays(d: Director) {
         val t = d.time
-        // Переход между сценами: тонкая вертикальная линия проходит слева направо и тянет за собой слабый свет.
-        val wipe = (t - d.sceneAt) / 0.7
-        if (wipe in 0.0..1.0 && d.sceneAt > 6.5) {
-            val k = out(wipe).toFloat()
-            val fade = (1f - ((wipe - 0.7) / 0.3).toFloat().coerceIn(0f, 1f))
+        // Метки долей по нижнему краю: тонкая шкала, текущая доля тянется вверх и горит синим.
+        if (t in 6.0..43.0) {
             Canvas(Modifier.fillMaxSize()) {
-                val x = size.width * k
-                drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to blue.copy(alpha = 0.16f * fade), startX = x - 260f, endX = x), Offset(x - 260f, 0f), androidx.compose.ui.geometry.Size(260f, size.height))
-                drawRect(Color.White.copy(alpha = 0.85f * fade), Offset(x, 0f), androidx.compose.ui.geometry.Size(1.5f, size.height))
+                val left = size.width * 0.5f - 832f * scale; val step = 22f * scale
+                val n = ((t - 6.0) / 0.5).toInt()
+                val ph = ((t - 6.0) % 0.5) / 0.5
+                for (i in 0..73) {
+                    val x = left + i * step
+                    val cur = i == n
+                    val hgt = (if (cur) 13f - 8f * out(ph / 0.7).toFloat() else if (i % 4 == 0) 7f else 4f) * scale
+                    val col = if (cur) blue else Color.White.copy(alpha = if (i < n) 0.38f else 0.14f)
+                    drawLine(col, Offset(x, size.height - 30f * scale), Offset(x, size.height - 30f * scale - hgt), 1.5f)
+                }
             }
         }
+        // Видоискатель: четыре уголка схлопываются к центру на каждом ударе камеры, если она приблизилась.
+        val hitAge = t - d.hitAt
+        if (hitAge in 0.0..0.55 && d.scale > 1.15f && t < 43.0) {
+            val k = out(hitAge / 0.22).toFloat()
+            val fade = 1f - inn((hitAge - 0.25) / 0.3).toFloat()
+            Canvas(Modifier.fillMaxSize()) {
+                val inset = (0.03f + 0.04f * (1f - k)) * size.width
+                val len = 46f * scale
+                val col = Color.White.copy(alpha = 0.75f * fade)
+                listOf(Offset(inset, inset) to Offset(1f, 1f), Offset(size.width - inset, inset) to Offset(-1f, 1f), Offset(inset, size.height - inset) to Offset(1f, -1f), Offset(size.width - inset, size.height - inset) to Offset(-1f, -1f)).forEach { (o, dr) ->
+                    drawLine(col, o, Offset(o.x + dr.x * len, o.y), 2f); drawLine(col, o, Offset(o.x, o.y + dr.y * len), 2f)
+                }
+            }
+        }
+        // Слово-удар в начале сцены: вылетает крупным, держится долю и уходит вверх.
+        val wa = t - d.wordAt
+        if (d.word.isNotEmpty() && wa in 0.0..0.85) {
+            val inK = back(wa / 0.2).toFloat()
+            val outK = inn((wa - 0.5) / 0.3).toFloat()
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f * (1f - outK)))) {}
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val cy = size.height / 2; val reach = size.width * 0.42f * out(wa / 0.25).toFloat()
+                    val a = 0.8f * (1f - outK)
+                    drawLine(blue.copy(alpha = a), Offset(size.width / 2 - reach, cy - 150f * scale), Offset(size.width / 2 + reach, cy - 150f * scale), 2f)
+                    drawLine(blue.copy(alpha = a), Offset(size.width / 2 - reach, cy + 150f * scale), Offset(size.width / 2 + reach, cy + 150f * scale), 2f)
+                }
+                Box(Modifier.graphicsLayer {
+                    val sc = 1.8f - 0.8f * inK + 0.25f * outK
+                    scaleX = sc; scaleY = sc; rotationZ = -4f * (1f - inK); translationY = -outK * 90f * scale
+                    alpha = (wa / 0.05).coerceIn(0.0, 1.0).toFloat() * (1f - outK)
+                }) { Txt(d.word, color = Color.White, size = 190, pixel = true) }
+            }
+        }
+        // Вспышка на сильную долю.
+        val fa = t - d.flashAt
+        if (fa in 0.0..0.4 && d.flashPow > 0f) Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = d.flashPow * (1f - out(fa / 0.4).toFloat()))))
         // Нажатая клавиша: у каждой клавиши своя плашка с тонкой рамкой.
         val keyAge = t - d.keyAt
         if (d.key.isNotEmpty() && keyAge in 0.0..1.4) {
@@ -319,7 +432,7 @@ class PromoRender {
             }
         }
         // Курсор: двойное кольцо от клика и сам указатель, на клике слегка «нажимается».
-        if (d.cursorVisible) {
+        if (d.cursorVisible && kotlin.math.abs(d.fx.rotX) + kotlin.math.abs(d.fx.rotY) < 1f) {
             val c = d.cursor
             val clickAge = t - d.clickAt
             val press = if (clickAge in 0.0..0.18) 0.86f + 0.14f * (clickAge / 0.18).toFloat() else 1f
@@ -347,96 +460,97 @@ class PromoRender {
     private fun androidx.compose.foundation.layout.BoxScope.TitleCards(d: Director) {
         val t = d.time
         if (t < 6.4) {
-            // Вступление целиком из тонких линий: сетка растёт от центра, кольца расходятся, буквы всплывают по одной.
-            val fadeOut = out((t - 5.2) / 1.0).toFloat()
-            val grow = out(t / 4.5).toFloat()
-            Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - fadeOut }.background(ink.copy(alpha = 1f - 0.9f * fadeOut)), contentAlignment = Alignment.Center) {
+            // Вступление: нарастание к дропу. Линия, уголки, «w0y» ударом на 1.0 с, «with desktop» на 2.0 с,
+            // дальше кольца на каждую долю, на 5.0 с надпись летит на камеру и пролетает сквозь неё на дропе.
+            val rush = inn((t - 5.0) / 1.0).toFloat()
+            val gone = inn((t - 5.55) / 0.45).toFloat()
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - out((t - 5.9) / 0.5).toFloat() }.background(ink), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val cx = size.width / 2; val cy = size.height / 2
-                    drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.50f * grow), 1f to Color.Transparent, center = Offset(cx, cy), radius = size.width * (0.2f + 0.5f * grow)))
-                    // Линии сетки: появляются от середины к краям.
+                    val grow = out(t / 3.0).toFloat()
+                    drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.30f + 0.25f * grow + 0.2f * rush), 1f to Color.Transparent, center = Offset(cx, cy), radius = size.width * (0.2f + 0.45f * grow + 0.5f * rush)))
+                    // Сетка растёт от центра.
                     val step = 96.dp.toPx()
                     val reach = size.width * 0.75f * grow
                     var gx = cx % step
                     while (gx < size.width) { val a = (1f - kotlin.math.abs(gx - cx) / reach).coerceIn(0f, 1f) * 0.10f; if (a > 0f) drawLine(Color.White.copy(alpha = a), Offset(gx, 0f), Offset(gx, size.height), 1f); gx += step }
                     var gy = cy % step
                     while (gy < size.height) { val a = (1f - kotlin.math.abs(gy - cy) / (reach * 0.6f)).coerceIn(0f, 1f) * 0.10f; if (a > 0f) drawLine(Color.White.copy(alpha = a), Offset(0f, gy), Offset(size.width, gy), 1f); gy += step }
-                    // Кольца.
-                    listOf(0.0, 0.7, 1.4).forEach { delay ->
-                        val k = out((t - 0.4 - delay) / 3.6).toFloat()
-                        if (k > 0f) drawCircle(Color.White.copy(alpha = 0.22f * (1f - k)), 80.dp.toPx() + 420.dp.toPx() * k, Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
+                    // Горизонтальная линия разгоняется от центра за первую секунду.
+                    val lr = size.width * 0.46f * out(t / 1.0).toFloat()
+                    drawLine(Color.White.copy(alpha = 0.55f * (1f - 0.7f * out((t - 1.0) / 0.5).toFloat())), Offset(cx - lr, cy), Offset(cx + lr, cy), 1.5f)
+                    // Кольца: по одному на долю с 1.0 с, с 4.0 с вдвое чаще.
+                    val births = (2..7).map { 0.5 * it } + (0..7).map { 4.0 + 0.25 * it }
+                    births.filter { it <= t }.forEach { b ->
+                        val k = out((t - b) / 1.2).toFloat()
+                        drawCircle(Color.White.copy(alpha = 0.34f * (1f - k)), 70.dp.toPx() + 520.dp.toPx() * k, Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
                     }
-                    // Уголки кадра.
-                    val m = 60.dp.toPx(); val len = 46.dp.toPx() * out((t - 0.2) / 1.2).toFloat()
-                    val ca = Color.White.copy(alpha = 0.5f)
-                    listOf(Offset(m, m) to Offset(1f, 1f), Offset(size.width - m, m) to Offset(-1f, 1f), Offset(m, size.height - m) to Offset(1f, -1f), Offset(size.width - m, size.height - m) to Offset(-1f, -1f)).forEach { (o, dir) ->
-                        drawLine(ca, o, Offset(o.x + dir.x * len, o.y), 1.5f); drawLine(ca, o, Offset(o.x, o.y + dir.y * len), 1.5f)
+                    // Уголки кадра защёлкиваются на 1.0 с и дальше сжимаются.
+                    val snap = back((t - 0.8) / 0.25).toFloat().coerceAtLeast(0f)
+                    val m = (60.dp.toPx() + 40.dp.toPx() * (1f - snap) + 70.dp.toPx() * rush); val len = 56.dp.toPx() * snap
+                    val ca = Color.White.copy(alpha = 0.6f)
+                    listOf(Offset(m, m) to Offset(1f, 1f), Offset(size.width - m, m) to Offset(-1f, 1f), Offset(m, size.height - m) to Offset(1f, -1f), Offset(size.width - m, size.height - m) to Offset(-1f, -1f)).forEach { (o, dr) ->
+                        drawLine(ca, o, Offset(o.x + dr.x * len, o.y), 2f); drawLine(ca, o, Offset(o.x, o.y + dr.y * len), 2f)
                     }
-                    // Тонкая линия хода к дропу по нижнему краю.
-                    drawRect(Color.White.copy(alpha = 0.12f), Offset(m, size.height - m * 1.4f), androidx.compose.ui.geometry.Size(size.width - 2 * m, 1.5f))
-                    drawRect(blue, Offset(m, size.height - m * 1.4f), androidx.compose.ui.geometry.Size((size.width - 2 * m) * (t / 6.0).toFloat().coerceIn(0f, 1f), 1.5f))
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row {
-                        "w0y".forEachIndexed { i, ch ->
-                            val a = out((t - 0.5 - i * 0.14) / 0.9).toFloat()
-                            Box(Modifier.graphicsLayer { alpha = a; translationY = (1f - a) * 46f }) { Txt(ch.toString(), color = Color.White, size = 190, pixel = true) }
-                        }
-                    }
-                    // Линия под названием вычерчивается слева направо.
-                    Canvas(Modifier.size(520.dp, 2.dp)) { drawRect(blue, Offset(0f, 0f), androidx.compose.ui.geometry.Size(size.width * out((t - 1.5) / 1.1).toFloat(), 2f)) }
-                    Box(Modifier.height(14.dp))
-                    val typed = "with desktop"
-                    val shown = ((t - 2.2) / 1.4 * typed.length).toInt().coerceIn(0, typed.length)
-                    Txt(typed.take(shown) + if (shown < typed.length && (t * 2).toInt() % 2 == 0) "▌" else "", color = blue, size = 56, pixel = true)
+                // Название: удар на 1.0, пульс на каждую долю, рывок к камере с 5.0.
+                Column(
+                    Modifier.graphicsLayer {
+                        val slam = if (t >= 1.0) back((t - 1.0) / 0.22).toFloat() else 0f
+                        val beat = if (t >= 2.0) 0.07f * (1f - out(((t % 0.5) / 0.5) / 0.5).toFloat()) else 0f
+                        val sc = (2.4f - 1.4f * slam + beat) * (1f + 16f * rush)
+                        scaleX = sc; scaleY = sc; rotationZ = -3f * (1f - slam)
+                        alpha = (if (t < 1.0) 0f else 1f) * (1f - gone)
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Txt("w0y", color = Color.White, size = 230, pixel = true)
+                    Canvas(Modifier.size(560.dp, 2.dp)) { drawRect(blue, Offset(0f, 0f), androidx.compose.ui.geometry.Size(size.width * out((t - 1.1) / 0.5).toFloat(), 2f)) }
+                    Box(Modifier.height(16.dp))
+                    val pop = if (t >= 2.0) back((t - 2.0) / 0.2).toFloat() else 0f
+                    Box(Modifier.graphicsLayer { val sc = 1.6f - 0.6f * pop; scaleX = sc; scaleY = sc; alpha = if (t >= 2.0) 1f else 0f }) { Txt("with desktop", color = blue, size = 62, pixel = true) }
                 }
-                Row(Modifier.align(Alignment.TopStart).padding(start = 76.dp, top = 74.dp).graphicsLayer { alpha = out((t - 1.0) / 0.8).toFloat() }) { Txt("V0.0.4 BETA-1", color = muted, size = 13, pixel = true) }
-                Row(Modifier.align(Alignment.TopEnd).padding(end = 76.dp, top = 74.dp).graphicsLayer { alpha = out((t - 1.2) / 0.8).toFloat() }) { Txt("WINDOWS · LINUX", color = muted, size = 13, pixel = true) }
-            }
-            // Дроп: тонкая синяя линия проходит экран сверху вниз и открывает окно.
-            val scan = (t - 6.0) / 0.7
-            if (scan in 0.0..1.0) {
-                val k = out(scan).toFloat()
-                Canvas(Modifier.fillMaxSize()) {
-                    val y = size.height * k
-                    drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to blue.copy(alpha = 0.22f * (1f - k)), startY = y - 300f, endY = y), Offset(0f, y - 300f), androidx.compose.ui.geometry.Size(size.width, 300f))
-                    drawRect(Color.White.copy(alpha = 0.9f * (1f - k)), Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, 1.5f))
-                }
+                Row(Modifier.align(Alignment.TopStart).padding(start = 110.dp, top = 110.dp).graphicsLayer { alpha = (if (t >= 3.0) 1f else 0f) * (1f - gone) }) { Txt("V0.0.4 BETA-1", color = muted, size = 14, pixel = true) }
+                Row(Modifier.align(Alignment.TopEnd).padding(end = 110.dp, top = 110.dp).graphicsLayer { alpha = (if (t >= 3.5) 1f else 0f) * (1f - gone) }) { Txt("WINDOWS · LINUX", color = muted, size = 14, pixel = true) }
+                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 110.dp).graphicsLayer { alpha = (if (t >= 4.0) 1f else 0f) * (1f - gone) }) { Txt("FREE · NO ACCOUNT", color = muted, size = 14, pixel = true) }
             }
         }
         if (d.endCard >= 0) {
             val e = d.endCard
-            val k = out(e / 0.9).toFloat()
-            Box(Modifier.fillMaxSize().background(ink.copy(alpha = 0.94f * k)), contentAlignment = Alignment.Center) {
+            val k = out(e / 0.25).toFloat()
+            val bye = inn((e - 2.5) / 0.5).toFloat()
+            Box(Modifier.fillMaxSize().background(ink.copy(alpha = 0.97f * k)), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
-                    drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.40f * k), 1f to Color.Transparent, center = Offset(size.width / 2, size.height * 0.45f), radius = size.width * 0.55f))
+                    val pulse = if (e >= 0) 0.15f * (1f - out(((e % 0.5) / 0.5) / 0.5).toFloat()) else 0f
+                    drawRect(Brush.radialGradient(0f to blue.copy(alpha = 0.42f * k + pulse), 1f to Color.Transparent, center = Offset(size.width / 2, size.height * 0.45f), radius = size.width * 0.55f))
                     val m = 60.dp.toPx()
-                    // Рамка вычерчивает себя по периметру.
                     withTransform({ translate(m, m) }) {
                         val inner = androidx.compose.ui.geometry.Size(size.width - 2 * m, size.height - 2 * m)
                         val p = androidx.compose.ui.graphics.Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, inner.width, inner.height, androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()))) }
                         val meas = androidx.compose.ui.graphics.PathMeasure().also { it.setPath(p, false) }
                         val seg = androidx.compose.ui.graphics.Path()
-                        meas.getSegment(0f, meas.length * out(e / 1.8).toFloat(), seg, true)
-                        drawPath(seg, Color.White.copy(alpha = 0.45f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
+                        meas.getSegment(0f, meas.length * out(e / 1.0).toFloat(), seg, true)
+                        drawPath(seg, Color.White.copy(alpha = 0.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row { "w0y".forEachIndexed { i, ch -> val a = out((e - 0.3 - i * 0.12) / 0.8).toFloat(); Box(Modifier.graphicsLayer { alpha = a; translationY = (1f - a) * 40f }) { Txt(ch.toString(), color = Color.White, size = 150, pixel = true) } } }
-                    val a2 = out((e - 0.9) / 0.7).toFloat()
-                    Box(Modifier.graphicsLayer { alpha = a2; translationY = (1f - a2) * 24f }) { Txt("with desktop", color = blue, size = 52, pixel = true) }
-                    Box(Modifier.height(40.dp))
+                    val a1 = back(e / 0.22).toFloat()
+                    Box(Modifier.graphicsLayer { val sc = 2.0f - 1.0f * a1; scaleX = sc; scaleY = sc; rotationZ = -3f * (1f - a1); alpha = if (e >= 0.0) 1f else 0f }) { Txt("w0y", color = Color.White, size = 190, pixel = true) }
+                    val a2 = back((e - 0.5) / 0.2).toFloat()
+                    Box(Modifier.graphicsLayer { val sc = 1.7f - 0.7f * a2; scaleX = sc; scaleY = sc; alpha = if (e >= 0.5) 1f else 0f }) { Txt("with desktop", color = blue, size = 64, pixel = true) }
+                    Box(Modifier.height(44.dp))
                     Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
                         listOf("WINDOWS", "LINUX", "FREE", "NO ACCOUNT").forEachIndexed { i, label ->
-                            val a = out((e - 1.3 - i * 0.12) / 0.6).toFloat()
-                            Box(Modifier.graphicsLayer { alpha = a; translationY = (1f - a) * 18f }.border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(3.dp)).padding(horizontal = 22.dp, vertical = 10.dp)) { Txt(label, color = Color.White, size = 16, pixel = true) }
+                            val a = back((e - 1.0 - i * 0.25) / 0.2).toFloat()
+                            Box(Modifier.graphicsLayer { val sc = 0.4f + 0.6f * a; scaleX = sc; scaleY = sc; alpha = if (e >= 1.0 + i * 0.25) 1f else 0f }.border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(3.dp)).padding(horizontal = 24.dp, vertical = 12.dp)) { Txt(label, color = Color.White, size = 18, pixel = true) }
                         }
                     }
-                    Box(Modifier.height(26.dp))
-                    val a3 = out((e - 1.9) / 0.7).toFloat()
-                    Box(Modifier.graphicsLayer { alpha = a3; translationY = (1f - a3) * 14f }) { Txt("github.com/texfi-w0y/texfi-w0y", color = muted, size = 18, pixel = true) }
+                    Box(Modifier.height(30.dp))
+                    val a3 = out((e - 2.0) / 0.4).toFloat()
+                    Box(Modifier.graphicsLayer { alpha = a3; translationY = (1f - a3) * 14f }) { Txt("github.com/texfi-w0y/texfi-w0y", color = muted, size = 20, pixel = true) }
                 }
             }
+            if (bye > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = bye)))
         }
     }
 
@@ -516,31 +630,38 @@ class PromoRender {
 
     @OptIn(ExperimentalTestApi::class)
     private inner class Tools(val ui: androidx.compose.ui.test.ComposeUiTest, val app: AppState, val d: Director) {
+        val trs = ArrayList<Pair<Double, Tr>>()
         private var moveFrom = d.cursor
-        private var moveTo = d.cursor
         private var moveStart = 0.0
         private var moveEnd = 0.0
+        /** Цель курсора в координатах окна без камеры: так она «едет» вместе с приближением и поворотом. */
+        private var targetLocal: Offset? = null
         private var songStart = 0.0
         private var songBase = 0.0
         private var songPlaying = false
-        var camTarget = 1.12f
-        var camFocus = Offset(0.5f, 0.5f)
         private var camFrom = 1.0f
+        private var camFromRot = 0f
         private var camFromFocus = Offset(0.5f, 0.5f)
+        private var camTarget = 1.0f
+        private var camTargetRot = 0f
+        private var camFocus = Offset(0.5f, 0.5f)
         private var camStart = 0.0
         private var camEnd = 0.01
+        private var camSnap = true
 
         fun beforeFrame(t: Double) {}
 
-        /** Позиция узла с таким текстом в координатах кадра, null — на экране его нет. */
+        /** Позиция узла с таким текстом в координатах кадра (с учётом камеры в последнем нарисованном кадре). */
         fun where(text: String, index: Int = 0): Offset? = runCatching {
             val nodes = ui.onAllNodes(hasText(text, substring = true, ignoreCase = true), useUnmergedTree = true).fetchSemanticsNodes()
             nodes.getOrNull(index)?.boundsInRoot?.center
         }.getOrNull()
 
-        fun cursorTo(p: Offset?, t: Double, dur: Double = 0.55) {
-            if (p == null) return
-            moveFrom = d.cursor; moveTo = p; moveStart = t; moveEnd = t + dur
+        /** Курсор к элементу с этим текстом: цель запоминается без камеры и дальше едет вместе с ней. */
+        fun cursorTo(text: String, t: Double, dur: Double = 0.3, dx: Float = 0f, dy: Float = 0f, index: Int = 0) {
+            val p = where(text, index) ?: return
+            moveFrom = d.cursor; moveStart = t; moveEnd = t + dur
+            targetLocal = d.drawnCam.inv(Offset(p.x + dx, p.y + dy))
             d.cursorVisible = true
         }
 
@@ -559,18 +680,22 @@ class PromoRender {
 
         fun key(t: Double, label: String) { d.key = label; d.keyAt = t }
 
-        /** Начало сцены: подпись «NN ❯ заголовок», линия-переход и «вдох» камеры. */
-        fun scene(t: Double, index: Int, title: String, sub: String, end: Double) {
+        /** Начало сцены: подпись «NN ❯ заголовок» в строке окна и слово-удар. */
+        fun scene(t: Double, index: Int, title: String, sub: String, end: Double, word: String? = null) {
             d.caption = title; d.captionSub = sub; d.captionAt = t; d.sceneAt = t; d.captionIndex = index; d.captionEnd = end
+            if (word != null) { d.word = word; d.wordAt = t }
         }
 
-        fun caption(t: Double, title: String, sub: String = "") { d.caption = title; d.captionSub = sub; d.captionAt = t }
+        fun flash(t: Double, power: Float) { d.flashAt = t; d.flashPow = power }
 
-        fun camera(t: Double, scale: Float, focus: Offset = Offset(0.5f, 0.5f), dur: Double = 0.7) {
-            camFrom = d.scale; camFromFocus = d.focus; camTarget = scale; camFocus = focus; camStart = t; camEnd = t + dur
+        /** Камера прыгает к масштабу [scale] вокруг [focus] с поворотом [rot]°; [snap] — быстро и с отскоком, иначе плавно за [dur]. */
+        fun camera(t: Double, scale: Float, focus: Offset = Offset(0.5f, 0.5f), rot: Float = 0f, snap: Boolean = true, dur: Double = if (snap) 0.22 else 1.0) {
+            camFrom = d.scale; camFromRot = d.rot; camFromFocus = d.focus
+            camTarget = scale; camTargetRot = rot; camFocus = focus; camStart = t; camEnd = t + dur; camSnap = snap
+            if (snap) d.hitAt = t
         }
 
-        /** Трек «играет»: позиция бежит с секунды [from] (кратной 2 — строки текста меняются на каждом такте). */
+        /** Трек «играет»: позиция бежит с секунды [from]; при from = t строки текста меняются на каждом такте. */
         fun playing(t: Double, from: Double, on: Boolean = true) {
             songStart = t; songBase = from; songPlaying = on
             app.player.playing = on
@@ -582,22 +707,25 @@ class PromoRender {
         }
 
         fun animate(t: Double) {
-            if (moveEnd > moveStart) {
-                val k = ease((t - moveStart) / (moveEnd - moveStart))
-                d.cursor = Offset(lerp(moveFrom.x.toDouble(), moveTo.x.toDouble(), k).toFloat(), lerp(moveFrom.y.toDouble(), moveTo.y.toDouble(), k).toFloat())
-                if (d.cursorVisible) runCatching { ui.onRoot().performMouseInput { moveTo(d.cursor) } }
-            }
+            d.fx = fxAt(t, trs)
             if (camEnd > camStart) {
-                val k = ease((t - camStart) / (camEnd - camStart)).toFloat()
+                val q = ((t - camStart) / (camEnd - camStart)).coerceIn(0.0, 1.0)
+                val k = (if (camSnap) back(q) else ease(q)).toFloat()
                 d.scale = camFrom + (camTarget - camFrom) * k
-                d.focus = Offset(camFromFocus.x + (camFocus.x - camFromFocus.x) * k, camFromFocus.y + (camFocus.y - camFromFocus.y) * k)
+                d.rot = camFromRot + (camTargetRot - camFromRot) * k
+                val f = out(q).toFloat()
+                d.focus = Offset(camFromFocus.x + (camFocus.x - camFromFocus.x) * f, camFromFocus.y + (camFocus.y - camFromFocus.y) * f)
+            }
+            val tl = targetLocal
+            if (tl != null) {
+                val k = if (t >= moveEnd) 1.0 else out((t - moveStart) / (moveEnd - moveStart))
+                val target = camOf(d, t).map(tl)
+                d.cursor = Offset(lerp(moveFrom.x.toDouble(), target.x.toDouble(), k).toFloat(), lerp(moveFrom.y.toDouble(), target.y.toDouble(), k).toFloat())
             }
             if (t >= 43.0) d.endCard = t - 43.0
-            if (songPlaying) {
-                app.player.position = songBase + (t - songStart)
-            }
+            if (songPlaying) app.player.position = songBase + (t - songStart)
             if (t in wheelFrom..wheelTo && wheelPerSec != 0f) {
-                runCatching { ui.onRoot().performMouseInput { moveTo(wheelAt); scroll(wheelPerSec / 30f) } }
+                runCatching { ui.onRoot().performMouseInput { moveTo(camOf(d, t).map(wheelAt)); scroll(wheelPerSec / 30f) } }
             }
         }
     }
@@ -614,68 +742,158 @@ class PromoRender {
         )
         val videos = SearchResults(songs = results.songs.take(5).map { it.copy(title = it.title + " (Official Video)") }, videos = true)
         val typed = "neon static"
-        // 0–6 с: вступление (титры рисуются по времени). На дропе — вспышка и приближение к окну.
-        s.at(0.0) { d.scale = 1.0f; app.open(Screen.Home); x.playing(0.0, 8.0, false) }
-        s.at(6.0) { x.camera(6.0, 1.12f, dur = 0.9) }
-        // 6–10 с: Главная — быстрый набор, играет по одному клику, дальше быстрый выбор и рекомендации.
-        s.at(6.0) { x.scene(6.0, 1, "Your music. One click.", "Speed dial · Quick picks", 10.0) }
-        s.at(7.0) { x.cursorTo(x.where("Afterglow", 0), 7.0) }
-        s.at(8.0) { x.click(8.0, real = false); x.playing(8.0, 8.0); x.show(0) }
-        s.at(8.4) { x.wheel(Offset(960f, 500f), 8.4, 9.8, 1500f) }
-        // 10–14 с: умный поиск.
-        s.at(10.0) { x.scene(10.0, 2, "Smart search", "Tracks · videos · albums · artists", 14.0); x.cursorTo(x.where("search", 0), 10.0, 0.4) }
-        s.at(10.4) { x.click(10.4); app.searchModel.immediate = true }
-        s.at(10.4) {
-            (2..typed.length).forEach { n -> app.searchModel.seed(typed.take(n), SearchFilter.ALL, results) }
-            SearchFilter.entries.forEach { f -> app.searchModel.seed(typed, f, if (f == SearchFilter.VIDEOS) videos else results) }
+        /** Кадр (0..1 от экрана) — для краткости. */
+        fun f(x: Float, y: Float) = Offset(x, y)
+        /** Переход на долю [t]: окно уходит, на самой доле меняется содержимое, возвращается с отскоком. */
+        fun cut(t: Double, kind: Tr, swap: () -> Unit) {
+            x.trs += t to kind
+            s.at(t) { d.cursorVisible = false; swap() }
         }
-        typed.forEachIndexed { i, _ -> s.at(10.9 + i * 0.1) { app.searchModel.query = typed.take(i + 1) } }
-        s.at(12.0) { x.cursorTo(x.where("videos", 0), 12.0, 0.4) }
-        s.at(12.4) { x.click(12.4) }
-        s.at(12.8) { x.cursorTo(x.where("albums", 0), 12.8, 0.3) }
-        s.at(13.1) { x.click(13.1) }
-        s.at(13.4) { x.cursorTo(x.where("artists", 0), 13.4, 0.3) }
-        s.at(13.7) { x.click(13.7) }
-        // 14–20 с: большой плеер с крупным текстом.
-        s.at(14.0) { x.scene(14.0, 3, "Lyrics in focus", "Synced · translated · sing along", 20.0); x.cursorTo(x.where("player", 0), 14.0, 0.4); x.playing(14.0, 14.0) }
-        s.at(14.4) { x.click(14.4); app.open(Screen.Player); x.camera(14.4, 1.14f, Offset(0.6f, 0.5f), 0.8) }
-        s.at(17.0) { x.camera(17.0, 1.25f, Offset(0.72f, 0.45f), 1.0) }
-        s.at(18.4) { x.camera(18.4, 1.12f, Offset(0.5f, 0.5f), 0.8); app.setSt { it.copy(hlCoverShape = CoverShape.DISC, hlCoverSpin = true) } }
-        s.at(19.0) { app.setSt { it.copy(hlPlayerBack = PlayerBack.AURORA) } }
+
+        // 0–6 с: вступление рисуется по времени. На дропе окно вылетает переворотом со вспышкой.
+        x.trs += 6.0 to Tr.FLIPY
+        s.at(0.0) { d.scale = 1.0f; app.open(Screen.Home); x.playing(0.0, 8.0, false) }
+        s.at(6.0) { x.flash(6.0, 0.7f); d.hitAt = 6.0; d.scale = 1.0f; d.caption = "" }
+
+        // 6–10 с: главная. Удары камеры по быстрому набору, клик, зум в нижнюю панель, прокрутка.
+        s.at(6.0) { x.scene(6.0, 1, "Your music. One click.", "Speed dial · Quick picks", 10.0) }
+        s.at(6.5) { d.word = "HOME"; d.wordAt = 6.5; x.camera(6.5, 1.3f, f(0.30f, 0.36f), -2f) }
+        s.at(7.0) { x.camera(7.0, 1.55f, f(0.28f, 0.33f), 2f); x.cursorTo("Afterglow", 7.0, 0.35) }
+        s.at(7.5) { x.click(7.5, real = false); x.playing(7.5, 7.5); x.show(0); x.flash(7.5, 0.18f) }
+        s.at(8.0) { x.camera(8.0, 1.9f, f(0.5f, 0.96f), 0f) }
+        s.at(8.5) { x.camera(8.5, 1.18f, f(0.5f, 0.5f), 3f); x.wheel(Offset(960f, 500f), 8.5, 9.6, 1500f) }
+        s.at(9.0) { x.camera(9.0, 1.4f, f(0.7f, 0.6f), -3f) }
+        s.at(9.5) { x.camera(9.5, 1.0f, f(0.5f, 0.5f), 0f) }
+
+        // 10–14 с: поиск.
+        cut(10.0, Tr.FLIPY) {
+            app.open(Screen.Search); app.searchModel.immediate = true
+            (2..typed.length).forEach { n -> app.searchModel.seed(typed.take(n), SearchFilter.ALL, results) }
+            SearchFilter.entries.forEach { fl -> app.searchModel.seed(typed, fl, if (fl == SearchFilter.VIDEOS) videos else results) }
+            x.scene(10.0, 2, "Smart search", "Tracks · videos · albums · artists", 14.0, "SEARCH")
+            x.camera(10.0, 1.3f, f(0.45f, 0.2f), 0f, snap = false, dur = 0.01)
+        }
+        typed.forEachIndexed { i, _ -> s.at(10.6 + i * 0.07) { app.searchModel.query = typed.take(i + 1) } }
+        s.at(11.5) { x.camera(11.5, 1.55f, f(0.42f, 0.45f), -2f) }
+        s.at(12.0) { x.camera(12.0, 1.3f, f(0.42f, 0.22f), 2f); x.cursorTo("videos", 12.0, 0.25) }
+        s.at(12.3) { x.click(12.3) }
+        s.at(12.5) { x.camera(12.5, 1.5f, f(0.45f, 0.45f), -2f); x.cursorTo("albums", 12.5, 0.25) }
+        s.at(12.8) { x.click(12.8) }
+        s.at(13.0) { x.camera(13.0, 1.7f, f(0.4f, 0.4f), 2f); x.cursorTo("artists", 13.0, 0.25) }
+        s.at(13.3) { x.click(13.3) }
+        s.at(13.5) { x.camera(13.5, 1.0f, f(0.5f, 0.5f), 0f); x.cursorTo("player", 13.5, 0.3) }
+        s.at(13.8) { x.click(13.8) }
+
+        // 14–20 с: текст песни крупно.
+        cut(14.0, Tr.SPIN) {
+            app.open(Screen.Player)
+            x.scene(14.0, 3, "Lyrics in focus", "Synced · translated · sing along", 20.0, "LYRICS")
+            x.camera(14.0, 1.15f, f(0.6f, 0.5f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(14.5) { x.camera(14.5, 1.5f, f(0.72f, 0.5f), 0f) }
+        s.at(15.0) { x.camera(15.0, 1.7f, f(0.25f, 0.42f), -3f) }
+        s.at(15.5) { x.camera(15.5, 1.25f, f(0.5f, 0.5f), 0f) }
+        s.at(16.0) { x.camera(16.0, 1.9f, f(0.72f, 0.5f), 2f); x.flash(16.0, 0.12f) }
+        s.at(16.5) { x.camera(16.5, 1.6f, f(0.75f, 0.35f), -2f) }
+        s.at(17.0) { x.camera(17.0, 1.3f, f(0.3f, 0.5f), 2f) }
+        s.at(17.5) { x.camera(17.5, 1.55f, f(0.28f, 0.4f), -3f); app.setSt { it.copy(hlCoverShape = CoverShape.DISC, hlCoverSpin = true) } }
+        s.at(18.0) { x.camera(18.0, 1.15f, f(0.5f, 0.5f), 0f) }
+        s.at(18.5) { x.camera(18.5, 1.4f, f(0.5f, 0.5f), -2f); app.setSt { it.copy(hlPlayerBack = PlayerBack.AURORA) }; x.flash(18.5, 0.25f) }
+        s.at(19.0) { x.camera(19.0, 1.7f, f(0.72f, 0.5f), 2f) }
+        s.at(19.5) { x.camera(19.5, 1.0f, f(0.5f, 0.5f), 0f); x.cursorTo("queue", 19.5, 0.3) }
+        s.at(19.85) { x.click(19.85) }
+
         // 20–24 с: очередь и история.
-        s.at(20.0) { x.scene(20.0, 4, "Queue & history", "Drag to reorder · what is up next", 24.0); x.cursorTo(x.where("queue", 0), 20.0, 0.4) }
-        s.at(20.4) { x.click(20.4) }
-        s.at(21.6) { x.cursorTo(x.where("Honey Signal", 0)?.let { Offset(it.x - 520f, it.y) }, 21.6, 0.5) }
-        s.at(22.2) { app.player.moveInQueue(6, 2) }
-        s.at(22.8) { x.cursorTo(x.where("already played", 0), 22.8, 0.4) }
-        s.at(23.2) { x.click(23.2) }
-        s.at(23.6) { x.cursorTo(x.where("history", 0), 23.6, 0.3) }
-        s.at(23.9) { x.click(23.9) }
-        // 24–28 с: свои версии трека: скорость, тон, реверберация, эквалайзер.
-        s.at(24.0) { x.scene(24.0, 5, "Make your own version", "Speed · pitch · reverb · 10-band equaliser", 28.0); x.cursorTo(x.where("sound", 0), 24.0, 0.4) }
-        s.at(24.4) { x.click(24.4) }
-        s.at(25.0) { x.cursorTo(x.where("slowed", 0), 25.0, 0.4) }
-        s.at(25.4) { x.click(25.4) }
-        s.at(26.2) { x.cursorTo(x.where("cave", 0), 26.2, 0.4) }
-        s.at(26.6) { x.click(26.6) }
-        s.at(27.0) { x.wheel(Offset(1300f, 600f), 27.0, 27.9, 700f) }
+        cut(20.0, Tr.FLIPX) {
+            x.scene(20.0, 4, "Queue & history", "Drag to reorder · what is up next", 24.0, "QUEUE")
+            x.camera(20.0, 1.3f, f(0.75f, 0.5f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(20.5) { x.camera(20.5, 1.6f, f(0.76f, 0.45f), -2f) }
+        s.at(21.0) { x.camera(21.0, 1.4f, f(0.76f, 0.4f), 2f); x.cursorTo("Honey Signal", 21.0, 0.3, dx = -520f) }
+        s.at(21.5) { app.player.moveInQueue(6, 2); x.flash(21.5, 0.15f); x.camera(21.5, 1.6f, f(0.78f, 0.4f), -2f) }
+        s.at(22.0) { x.camera(22.0, 1.2f, f(0.5f, 0.5f), 0f); x.cursorTo("already played", 22.0, 0.3) }
+        s.at(22.4) { x.click(22.4) }
+        s.at(22.5) { x.camera(22.5, 1.5f, f(0.78f, 0.7f), 2f) }
+        s.at(23.0) { x.camera(23.0, 1.4f, f(0.78f, 0.4f), -2f); x.cursorTo("history", 23.0, 0.25) }
+        s.at(23.3) { x.click(23.3) }
+        s.at(23.5) { x.camera(23.5, 1.0f, f(0.5f, 0.5f), 0f); x.cursorTo("sound", 23.5, 0.3) }
+        s.at(23.85) { x.click(23.85) }
+
+        // 24–28 с: свой вариант трека.
+        cut(24.0, Tr.WHIP) {
+            x.scene(24.0, 5, "Make your own version", "Speed · pitch · reverb · 10-band equaliser", 28.0, "SOUND")
+            x.camera(24.0, 1.35f, f(0.75f, 0.4f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(24.5) { x.camera(24.5, 1.55f, f(0.78f, 0.35f), -2f); x.cursorTo("slowed", 24.5, 0.3) }
+        s.at(25.0) { x.click(25.0); x.camera(25.0, 1.9f, f(0.78f, 0.42f), 2f); x.flash(25.0, 0.12f) }
+        s.at(25.3) { x.cursorTo("cave", 25.3, 0.2) }
+        s.at(25.5) { x.click(25.5); x.camera(25.5, 1.7f, f(0.78f, 0.5f), -2f) }
+        s.at(26.0) { x.camera(26.0, 1.5f, f(0.78f, 0.75f), 0f); x.wheel(Offset(1300f, 600f), 26.0, 27.5, 700f) }
+        s.at(26.5) { x.camera(26.5, 2.0f, f(0.8f, 0.78f), 3f) }
+        s.at(27.0) { x.camera(27.0, 1.6f, f(0.78f, 0.8f), -3f) }
+        s.at(27.5) { x.camera(27.5, 1.0f, f(0.5f, 0.5f), 0f) }
+
         // 28–32 с: подставка.
-        s.at(28.0) { x.scene(28.0, 6, "Stand mode", "Glow · clock · lyrics on your desk", 32.0); x.key(28.0, "B"); app.setSt { it.copy(hlCoverShape = CoverShape.ROUNDED, hlCoverSpin = false) }; app.stand.enter() }
-        s.at(31.9) { app.stand.off() }
+        cut(28.0, Tr.ZOOM) {
+            x.scene(28.0, 6, "Stand mode", "Glow · clock · lyrics on your desk", 32.0, "STAND")
+            x.key(28.5, "B")
+            app.setSt { it.copy(hlCoverShape = CoverShape.ROUNDED, hlCoverSpin = false) }; app.stand.enter()
+            x.camera(28.0, 1.0f, f(0.5f, 0.5f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(28.5) { x.camera(28.5, 1.2f, f(0.3f, 0.5f), -2f) }
+        s.at(29.0) { x.camera(29.0, 1.5f, f(0.55f, 0.35f), 2f) }
+        s.at(29.5) { x.camera(29.5, 1.15f, f(0.5f, 0.5f), 0f) }
+        s.at(30.0) { x.camera(30.0, 1.6f, f(0.66f, 0.62f), -2f); x.flash(30.0, 0.1f) }
+        s.at(30.5) { x.camera(30.5, 1.3f, f(0.3f, 0.5f), 2f) }
+        s.at(31.0) { x.camera(31.0, 1.8f, f(0.3f, 0.5f), -3f) }
+        s.at(31.5) { x.camera(31.5, 1.0f, f(0.5f, 0.5f), 0f) }
+        s.at(31.85) { app.stand.off() }
+
         // 32–36 с: свои файлы.
-        s.at(32.0) { x.scene(32.0, 7, "Your own files", "mp3 · flac · m4a — tags, covers, playlists", 36.0); app.open(Screen.Library); x.cursorTo(x.where("my files", 0), 32.0, 0.5) }
-        s.at(32.6) { x.click(32.6); app.open(Screen.LocalFiles) }
+        cut(32.0, Tr.FLIPY) {
+            app.open(Screen.LocalFiles)
+            x.scene(32.0, 7, "Your own files", "mp3 · flac · m4a — tags, covers, playlists", 36.0, "FILES")
+            x.camera(32.0, 1.3f, f(0.5f, 0.3f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(32.5) { x.camera(32.5, 1.8f, f(0.45f, 0.3f), -2f) }
+        s.at(33.0) { x.camera(33.0, 1.5f, f(0.55f, 0.45f), 2f) }
+        s.at(33.5) { x.camera(33.5, 1.9f, f(0.6f, 0.4f), -2f) }
+        s.at(34.0) { x.camera(34.0, 1.3f, f(0.5f, 0.5f), 0f); x.flash(34.0, 0.1f) }
+        s.at(34.5) { x.camera(34.5, 1.7f, f(0.7f, 0.25f), 2f) }
+        s.at(35.0) { x.camera(35.0, 1.4f, f(0.4f, 0.5f), -2f) }
+        s.at(35.5) { x.camera(35.5, 1.0f, f(0.5f, 0.5f), 0f) }
+
         // 36–40 с: оформление и панели.
-        s.at(36.0) { x.scene(36.0, 8, "Make it yours", "Light · dark · cover shapes · hide any panel", 40.0); app.open(Screen.Player); app.setSt { it.copy(hlLayout = PlayerLayout.COVER, hlCoverShape = CoverShape.SQUARE, hlPlayerBack = PlayerBack.GLOW) } }
-        s.at(37.0) { app.setSt { it.copy(theme = ThemeMode.LIGHT) } }
-        s.at(38.0) { app.setSt { it.copy(theme = ThemeMode.DARK) }; x.key(38.0, "Ctrl + B"); app.setSt { it.copy(sidebarHidden = true) } }
-        s.at(38.8) { x.key(38.8, "Ctrl + Shift + B"); app.setSt { it.copy(barHidden = true) } }
-        s.at(39.4) { app.setSt { it.copy(sidebarHidden = false, barHidden = false, hlCoverShape = CoverShape.ROUNDED) } }
+        cut(36.0, Tr.SPIN) {
+            app.open(Screen.Player)
+            app.setSt { it.copy(hlLayout = PlayerLayout.COVER, hlCoverShape = CoverShape.SQUARE, hlPlayerBack = PlayerBack.GLOW, hlCoverSpin = false) }
+            x.scene(36.0, 8, "Make it yours", "Light · dark · cover shapes · hide any panel", 40.0, "LOOK")
+            x.camera(36.0, 1.15f, f(0.4f, 0.5f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(36.5) { x.camera(36.5, 1.6f, f(0.3f, 0.45f), -2f); app.setSt { it.copy(hlCoverShape = CoverShape.DISC, hlCoverSpin = true) } }
+        s.at(37.0) { x.camera(37.0, 1.3f, f(0.5f, 0.5f), 3f); x.flash(37.0, 0.45f); app.setSt { it.copy(theme = ThemeMode.LIGHT, hlCoverShape = CoverShape.SQUARE, hlCoverSpin = false) } }
+        s.at(37.5) { x.camera(37.5, 1.5f, f(0.5f, 0.5f), -3f); x.flash(37.5, 0.2f); app.setSt { it.copy(theme = ThemeMode.DARK) } }
+        s.at(38.0) { x.camera(38.0, 1.25f, f(0.5f, 0.5f), 0f); x.key(38.0, "Ctrl + B"); app.setSt { it.copy(sidebarHidden = true) } }
+        s.at(38.5) { x.camera(38.5, 1.4f, f(0.5f, 0.55f), 2f); x.key(38.5, "Ctrl + Shift + B"); app.setSt { it.copy(barHidden = true) } }
+        s.at(39.0) { x.camera(39.0, 1.1f, f(0.5f, 0.5f), 0f); app.setSt { it.copy(sidebarHidden = false, barHidden = false, hlCoverShape = CoverShape.ROUNDED) } }
+        s.at(39.5) { x.camera(39.5, 1.0f, f(0.5f, 0.5f), 0f) }
+
         // 40–43 с: клавиатура.
-        s.at(40.0) { x.scene(40.0, 9, "Keyboard first", "Hotkeys · media keys · mini player · tray", 43.0); app.open(Screen.Home); x.key(40.0, "?"); Actions.helpOpen = true }
-        s.at(42.8) { Actions.helpOpen = false }
-        // 43–46 с: финал.
-        s.at(43.0) { d.caption = "" }
+        cut(40.0, Tr.WHIP) {
+            app.open(Screen.Home); x.key(40.5, "?"); Actions.helpOpen = true
+            x.scene(40.0, 9, "Keyboard first", "Hotkeys · media keys · mini player · tray", 43.0, "KEYS")
+            x.camera(40.0, 1.2f, f(0.5f, 0.5f), 0f, snap = false, dur = 0.01)
+        }
+        s.at(40.5) { x.camera(40.5, 1.55f, f(0.5f, 0.55f), -2f) }
+        s.at(41.0) { x.camera(41.0, 1.6f, f(0.5f, 0.5f), 2f) }
+        s.at(41.5) { x.camera(41.5, 1.6f, f(0.48f, 0.7f), -2f); x.flash(41.5, 0.1f) }
+        s.at(42.0) { x.camera(42.0, 1.3f, f(0.5f, 0.5f), 0f) }
+        s.at(42.5) { x.camera(42.5, 1.0f, f(0.5f, 0.5f), 0f) }
+        s.at(42.85) { Actions.helpOpen = false }
+
+        // 43–46 с: финал — окно улетает в камеру, карточка собирается ударами.
+        x.trs += 43.0 to Tr.ZOOM
+        s.at(43.0) { d.caption = ""; d.cursorVisible = false; x.flash(43.0, 0.5f); d.hitAt = 43.0 }
         s.sort()
     }
 }
