@@ -8,10 +8,11 @@ Everything below is the complete list of network requests.
 | `music.youtube.com`, `*.googlevideo.com`, `i.ytimg.com`, `*.googleusercontent.com` | search, your library, stream links, the audio itself, covers. If you sign in, the session cookie is sent there like a web browser would | no (it is the music source) |
 | `accounts.google.com` | only the sign-in page, shown in a separate browser window | only when you sign in |
 | `lrclib.net` | lyrics (artist, title, duration of the track) | Settings → Player → Lyrics |
+| `api.lyrics.ovh` | lyrics fallback (artist, title) when LRCLIB has nothing | Settings → Player → «Search lyrics everywhere» (on by default, can be turned off) |
 | `translate.googleapis.com` | only if you turn lyrics translation on; the lyric lines are sent | off by default |
 | `api.github.com`, `github.com` | the update check and the download of a new version | yes: Settings → App → Check for updates |
 
-The Android app additionally uses `music.163.com`, `api.lyrics.ovh`, `genius.com` (lyrics fallbacks) and public Piped
+The Android app additionally uses `music.163.com`, `genius.com` (lyrics fallbacks) and public Piped
 servers (audio fallback); the desktop version does not.
 
 ## What stays on the device
