@@ -27,7 +27,7 @@ class PlayerCtl(
     var index by mutableIntStateOf(-1)
         private set
     var playing by mutableStateOf(false)
-        private set
+        internal set
     var loading by mutableStateOf(false)
         private set
     var position by mutableDoubleStateOf(0.0)
@@ -479,6 +479,13 @@ class PlayerCtl(
             }
         }
         app.saveQueue(queue, index)
+    }
+
+    /** Для съёмки и проверок интерфейса: поставить очередь и играющий трек, не загружая звук. */
+    internal fun demoShow(songs: List<SongItem>, at: Int, isPlaying: Boolean) {
+        queue = songs
+        index = at
+        playing = isPlaying
     }
 
     /** Убрать из очереди всё, что идёт после играющего трека. */

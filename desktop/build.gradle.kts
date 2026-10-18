@@ -118,6 +118,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Съёмка промо-ролика идёт минутами; обычным тестам хватает и этого запаса.
+    systemProperty("kotlinx.coroutines.test.default_timeout", "90m")
     // Причина падения должна быть видна в журнале CI, а не только в отчёте, которого там не достать.
     testLogging {
         events("failed")
@@ -125,7 +127,8 @@ tasks.test {
         showStandardStreams = true
     }
     // Кадры интерфейса из тестов: ./gradlew test -Dw0y.shots=папка
-    System.getProperty("w0y.shots")?.let { systemProperty("w0y.shots", it) }
+    // Любое свойство w0y.* доезжает до тестов: кадры (w0y.shots) и съёмка ролика (w0y.promo.*).
+    System.getProperties().forEach { (k, v) -> if (k.toString().startsWith("w0y.")) systemProperty(k.toString(), v) }
 }
 
 compose.desktop {
