@@ -101,10 +101,10 @@ jobs:
         working-directory: desktop
         shell: pwsh
         env: { W0Y_AO: "null", W0Y_MPV_LOG: "1" }
-        run: ./gradlew test --no-daemon
+        run: ./gradlew.bat test --no-daemon
       - name: Build app image
         working-directory: desktop
-        run: ./gradlew createDistributable --no-daemon
+        run: ./gradlew.bat createDistributable --no-daemon
       - name: Smoke test (no window, no sound card)
         shell: pwsh
         run: |

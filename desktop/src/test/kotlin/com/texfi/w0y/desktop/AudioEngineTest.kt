@@ -22,13 +22,17 @@ class AudioEngineTest {
     private fun sine(seconds: Int): File {
         val rate = 44100
         val samples = rate * seconds
-        val data = ByteBuffer.allocate(samples * 2).order(ByteOrder.LITTLE_ENDIAN)
-        for (i in 0 until samples) data.putShort((sin(2 * PI * 440 * i / rate) * 8000).toInt().toShort())
+        // Стерео, как у настоящей музыки: mpv 0.37 (Ubuntu 24.04) на моно с rubberband + lavfi сыплет «could not pass frame».
+        val data = ByteBuffer.allocate(samples * 4).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until samples) {
+            val v = (sin(2 * PI * 440 * i / rate) * 8000).toInt().toShort()
+            data.putShort(v).putShort(v)
+        }
         val out = ByteArrayOutputStream()
         val head = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
-        head.put("RIFF".toByteArray()).putInt(36 + samples * 2).put("WAVEfmt ".toByteArray()).putInt(16)
-            .putShort(1).putShort(1).putInt(rate).putInt(rate * 2).putShort(2).putShort(16)
-            .put("data".toByteArray()).putInt(samples * 2)
+        head.put("RIFF".toByteArray()).putInt(36 + samples * 4).put("WAVEfmt ".toByteArray()).putInt(16)
+            .putShort(1).putShort(2).putInt(rate).putInt(rate * 4).putShort(4).putShort(16)
+            .put("data".toByteArray()).putInt(samples * 4)
         out.write(head.array()); out.write(data.array())
         return File.createTempFile("w0y-sine", ".wav").also { it.writeBytes(out.toByteArray()); it.deleteOnExit() }
     }
