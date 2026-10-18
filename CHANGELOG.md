@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.4 beta-1
+## v0.0.4 beta-1 — w0y with desktop
 
 The computer version grows up: Windows is new, Linux is rebuilt in the Hairline
 look with a side bar, a wide player bar, eight settings tabs, a mini player and

@@ -1,4 +1,4 @@
-# w0y v0.0.4 beta-1
+# w0y with desktop — v0.0.4 beta-1
 
 w0y now runs on the computer as a real desktop app: Windows (new) and Linux
 (rebuilt), in the Hairline look, sized for a mouse and a keyboard. Android gets
