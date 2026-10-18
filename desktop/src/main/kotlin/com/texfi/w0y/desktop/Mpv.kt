@@ -87,6 +87,8 @@ class Mpv(
     @Volatile
     private var endFired = false
 
+    private var lastTime = -1.0
+
     private fun fireEnd(reason: String) {
         if (reason == "eof" || reason == "error") {
             if (endFired) return
@@ -102,7 +104,10 @@ class Mpv(
             "property-change" -> {
                 val value = obj["data"] as? JsonPrimitive
                 when ((obj["name"] as? JsonPrimitive)?.contentOrNull) {
-                    "time-pos" -> value?.doubleOrNull?.let(onTime)
+                    "time-pos" -> value?.doubleOrNull?.let { t ->
+                        // Не чаще четырёх раз в секунду: больше интерфейсу не нужно, а процессор греется.
+                        if (t < lastTime || t - lastTime >= 0.25) { lastTime = t; onTime(t) }
+                    }
                     "duration" -> value?.doubleOrNull?.let(onDuration)
                     "pause" -> value?.booleanOrNull?.let(onPause)
                     // На части потоков mpv встаёт в конце на паузу без события end-file: конец трека ловим по eof-reached.
@@ -146,6 +151,7 @@ class Mpv(
         send("set_property", "user-agent", ua ?: "Mozilla/5.0")
         send("set_property", "http-header-fields", rest.joinToString(","))
         endFired = false
+        lastTime = -1.0
         send("loadfile", url, "replace")
         send("set_property", "pause", false)
     }

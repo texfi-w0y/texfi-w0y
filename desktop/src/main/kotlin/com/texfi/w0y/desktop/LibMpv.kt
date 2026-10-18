@@ -61,6 +61,8 @@ class LibMpv(
     @Volatile
     private var endFired = false
 
+    private var lastTime = -1.0
+
     override fun start(): Boolean {
         val lib = api ?: return false
         forceNumericLocaleC()
@@ -139,7 +141,15 @@ class LibMpv(
         val value = data.getPointer(16)
         if (format == FORMAT_NONE || value == null) return
         when (name) {
-            "time-pos" -> if (format == FORMAT_DOUBLE) onTime(value.getDouble(0))
+            "time-pos" -> if (format == FORMAT_DOUBLE) {
+                // mpv шлёт позицию на каждый кусок звука (десятки раз в секунду); интерфейсу хватает четырёх,
+                // а лишние обновления перерисовывали шкалу и грели процессор. Перемотка назад проходит сразу.
+                val t = value.getDouble(0)
+                if (t < lastTime || t - lastTime >= TIME_STEP) {
+                    lastTime = t
+                    onTime(t)
+                }
+            }
             "duration" -> if (format == FORMAT_DOUBLE) onDuration(value.getDouble(0))
             "pause" -> if (format == FORMAT_FLAG) onPause(value.getInt(0) != 0)
             // На части потоков mpv встаёт в конце на паузу без end-file: конец трека ловим и по eof-reached.
@@ -179,6 +189,7 @@ class LibMpv(
         set("user-agent", ua ?: "Mozilla/5.0")
         set("http-header-fields", rest.joinToString(","))
         endFired = false
+        lastTime = -1.0
         command("loadfile", url, "replace")
         set("pause", "no")
     }
@@ -245,6 +256,8 @@ class LibMpv(
     }
 
     companion object {
+        /** Не чаще: позиция уходит в интерфейс раз в 0,25 с. */
+        private const val TIME_STEP = 0.25
         private const val FORMAT_NONE = 0
         private const val FORMAT_FLAG = 3
         private const val FORMAT_DOUBLE = 5
