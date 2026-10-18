@@ -421,11 +421,21 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
             choice(listOf(10, 15, 30, 45, 60), st.sleepTimerDefaultMin, { S("settings_sleep_minutes", it) }) { v -> set { it.copy(sleepTimerDefaultMin = v) } }))
         add(Setting(SSection.PLAYER, S("settings_playlist_recs"), S("settings_playlist_recs_hint"),
             SetControl.Toggle(st.showPlaylistRecommendations) { v -> set { it.copy(showPlaylistRecommendations = v) } }))
+        add(Setting(SSection.PLAYER, S("rec_end_title"), S("rec_end_desc"),
+            choice(RecEndMode.entries, st.recEndMode, { it.label }) { v -> set { it.copy(recEndMode = v) } }, "queue end конец очереди"))
+        add(Setting(SSection.PLAYER, S("rec_instead_title"), S("rec_instead_desc"),
+            SetControl.Toggle(st.recInsteadOfList) { v -> set { it.copy(recInsteadOfList = v) } }, "similar radio похожее"))
+        add(Setting(SSection.PLAYER, S("delete_protection_title"), S("delete_protection_desc"),
+            SetControl.Toggle(st.deleteProtection) { v -> set { it.copy(deleteProtection = v) } }, "delete protection удаление защита"))
+        add(Setting(SSection.PLAYER, S("lyrics_delay_title"), S("lyrics_delay_desc"),
+            choice(listOf(-1000, -500, -250, 0, 250, 500, 1000), st.lyricsDelayMs, { if (it == 0) S("lyrics_delay_none") else "${if (it > 0) "+" else ""}$it ms" }) { v -> set { it.copy(lyricsDelayMs = v) } }, "lyrics delay текст задержка"))
+        add(Setting(SSection.PLAYER, S("lyrics_sources_title"), S("lyrics_sources_desc"),
+            SetControl.Toggle(st.lyricsAllSources) { v -> set { it.copy(lyricsAllSources = v) } }, "lyrics sources текст источники"))
         // визуализатор
         val vizOk = SpectrumCapture.available
         add(Setting(SSection.PLAYER, S("viz_style_title"), if (vizOk) S("d_set_viz_desc") else S("d_set_viz_missing"),
             if (vizOk) {
-                val styles = VisualizerStyle.entries.filter { it.smooth == Look.smooth }
+                val styles = VisualizerStyle.of(st.uiStyle)
                 choice(styles, st.visualizerStyle.forUi(st.uiStyle), { it.label }) { v -> set { it.copy(visualizerStyle = v) } }
             } else {
                 SetControl.Info("—")
@@ -550,6 +560,33 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
             add(Setting(SSection.LOOK, S("theme_glass"), S("d_set_glass_desc"),
                 choice(listOf(true, false), st.smoothGlass, { if (it) S("style_glass") else S("style_matte") }) { v -> set { it.copy(smoothGlass = v) } }, "glass liquid стекло"))
         }
+        if (st.uiStyle == UiStyle.HAIRLINE) {
+            add(Setting(SSection.LOOK, S("hl_set_weight"), S("hl_set_weight_d"),
+                choice(LineWeight.entries, st.hlWeight, { it.label }) { v -> set { it.copy(hlWeight = v) } }, "weight line толщина линия hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_corners"), S("hl_set_corners_d"),
+                choice(CornerStyle.entries, st.hlCorners, { it.label }) { v -> set { it.copy(hlCorners = v) } }, "corners round скругления hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_cover"), S("hl_set_cover_d"),
+                choice(CoverShape.entries, st.hlCoverShape, { it.label }) { v -> set { it.copy(hlCoverShape = v) } }, "cover shape форма обложки hairline"))
+            add(Setting(SSection.LOOK, S("d_cover_size_title"), S("d_cover_size_desc"),
+                choice(CoverSize.entries, st.hlCoverSize, { it.label }) { v -> set { it.copy(hlCoverSize = v) } }, "cover size размер обложки hairline"))
+            add(Setting(SSection.LOOK, S("d_cover_ring_title"), S("d_cover_ring_desc"),
+                SetControl.Toggle(st.hlCoverRing) { v -> set { it.copy(hlCoverRing = v) } }, "ring progress кольцо прогресс hairline"))
+            add(Setting(SSection.LOOK, S("d_cover_spin_title"), S("d_cover_spin_desc"),
+                SetControl.Toggle(st.hlCoverSpin) { v -> set { it.copy(hlCoverSpin = v) } }, "spin disc вращение диск hairline"))
+            add(Setting(SSection.LOOK, S("d_poster_dim_title"), S("d_poster_dim_desc"),
+                choice(listOf(20, 35, 45, 60, 75), st.hlPosterDim, { "$it%" }) { v -> set { it.copy(hlPosterDim = v) } }, "poster dim постер затемнение hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_layout"), S("hl_set_layout_d"),
+                choice(PlayerLayout.entries, st.hlLayout, { it.label }) { v -> set { it.copy(hlLayout = v) } }, "player layout раскладка плеер hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_caps"), S("hl_set_caps_d"),
+                choice(CapsMode.entries, st.hlCaps, { it.label }) { v -> set { it.copy(hlCaps = v) } }, "caps заглавные hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_density"), S("hl_set_density_d"),
+                choice(Density.entries, st.hlDensity, { it.label }) { v -> set { it.copy(hlDensity = v) } }, "density плотность hairline"))
+            add(Setting(SSection.LOOK, S("backdrop_title"), S("backdrop_desc"),
+                choice(BackdropMode.entries, st.backdrop, { it.label }) { v -> set { it.copy(backdrop = v) } }, "backdrop фон hairline"))
+            add(Setting(SSection.LOOK, S("hl_set_reset"), S("hl_set_reset_d"), SetControl.Act(S("settings_reset_button")) {
+                set { it.copy(hlWeight = LineWeight.THIN, hlCorners = CornerStyle.SHARP, hlCoverShape = CoverShape.ROUNDED, hlCoverSize = CoverSize.MEDIUM, hlCoverRing = true, hlCoverSpin = false, hlPosterDim = 45, hlLayout = PlayerLayout.COVER, hlCaps = CapsMode.TITLES_LABELS, hlDensity = Density.COMFORTABLE, backdrop = BackdropMode.TOPO, compactRows = false) }
+            }, "reset сброс вид hairline"))
+        }
         add(Setting(SSection.LOOK, S("d_set_scale_title"), S("d_set_scale_desc"),
             choice(listOf(0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.5f), st.uiScale, { "${(it * 100).toInt()}%" }) { v -> set { it.copy(uiScale = v) } }, "scale масштаб dpi"))
         add(Setting(SSection.LOOK, S("hl_set_motion"), S("d_set_motion_desc"),
@@ -561,6 +598,8 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onLicenses: () -> Unit
             choice(Language.entries, st.language, { it.label }) { v -> set { it.copy(language = v) } }))
         add(Setting(SSection.LOOK, S("settings_start_tab_title"), S("settings_start_tab_desc"),
             choice(StartTab.entries, st.startTab, { it.label }) { v -> set { it.copy(startTab = v) } }))
+        add(Setting(SSection.LOOK, S("home_blocks_title"), S("home_blocks_desc"),
+            SetControl.Toggle(st.homeRecBlocks) { v -> set { it.copy(homeRecBlocks = v) } }, "home picks подборки главная"))
         add(Setting(SSection.LOOK, S("settings_shelves_title"), S("settings_shelves_desc"),
             SetControl.Toggle(st.showRecommendations) { v -> set { it.copy(showRecommendations = v) } }))
         add(Setting(SSection.LOOK, S("settings_live_background_title"), S("settings_live_background_desc"),
@@ -660,7 +699,7 @@ val APP_VERSION: String = Platform::class.java.getResourceAsStream("/version.txt
 private val EqFreqs = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
 
 @Composable
-private fun EqPanel(app: AppState) {
+internal fun EqPanel(app: AppState) {
     val st = app.st
     Column {
         RowCenter {

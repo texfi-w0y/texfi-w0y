@@ -75,6 +75,8 @@ enum class Accent(override val key: String, val accent: Long, val deep: Long, va
     MINT("accent_mint", 0xFF3ED9A4, 0xFF167A5B, 0xFFE0A860),
     CRIMSON("accent_crimson", 0xFFFF5A5A, 0xFF8F2020, 0xFFE0A860),
     SAND("accent_sand", 0xFFE0A860, 0xFF8A5F26, 0xFF7FB5FF),
+    LIGHT_BLUE("accent_light_blue", 0xFF7FB5FF, 0xFF2F5C94, 0xFFE0A860),
+    WARM("accent_warm", 0xFFF0B49A, 0xFF8A4A32, 0xFF7FB5FF),
     CUSTOM("accent_custom", 0xFFA06CFF, 0xFF4E3580, 0xFFE0A860),
 }
 
@@ -96,32 +98,54 @@ enum class LyricsSize(override val key: String, val sp: Int) : Labeled {
     LARGE("lyrics_size_large", 26),
 }
 
-/** Стиль визуализатора: первые четыре — Pixel, последние два — Smooth. */
+/** Стиль визуализатора: первые четыре — Pixel, следующие два — Smooth, последние три — Hairline. */
 @Serializable
-enum class VisualizerStyle(override val key: String, val smooth: Boolean) : Labeled {
+enum class VisualizerStyle(override val key: String, val smooth: Boolean, val hair: Boolean = false) : Labeled {
     SEGMENTS("viz_segments", false),
     RING("viz_ring", false),
     SCOPE("viz_scope", false),
     MOSAIC("viz_mosaic", false),
     BARS("viz_bars", true),
     WAVE("viz_wave", true),
+    LINES("viz_lines", false, hair = true),
+    ORBIT("viz_orbit", false, hair = true),
+    TERRAIN("viz_terrain", false, hair = true),
     ;
 
-    /** Стиль под оформление: чужой заменяется ближайшим своим. */
+    /** Стиль под оформление: чужой заменяется ближайшим своим (те же правила, что на телефоне). */
     fun forUi(style: UiStyle): VisualizerStyle =
-        if (style != UiStyle.PIXEL) {
-            when (this) {
-                SEGMENTS, MOSAIC -> BARS
-                SCOPE, RING -> WAVE
-                else -> this
-            }
-        } else {
-            when (this) {
-                BARS -> SEGMENTS
-                WAVE -> SCOPE
-                else -> this
-            }
+        when (style) {
+            UiStyle.PIXEL ->
+                when (this) {
+                    BARS, LINES, TERRAIN -> SEGMENTS
+                    WAVE, ORBIT -> SCOPE
+                    else -> this
+                }
+            UiStyle.SMOOTH ->
+                when (this) {
+                    SEGMENTS, MOSAIC, LINES -> BARS
+                    SCOPE, RING, ORBIT, TERRAIN -> WAVE
+                    else -> this
+                }
+            UiStyle.HAIRLINE ->
+                when (this) {
+                    SEGMENTS, MOSAIC, BARS -> LINES
+                    SCOPE, RING, WAVE -> ORBIT
+                    else -> this
+                }
         }
+
+    companion object {
+        /** Стили, доступные в оформлении. */
+        fun of(style: UiStyle): List<VisualizerStyle> =
+            entries.filter {
+                when (style) {
+                    UiStyle.HAIRLINE -> it.hair
+                    UiStyle.SMOOTH -> it.smooth && !it.hair
+                    UiStyle.PIXEL -> !it.smooth && !it.hair
+                }
+            }
+    }
 }
 
 /** Что занимает место обложки в плеере. */
@@ -133,6 +157,79 @@ enum class PlayerArt { COVER, VISUALIZER }
 enum class StandView(override val key: String) : Labeled {
     TEXT("stand_view_text"),
     COVER("stand_view_cover"),
+}
+
+/** Толщина линии Hairline, dp. */
+@Serializable
+enum class LineWeight(override val key: String, val dp: Float) : Labeled {
+    THIN("hl_weight_thin", 1f),
+    REGULAR("hl_weight_regular", 1.5f),
+    BOLD("hl_weight_bold", 2f),
+}
+
+/** Скругление карточек и кнопок Hairline, dp. */
+@Serializable
+enum class CornerStyle(override val key: String, val dp: Int) : Labeled {
+    SHARP("hl_corner_sharp", 3),
+    SOFT("hl_corner_soft", 8),
+    ROUND("hl_corner_round", 16),
+    CIRCLE("hl_corner_circle", 999),
+}
+
+/** Форма обложки в плеере. */
+@Serializable
+enum class CoverShape(override val key: String) : Labeled {
+    DISC("hl_cover_disc"),
+    ROUNDED("hl_cover_rounded"),
+    SQUARE("hl_cover_square"),
+}
+
+/** Раскладка большого плеера: обложка в рамке и панель сбоку, только обложка, постер с размытым фоном. */
+@Serializable
+enum class PlayerLayout(override val key: String) : Labeled {
+    COVER("hl_layout_cover"),
+    MINIMAL("hl_layout_minimal"),
+    POSTER("hl_layout_poster"),
+}
+
+/** Размер диска в плеере. */
+@Serializable
+enum class CoverSize(override val key: String, val share: Float) : Labeled {
+    SMALL("lyrics_size_small", 0.32f),
+    MEDIUM("lyrics_size_medium", 0.40f),
+    LARGE("lyrics_size_large", 0.50f),
+}
+
+/** Какой текст пишется заглавными. */
+@Serializable
+enum class CapsMode(override val key: String) : Labeled {
+    TITLES_LABELS("hl_caps_titles"),
+    LABELS("hl_caps_labels"),
+    OFF("hl_caps_off"),
+}
+
+@Serializable
+enum class Density(override val key: String) : Labeled {
+    COMFORTABLE("hl_density_comfortable"),
+    COMPACT("hl_density_compact"),
+}
+
+/** Что делать, когда очередь кончилась. */
+@Serializable
+enum class RecEndMode(override val key: String) : Labeled {
+    CONTINUE("rec_end_continue"),
+    REPEAT("rec_end_repeat"),
+    STOP("rec_end_stop"),
+}
+
+/** Фон приложения в Hairline. */
+@Serializable
+enum class BackdropMode(override val key: String) : Labeled {
+    TOPO("backdrop_topo"),
+    GRID("backdrop_grid"),
+    PURE("backdrop_pure"),
+    COVER("backdrop_cover"),
+    AURORA("backdrop_aurora"),
 }
 
 /** Повтор: выключен, весь список, один трек. */
@@ -168,6 +265,11 @@ data class DSettings(
     val visualizerSensitivity: Float = 1f,
     val visualizerFps: Int = 60,
     val visualizerCoverBackdrop: Boolean = true,
+    val lyricsDelayMs: Int = 0,
+    val lyricsAllSources: Boolean = true,
+    val recEndMode: RecEndMode = RecEndMode.CONTINUE,
+    val recInsteadOfList: Boolean = false,
+    val deleteProtection: Boolean = true,
     val shuffle: Boolean = false,
     val repeat: RepeatMode = RepeatMode.OFF,
     val showPlaylistRecommendations: Boolean = false,
@@ -218,6 +320,21 @@ data class DSettings(
     val motion: MotionMode = MotionMode.AUTO,
     val compactRows: Boolean = false,
     val dialMinPlays: Int = 1,
+    /** Подборки на главной: быстрый выбор, забытые любимые, под время суток. */
+    val homeRecBlocks: Boolean = true,
+    // ---- вид Hairline
+    val hlWeight: LineWeight = LineWeight.THIN,
+    val hlCorners: CornerStyle = CornerStyle.SHARP,
+    val hlCoverShape: CoverShape = CoverShape.ROUNDED,
+    val hlLayout: PlayerLayout = PlayerLayout.COVER,
+    val hlCaps: CapsMode = CapsMode.TITLES_LABELS,
+    val hlDensity: Density = Density.COMFORTABLE,
+    val backdrop: BackdropMode = BackdropMode.TOPO,
+    val hlCoverSize: CoverSize = CoverSize.MEDIUM,
+    val hlCoverRing: Boolean = true,
+    val hlCoverSpin: Boolean = false,
+    /** Затемнение обложки за «Постером», %. */
+    val hlPosterDim: Int = 45,
     // ---- устройства и система
     val audioDevice: String = "auto",
     val notifyTrackChange: Boolean = false,
@@ -230,7 +347,7 @@ data class DSettings(
     // ---- обновления
     val checkUpdates: Boolean = true,
     /** Двойной клик по треку включает его, одиночный выделяет строку. */
-    val doubleClickPlay: Boolean = true,
+    val doubleClickPlay: Boolean = false,
     val lastUpdateCheck: Long = 0L,
     /** Релиз, для которого нажали «Позже»: плашка про него больше не всплывает. */
     val skippedUpdate: String = "",

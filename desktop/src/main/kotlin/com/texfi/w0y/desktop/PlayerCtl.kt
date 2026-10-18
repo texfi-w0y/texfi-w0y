@@ -163,7 +163,8 @@ class PlayerCtl(
     fun play(songs: List<SongItem>, at: Int) {
         val first = songs.getOrNull(at.coerceIn(0, songs.lastIndex)) ?: return
         // Режим «что играет дальше»: по очереди, вперемешку или рекомендации.
-        when (app.st.queueMode) {
+        val mode = if (app.st.recInsteadOfList) QueueMode.RADIO else app.st.queueMode
+        when (mode) {
             QueueMode.ORDER -> {
                 queue = songs
                 index = at.coerceIn(0, songs.lastIndex)
@@ -339,7 +340,14 @@ class PlayerCtl(
             app.saveQueue(queue, index)
             return
         }
-        if (app.st.queueMode != QueueMode.RADIO) {
+        // Что дальше, решает «Когда список кончился»: похожее (как радио), список сначала или тишина.
+        if (app.st.recEndMode == RecEndMode.REPEAT) {
+            index = 0
+            loadCurrent()
+            app.saveQueue(queue, index)
+            return
+        }
+        if (app.st.recEndMode == RecEndMode.STOP && app.st.queueMode != QueueMode.RADIO && !app.st.recInsteadOfList) {
             playing = false
             return
         }

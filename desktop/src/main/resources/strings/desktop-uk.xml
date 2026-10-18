@@ -179,4 +179,13 @@
     <string name="d_set_backup_restore">Відновити</string>
     <string name="d_set_backup_done">Відновлено.</string>
     <string name="d_set_backup_failed">Не вийшло:</string>
+    <string name="d_hint_disc">Подвійний клік по диску — пауза · перетягнути вбік — зміна треку · натиснути, потримати й вести по кільцю — перемотування</string>
+    <string name="d_cover_size_title">Розмір обкладинки</string>
+    <string name="d_cover_size_desc">Наскільки великий диск у плеєрі.</string>
+    <string name="d_cover_ring_title">Кільце прогресу</string>
+    <string name="d_cover_ring_desc">Тонке кільце навколо обкладинки заповнюється під час треку.</string>
+    <string name="d_cover_spin_title">Диск, що обертається</string>
+    <string name="d_cover_spin_desc">Обкладинка повільно крутиться, поки грає музика. Лише з повними анімаціями.</string>
+    <string name="d_poster_dim_title">Затемнення постера</string>
+    <string name="d_poster_dim_desc">Наскільки темна обкладинка за розкладкою «Постер».</string>
 </resources>

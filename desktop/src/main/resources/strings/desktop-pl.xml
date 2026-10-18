@@ -179,4 +179,13 @@
     <string name="d_set_backup_restore">Przywróć</string>
     <string name="d_set_backup_done">Przywrócono.</string>
     <string name="d_set_backup_failed">Nie udało się:</string>
+    <string name="d_hint_disc">Dwuklik na dysku — pauza · przeciągnięcie w bok — zmiana utworu · naciśnij, przytrzymaj i prowadź po pierścieniu — przewijanie</string>
+    <string name="d_cover_size_title">Rozmiar okładki</string>
+    <string name="d_cover_size_desc">Jak duży jest dysk w odtwarzaczu.</string>
+    <string name="d_cover_ring_title">Pierścień postępu</string>
+    <string name="d_cover_ring_desc">Cienki pierścień wokół okładki wypełnia się w trakcie utworu.</string>
+    <string name="d_cover_spin_title">Obracający się dysk</string>
+    <string name="d_cover_spin_desc">Okładka powoli się obraca podczas muzyki. Tylko z pełnymi animacjami.</string>
+    <string name="d_poster_dim_title">Przyciemnienie plakatu</string>
+    <string name="d_poster_dim_desc">Jak ciemna jest okładka za układem „Plakat”.</string>
 </resources>

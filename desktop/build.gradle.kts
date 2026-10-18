@@ -51,6 +51,8 @@ tasks.named("compileKotlin") { dependsOn(sharedSources, sharedIcons, sharedPlayb
 // Шрифты Hairline — те же файлы, что у телефона (Unbounded, JetBrains Mono).
 val androidFonts = tasks.register<Sync>("androidFonts") {
     from("../app/src/main/res/font") { include("unbounded_semibold.ttf", "unbounded_extrabold.ttf", "jetbrains_mono_medium.ttf") }
+    // Карта контуров для фона «Контуры» — тот же файл, что у телефона.
+    from("../app/src/main/res/drawable-nodpi") { include("backdrop_topo.webp") }
     into(layout.buildDirectory.dir("generated/fonts"))
 }
 sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/fonts")) }

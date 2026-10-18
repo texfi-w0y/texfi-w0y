@@ -117,6 +117,7 @@ private fun PixelShell(app: AppState, screens: @Composable () -> Unit) {
 private fun HairShell(app: AppState, screens: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < COMPACT_WIDTH
+        HairBackdrop(app)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Sidebar(app, compact = compact)
@@ -215,7 +216,7 @@ private fun Sidebar(app: AppState, modifier: Modifier = Modifier, compact: Boole
     val smooth = Look.smooth && !Look.hair
     val width = if (Look.hair) (if (compact) 72.dp else 220.dp) else 190.dp
     Column(
-        (if (smooth) modifier else modifier.width(width).fillMaxHeight().background(if (Look.hair) C.Background else C.Surface)).padding(vertical = 22.dp, horizontal = if (compact) 10.dp else 14.dp),
+        (if (smooth) modifier else modifier.width(width).fillMaxHeight().background(if (Look.hair) (if (ThemeState.backdrop == BackdropMode.PURE) C.Background else C.Background.copy(alpha = 0.72f)) else C.Surface)).padding(vertical = 22.dp, horizontal = if (compact) 10.dp else 14.dp),
     ) {
         if (compact) {
             Txt("w0y", pixel = true, size = 16, color = C.Text, modifier = Modifier.padding(start = 4.dp, bottom = 24.dp))
@@ -274,7 +275,7 @@ private fun PlayerBar(app: AppState, modifier: Modifier = Modifier) {
     val p = app.player
     val song = p.current
     val smooth = Look.smooth && !Look.hair
-    Column(if (smooth) modifier else modifier.fillMaxWidth().background(if (Look.hair) C.Background else C.Surface)) {
+    Column(if (smooth) modifier else modifier.fillMaxWidth().background(if (Look.hair) (if (ThemeState.backdrop == BackdropMode.PURE) C.Background else C.Background.copy(alpha = 0.72f)) else C.Surface)) {
         if (!smooth) Box(Modifier.fillMaxWidth().height(Look.line).background(C.Border))
         Box(Modifier.fillMaxWidth().padding(horizontal = if (smooth) 26.dp else 18.dp).padding(top = if (smooth) 10.dp else 10.dp)) {
             SegmentedSeek(p.position, p.duration, onSeek = p::seekFraction)

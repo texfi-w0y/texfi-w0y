@@ -30,11 +30,21 @@ class LyricsRepo {
     private val cache = ConcurrentHashMap<String, Lyrics>()
     private val translations = ConcurrentHashMap<String, List<String>>()
 
+    /** «Искать текст везде»: если в LRCLIB пусто, пробуем ещё lyrics.ovh (текст без таймингов). */
+    @Volatile
+    var allSources = true
+
     suspend fun lyrics(song: SongItem): Lyrics? = withContext(Dispatchers.IO) {
         cache[song.id]?.let { return@withContext it }
         val title = song.title.replace(Regex("\\s*[(\\[].*?[)\\]]"), "").trim()
         val artist = song.artist.substringBefore(',').trim()
-        runCatching { exact(artist, title) ?: search(artist, title) }.getOrNull()?.also { cache[song.id] = it }
+        runCatching { exact(artist, title) ?: search(artist, title) ?: if (allSources) ovh(artist, title) else null }.getOrNull()?.also { cache[song.id] = it }
+    }
+
+    private fun ovh(artist: String, title: String): Lyrics? {
+        val body = get("https://api.lyrics.ovh/v1/${q(artist)}/${q(title)}") ?: return null
+        val text = (Json.parseToJsonElement(body).jsonObject["lyrics"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return Lyrics(text, emptyList())
     }
 
     private fun q(value: String) = URLEncoder.encode(value, Charsets.UTF_8)

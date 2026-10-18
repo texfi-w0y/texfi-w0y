@@ -88,7 +88,7 @@ fun Txt(
 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) =
-    if (Look.hair) Txt(text.uppercase(), modifier, color = C.Muted, size = 11, pixel = true)
+    if (Look.hair) Txt(Look.label(text), modifier, color = C.Muted, size = 11, pixel = true)
     else if (Look.smooth) Txt(text, modifier, color = C.Muted, size = 13, pixel = true)
     else Txt(text.uppercase(), modifier, color = C.Blue, size = 11, pixel = true)
 
@@ -131,7 +131,7 @@ fun PixelButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
                 .clickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
-        ) { Txt(text.uppercase(), color = if (!enabled) C.Muted else if (filled) C.Background else C.Text, size = 11, pixel = true) }
+        ) { Txt(Look.label(text), color = if (!enabled) C.Muted else if (filled) C.Background else C.Text, size = 11, pixel = true) }
         return
     }
     if (Look.smooth) {
@@ -155,7 +155,7 @@ fun PixelButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .border(2.dp, if (primary) C.BlueDeep else C.Border, RoundedCornerShape(4.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
-    ) { Txt(text.uppercase(), color = if (enabled) (if (primary) C.OnAccent else C.Text) else C.Muted, size = 10, pixel = true) }
+    ) { Txt(Look.label(text), color = if (enabled) (if (primary) C.OnAccent else C.Text) else C.Muted, size = 10, pixel = true) }
 }
 
 /**

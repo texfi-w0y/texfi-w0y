@@ -179,4 +179,13 @@
     <string name="d_set_backup_restore">Restore</string>
     <string name="d_set_backup_done">Restored.</string>
     <string name="d_set_backup_failed">Failed:</string>
+    <string name="d_hint_disc">Double-click the disc to pause · drag sideways to change track · press, hold and move around the ring to seek</string>
+    <string name="d_cover_size_title">Cover size</string>
+    <string name="d_cover_size_desc">How big the disc is in the player.</string>
+    <string name="d_cover_ring_title">Progress ring</string>
+    <string name="d_cover_ring_desc">A thin ring around the cover that fills as the track plays.</string>
+    <string name="d_cover_spin_title">Spinning disc</string>
+    <string name="d_cover_spin_desc">The cover slowly turns while music plays. Only with full animations.</string>
+    <string name="d_poster_dim_title">Poster dimming</string>
+    <string name="d_poster_dim_desc">How dark the cover behind the Poster layout is.</string>
 </resources>

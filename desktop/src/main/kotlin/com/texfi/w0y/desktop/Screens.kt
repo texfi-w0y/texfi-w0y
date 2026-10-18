@@ -72,8 +72,8 @@ fun ScreenFrame(title: String, app: AppState, canBack: Boolean, actions: @Compos
                 IconButton(Glyph.Prev, onClick = app::back)
                 Gap(w = 8)
             }
-            if (Look.smooth) Txt(title.replaceFirstChar(Char::uppercase), size = 28, pixel = Look.hair, weight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
-            else Txt(title.uppercase(), pixel = true, size = 18, modifier = Modifier.weight(1f))
+            if (Look.smooth) Txt(if (Look.hair) Look.title(title) else title.replaceFirstChar(Char::uppercase), size = 28, pixel = Look.hair, weight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
+            else Txt(Look.title(title), pixel = true, size = 18, modifier = Modifier.weight(1f))
             actions()
         }
         if (!Look.smooth) Box(Modifier.padding(top = 10.dp).width(56.dp).height(3.dp).background(C.Blue))
@@ -124,9 +124,9 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, 
                             else -> onPlay()
                         }
                     },
-                ).padding(horizontal = 8.dp, vertical = if (app.st.compactRows) 2.dp else 6.dp),
+                ).padding(horizontal = 8.dp, vertical = if (app.st.compactRows || Look.compact) 2.dp else 6.dp),
         ) {
-            Cover(song.thumbnailUrl, if (app.st.compactRows) 32.dp else 44.dp)
+            Cover(song.thumbnailUrl, if (app.st.compactRows || Look.compact) 32.dp else 44.dp)
             Gap(w = 12)
             Column(Modifier.weight(1f)) {
                 Txt(song.title, color = if (current) C.Blue else C.Text, size = 15, weight = if (current) androidx.compose.ui.text.font.FontWeight.Medium else androidx.compose.ui.text.font.FontWeight.Normal)
@@ -151,7 +151,7 @@ fun SongRow(app: AppState, song: SongItem, onPlay: () -> Unit, index: Int = -1, 
  * иначе — к одному треку. Строки читаются здесь (в композиции), а пункты собираются при открытии меню.
  */
 @Composable
-private fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPlay: () -> Unit): (Boolean) -> List<androidx.compose.foundation.ContextMenuItem> {
+internal fun rowMenu(app: AppState, song: SongItem, songs: List<SongItem>?, onPlay: () -> Unit): (Boolean) -> List<androidx.compose.foundation.ContextMenuItem> {
     val play = S("d_menu_play")
     val next = S("d_menu_play_next")
     val queue = S("d_menu_queue_add")
@@ -212,43 +212,9 @@ fun CardTile(title: String, subtitle: String?, thumb: String?, circle: Boolean =
     }
 }
 
-@Composable
-fun HomeScreen(app: AppState) {
-    ScreenFrame(S("tab_home"), app, canBack = false, actions = {
-        PixelButton(if (app.homeLoading) S("d_loading") else S("library_sync"), onClick = app::loadHome, primary = false, enabled = !app.homeLoading)
-    }) {
-        val state = rememberLazyListState()
-        Box(Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().padding(end = 12.dp), state = state, contentPadding = PaddingValues(bottom = LocalBarsInset.current.bottom)) {
-                if (app.updater.bannerVisible) item { UpdateBanner(app) }
-                item { DialSection(app) }
-                if (!app.st.showRecommendations) {
-                    item { Empty(S("home_empty")) }
-                } else if (app.shelves.isEmpty()) {
-                    item { Empty(app.homeError ?: if (app.homeLoading) S("common_loading") else S("home_recommendations_failed")) }
-                } else {
-                    items(app.shelves) { shelf ->
-                        if (shelf.songs.isEmpty() && shelf.cards.isEmpty()) return@items
-                        SectionLabel(shelf.title, Modifier.padding(top = 8.dp, bottom = 8.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            itemsIndexed(shelf.songs) { i, song ->
-                                CardTile(song.title, song.artist, song.thumbnailUrl) { app.player.play(shelf.songs, i) }
-                            }
-                            items(shelf.cards) { card -> CardTile(card.title, card.subtitle, card.thumbnailUrl) { app.openCard(card) } }
-                        }
-                        Gap(h = 14)
-                    }
-                }
-                item { Gap(h = 24) }
-            }
-            VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
-        }
-    }
-}
-
 /** Плашка «доступна новая версия» на главной: «Обновить» или «Позже» (после «Позже» остаётся кнопка в настройках). */
 @Composable
-private fun UpdateBanner(app: AppState) {
+internal fun UpdateBanner(app: AppState) {
     val info = (app.updater.state as? com.texfi.w0y.data.UpdateState.Available)?.info ?: return
     PixelCard(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
         RowCenter {
@@ -530,15 +496,15 @@ fun LibraryScreen(app: AppState) {
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Shortcut(S("library_likes"), "${app.lib.liked.size}", Modifier.weight(1f)) { app.open(Screen.Liked) }
-                        Shortcut(S("library_history"), "${app.lib.history.size}", Modifier.weight(1f)) { app.open(Screen.History) }
+                        Shortcut(S("library_likes"), "${app.lib.liked.size}", Modifier.weight(1f), 1, Glyph.Heart) { app.open(Screen.Liked) }
+                        Shortcut(S("library_history"), "${app.lib.history.size}", Modifier.weight(1f), 2, Glyph.Timer) { app.open(Screen.History) }
                     }
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Shortcut(S("library_downloaded"), "${app.lib.downloads.size}", Modifier.weight(1f)) { app.open(Screen.Downloaded) }
-                        Shortcut(S("library_stats"), "${app.lib.playLog.size}", Modifier.weight(1f)) { app.open(Screen.Stats) }
-                        Shortcut(S("player_queue"), "${app.player.queue.size}", Modifier.weight(1f)) { app.open(Screen.Player) }
+                        Shortcut(S("library_downloaded"), "${app.lib.downloads.size}", Modifier.weight(1f), 3, Glyph.Download) { app.open(Screen.Downloaded) }
+                        Shortcut(S("library_stats"), "${app.lib.playLog.size}", Modifier.weight(1f), 4, Glyph.Stats) { app.open(Screen.Stats) }
+                        Shortcut(S("player_queue"), "${app.player.queue.size}", Modifier.weight(1f), 5, Glyph.Queue) { app.open(Screen.Player) }
                     }
                 }
                 item {
@@ -587,12 +553,27 @@ fun LibraryScreen(app: AppState) {
 }
 
 @Composable
-private fun Shortcut(label: String, value: String, modifier: Modifier, onClick: () -> Unit) {
+private fun Shortcut(label: String, value: String, modifier: Modifier, index: Int, glyph: Glyph, onClick: () -> Unit) {
     PixelCard(modifier.clickable(onClick = onClick)) {
-        Column {
-            SectionLabel(label)
-            Gap(h = 10)
-            Txt(value, size = 22, weight = androidx.compose.ui.text.font.FontWeight.Medium)
+        if (Look.hair) {
+            // Как на телефоне: номер и значок сверху, крупное число и подпись снизу.
+            Column(Modifier.fillMaxWidth()) {
+                RowCenter(Modifier.fillMaxWidth()) {
+                    Txt("%02d".format(index), color = C.Muted.copy(alpha = 0.7f), size = 11, pixel = true)
+                    Box(Modifier.weight(1f))
+                    Icon(glyph, C.Muted, 18.dp)
+                }
+                Gap(h = 14)
+                Txt(value, size = 30, pixel = true)
+                Gap(h = 4)
+                SectionLabel(label)
+            }
+        } else {
+            Column {
+                SectionLabel(label)
+                Gap(h = 10)
+                Txt(value, size = 22, weight = androidx.compose.ui.text.font.FontWeight.Medium)
+            }
         }
     }
 }
@@ -641,7 +622,13 @@ fun LocalScreen(app: AppState, s: Screen.Local) {
                 PixelButton(S("playlist_rename"), onClick = { renaming = pl.name }, primary = false)
                 Gap(w = 8)
             }
-            PixelButton(if (pl.editable) S("d_delete") else S("d_remove_from_library"), onClick = { app.deletePlaylist(s.id) }, primary = false)
+            // «Защита от случайного удаления»: первое нажатие только просит подтвердить.
+            var sure by remember(s.id) { mutableStateOf(false) }
+            PixelButton(
+                if (sure) S("pl_delete_sure") else if (pl.editable) S("d_delete") else S("d_remove_from_library"),
+                onClick = { if (app.st.deleteProtection && !sure) sure = true else app.deletePlaylist(s.id) },
+                primary = false,
+            )
         }
     }) {
         val songs = pl?.songs?.map { it.toItem() }.orEmpty()
@@ -715,10 +702,12 @@ fun DownloadedScreen(app: AppState) {
 
 /** «Быстрый набор»: закреплённое и самое играемое; на плитке — кнопки «закрепить» и «убрать». */
 @Composable
-fun DialSection(app: AppState) {
+fun DialSection(app: AppState, header: Boolean = true) {
     val entries = app.dialEntries()
-    SectionLabel(S("home_dial"), Modifier.padding(top = 8.dp, bottom = 4.dp))
-    Txt(S("home_dial_hint"), color = C.Muted, size = 11, modifier = Modifier.padding(bottom = 8.dp))
+    if (header) {
+        SectionLabel(S("home_dial"), Modifier.padding(top = 8.dp, bottom = 4.dp))
+        Txt(S("home_dial_hint"), color = C.Muted, size = 11, modifier = Modifier.padding(bottom = 8.dp))
+    }
     if (entries.isEmpty()) {
         Txt(S("home_dial_empty"), color = C.Muted, size = 13, maxLines = 3, modifier = Modifier.padding(bottom = 14.dp))
         return

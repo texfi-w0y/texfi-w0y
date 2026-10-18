@@ -179,4 +179,13 @@
     <string name="d_set_backup_restore">Восстановить</string>
     <string name="d_set_backup_done">Восстановлено.</string>
     <string name="d_set_backup_failed">Не вышло:</string>
+    <string name="d_hint_disc">Двойной клик по диску — пауза · перетащить вбок — смена трека · нажать, подержать и вести по кольцу — перемотка</string>
+    <string name="d_cover_size_title">Размер обложки</string>
+    <string name="d_cover_size_desc">Насколько крупный диск в плеере.</string>
+    <string name="d_cover_ring_title">Кольцо прогресса</string>
+    <string name="d_cover_ring_desc">Тонкое кольцо вокруг обложки заполняется по ходу трека.</string>
+    <string name="d_cover_spin_title">Вращающийся диск</string>
+    <string name="d_cover_spin_desc">Обложка медленно крутится, пока играет музыка. Только при полных анимациях.</string>
+    <string name="d_poster_dim_title">Затемнение постера</string>
+    <string name="d_poster_dim_desc">Насколько тёмная обложка за раскладкой «Постер».</string>
 </resources>

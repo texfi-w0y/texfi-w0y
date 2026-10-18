@@ -97,11 +97,11 @@ fun rememberLyricsOf(app: AppState, song: com.texfi.w0y.data.SongItem?): Lyrics?
 }
 
 /** Строка текста, звучащая сейчас. */
-fun currentLine(lyrics: Lyrics?, positionSec: Double): String? {
+fun currentLine(lyrics: Lyrics?, positionSec: Double, delayMs: Int = 0): String? {
     val lines = lyrics?.synced.orEmpty()
     if (lines.isEmpty()) return null
     val now = (positionSec * 1000).toLong()
-    return lines.lastOrNull { it.timeMs <= now }?.text
+    return lines.lastOrNull { it.timeMs + delayMs <= now }?.text
 }
 
 @Composable
@@ -168,7 +168,7 @@ private fun StandOverlay(app: AppState) {
             Txt(song?.title ?: S("d_idle"), color = text, size = 40, weight = FontWeight.Bold, maxLines = if (st.standMarquee) 1 else 3)
             Gap(h = 10)
             Txt(song?.artist.orEmpty(), color = dim, size = 22)
-            val line = currentLine(lyrics, p.position)
+            val line = currentLine(lyrics, p.position, st.lyricsDelayMs)
             if (line != null) {
                 Gap(h = 22)
                 Txt(line, color = C.Blue, size = 24, weight = FontWeight.SemiBold, maxLines = 2)

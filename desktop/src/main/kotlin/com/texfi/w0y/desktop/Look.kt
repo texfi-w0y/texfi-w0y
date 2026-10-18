@@ -39,6 +39,19 @@ object ThemeState {
     var custom by mutableStateOf(0xFFA06CFF.toInt())
     var style by mutableStateOf(UiStyle.PIXEL)
     var glass by mutableStateOf(true)
+
+    // Вид Hairline (настройки «Вид»).
+    var weight by mutableStateOf(LineWeight.THIN)
+    var corners by mutableStateOf(CornerStyle.SHARP)
+    var coverShape by mutableStateOf(CoverShape.ROUNDED)
+    var layout by mutableStateOf(PlayerLayout.COVER)
+    var caps by mutableStateOf(CapsMode.TITLES_LABELS)
+    var density by mutableStateOf(Density.COMFORTABLE)
+    var backdrop by mutableStateOf(BackdropMode.TOPO)
+    var coverSize by mutableStateOf(CoverSize.MEDIUM)
+    var coverRing by mutableStateOf(true)
+    var coverSpin by mutableStateOf(false)
+    var posterDim by mutableStateOf(45)
 }
 
 /**
@@ -56,13 +69,22 @@ object Look {
     val glass: Boolean get() = ThemeState.style == UiStyle.SMOOTH && ThemeState.glass
 
     /** Скругление карточек: Pixel почти квадрат, Smooth крупно, Hairline 10. */
-    val card: Dp get() = if (hair) 10.dp else if (smooth) 22.dp else 6.dp
-    val control: Dp get() = if (hair) 3.dp else if (smooth) 50.dp else 4.dp
-    val cover: Dp get() = if (hair) 6.dp else if (smooth) 12.dp else 4.dp
-    val row: Dp get() = if (hair) 8.dp else if (smooth) 14.dp else 6.dp
+    val card: Dp get() = if (hair) when (ThemeState.corners) { CornerStyle.SHARP -> 10.dp; CornerStyle.SOFT -> 14.dp; else -> 22.dp } else if (smooth) 22.dp else 6.dp
+    val control: Dp get() = if (hair) ThemeState.corners.dp.dp else if (smooth) 50.dp else 4.dp
+    val cover: Dp get() = if (hair) when (ThemeState.corners) { CornerStyle.SHARP -> 6.dp; CornerStyle.SOFT -> 8.dp; else -> 12.dp } else if (smooth) 12.dp else 4.dp
+    val row: Dp get() = if (hair) when (ThemeState.corners) { CornerStyle.SHARP -> 8.dp; CornerStyle.SOFT -> 10.dp; else -> 14.dp } else if (smooth) 14.dp else 6.dp
 
-    /** Толщина линии: у Hairline 1px, у Pixel 2. */
-    val line: Dp get() = if (hair) 1.dp else 2.dp
+    /** Толщина линии: у Hairline из настроек (1 / 1,5 / 2), у Pixel 2. */
+    val line: Dp get() = if (hair) ThemeState.weight.dp.dp else 2.dp
+
+    /** Плотные строки: общий выключатель или «Плотно» в Hairline. */
+    val compact: Boolean get() = hair && ThemeState.density == Density.COMPACT
+
+    /** Подписи разделов и кнопок: заглавными, если не выключено (только Hairline; у остальных всегда заглавные). */
+    fun label(text: String): String = if (!hair || ThemeState.caps != CapsMode.OFF) text.uppercase() else text
+
+    /** Заголовки экранов: заглавными только при «Заголовки и метки». */
+    fun title(text: String): String = if (!hair || ThemeState.caps == CapsMode.TITLES_LABELS) text.uppercase() else text
 }
 
 /**

@@ -86,6 +86,18 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         ThemeState.custom = st.customAccent
         ThemeState.style = st.uiStyle
         ThemeState.glass = st.smoothGlass
+        lyrics.allSources = st.lyricsAllSources
+        ThemeState.weight = st.hlWeight
+        ThemeState.corners = st.hlCorners
+        ThemeState.coverShape = st.hlCoverShape
+        ThemeState.layout = st.hlLayout
+        ThemeState.caps = st.hlCaps
+        ThemeState.density = st.hlDensity
+        ThemeState.backdrop = st.backdrop
+        ThemeState.coverSize = st.hlCoverSize
+        ThemeState.coverRing = st.hlCoverRing
+        ThemeState.coverSpin = st.hlCoverSpin
+        ThemeState.posterDim = st.hlPosterDim
         Motion.mode = st.motion
         Strings.select(st.language.tag)
     }
