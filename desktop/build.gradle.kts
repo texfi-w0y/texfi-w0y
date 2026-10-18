@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 // w0y для Linux: отдельный Gradle-проект рядом с Android-приложением.
@@ -12,6 +13,13 @@ plugins {
 }
 
 kotlin { jvmToolchain(21) }
+
+// Версия одна на все платформы: ../version.properties.
+val versionProps = Properties().apply { file("../version.properties").inputStream().use(::load) }
+val appVersion: String = versionProps.getProperty("versionName")
+// jpackage принимает только числа через точку: «0.0.4-beta-1» → «0.0.4».
+val installerVersion: String = appVersion.substringBefore('-')
+version = appVersion
 
 val shared = "../app/src/main/java/com/texfi/w0y/data"
 
@@ -53,6 +61,16 @@ val androidStrings = tasks.register<Sync>("androidStrings") {
 sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/strings")) }
 tasks.named("processResources") { dependsOn(androidStrings) }
 
+// Версия для самого приложения (экран «О приложении», проверка обновлений, Copy debug info).
+val versionFile = tasks.register("versionFile") {
+    val out = layout.buildDirectory.file("generated/version/version.txt")
+    inputs.property("v", appVersion)
+    outputs.file(out)
+    doLast { out.get().asFile.also { it.parentFile.mkdirs() }.writeText(appVersion) }
+}
+sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/version")) }
+tasks.named("processResources") { dependsOn(versionFile) }
+
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.foundation)
@@ -85,7 +103,7 @@ compose.desktop {
             // java.net.http нужен загрузкам и текстам; jlink сам его не находит.
             modules("java.net.http", "java.naming", "jdk.crypto.ec", "jdk.unsupported", "jdk.security.auth")
             packageName = "w0y"
-            packageVersion = "0.0.3"
+            packageVersion = installerVersion
             description = "TexFi w0y — клиент YouTube Music"
             linux { iconFile.set(project.file("src/main/resources/icon.png")) }
         }

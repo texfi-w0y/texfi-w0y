@@ -488,9 +488,6 @@ class PlayerCtl(
     /** Системное уведомление о смене трека. */
     private fun notifyTrack(song: SongItem) {
         if (!app.st.notifyTrackChange) return
-        runCatching {
-            ProcessBuilder("notify-send", "-a", "w0y", "-i", "w0y", "-t", "4000", song.title, song.artist)
-                .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
-        }
+        Platform.notify(song.title, song.artist)
     }
 }

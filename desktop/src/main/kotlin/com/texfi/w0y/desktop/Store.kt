@@ -78,16 +78,13 @@ data class StoredPlay(val song: StoredSong, val at: Long, val seconds: Int)
 /** Всё, что приложение помнит, — одним JSON-файлом в ~/.local/share/w0y. */
 class Store {
     companion object {
-        fun dirPath(): String = "${System.getenv("XDG_DATA_HOME") ?: "${System.getProperty("user.home")}/.local/share"}/w0y"
+        fun dirPath(): String = Platform.dataDir().toString()
 
-        fun openDir() {
-            runCatching { ProcessBuilder("xdg-open", dirPath()).start() }
-        }
+        fun openDir() = Platform.openPath(dirPath())
     }
 
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
-    private val dir: Path =
-        Path.of(System.getenv("XDG_DATA_HOME") ?: "${System.getProperty("user.home")}/.local/share", "w0y")
+    private val dir: Path = Platform.dataDir()
     private val file = dir.resolve("library.json")
 
     /** Если файл есть, но не читается, он не пропадает: уходит в «.broken-…», а приложение стартует с чистой библиотекой. */

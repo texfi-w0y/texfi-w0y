@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -20,8 +21,9 @@ android {
         targetSdk = 36
         // versionCode растёт, а не следует за именем версии: Android не ставит
         // сборку с меньшим кодом поверх установленной, и пришлось бы стирать данные.
-        versionCode = 13
-        versionName = "0.0.3-beta-3"
+        val version = Properties().apply { rootProject.file("version.properties").inputStream().use(::load) }
+        versionCode = version.getProperty("versionCode").toInt()
+        versionName = version.getProperty("versionName")
         // Короткий хеш коммита для «Copy debug info»: по нему видно, из какого кода собран APK.
         val commit =
             runCatching {

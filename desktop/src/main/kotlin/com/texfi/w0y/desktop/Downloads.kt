@@ -46,16 +46,10 @@ class Downloads(private val scope: CoroutineScope, private val yt: Yt, private v
     private var lastTitle = ""
 
     /** ffmpeg нужен только для MP3: без него переключатель скрывается. */
-    val canMp3: Boolean by lazy { (System.getenv("PATH") ?: "").split(':').any { File(it, "ffmpeg").canExecute() } }
+    val canMp3: Boolean by lazy { Platform.has("ffmpeg") }
 
     val defaultFolder: File by lazy {
-        val xdg =
-            runCatching {
-                File(System.getProperty("user.home"), ".config/user-dirs.dirs").readLines()
-                    .firstOrNull { it.startsWith("XDG_MUSIC_DIR=") }
-                    ?.substringAfter('=')?.trim('"')?.replace("\$HOME", System.getProperty("user.home"))
-            }.getOrNull()
-        File(xdg ?: "${System.getProperty("user.home")}/Music", "w0y music")
+        File(Platform.musicDir(), "w0y music")
     }
 
     val folder: File get() = app.st.downloadFolder.takeIf { it.isNotBlank() }?.let(::File) ?: defaultFolder
@@ -65,7 +59,7 @@ class Downloads(private val scope: CoroutineScope, private val yt: Yt, private v
 
     fun openFolder() {
         folder.mkdirs()
-        runCatching { ProcessBuilder("xdg-open", folder.absolutePath).start() }
+        Platform.openPath(folder.absolutePath)
     }
 
     fun isDone(id: String) = app.downloadedPath(id) != null
@@ -137,10 +131,7 @@ class Downloads(private val scope: CoroutineScope, private val yt: Yt, private v
         val n = finishedThisRun
         finishedThisRun = 0
         if (n == 0 || !app.st.downloadNotifications) return
-        runCatching {
-            ProcessBuilder("notify-send", "-a", "w0y", "-i", "w0y", S("downloads_title"), if (n == 1) S("dl_done_notification", lastTitle) else S("dl_done_notification_many", n))
-                .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
-        }
+        Platform.notify(S("downloads_title"), if (n == 1) S("dl_done_notification", lastTitle) else S("dl_done_notification_many", n), 6)
     }
 
     fun downloadAll(songs: List<SongItem>) {

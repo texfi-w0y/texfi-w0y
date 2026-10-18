@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 object Control {
     private val path: Path =
         System.getenv("W0Y_CONTROL")?.let { Path.of(it) }
-            ?: Path.of(System.getenv("XDG_RUNTIME_DIR") ?: System.getProperty("java.io.tmpdir"), "w0y-control.sock")
+            ?: Platform.runtimeDir().resolve("w0y-control.sock")
 
     /** Разбор командной строки: true — запуск был командой, окно открывать не нужно. */
     fun sendIfRequested(args: Array<String>): Boolean {

@@ -58,7 +58,7 @@ object SpectrumCapture {
     val available: Boolean by lazy { which("pactl") && which("parec") }
 
     private fun which(name: String) =
-        (System.getenv("PATH") ?: "").split(':').any { java.io.File(it, name).canExecute() }
+        Platform.has(name)
 
     private val ring = FloatArray(RING)
     private var write = 0

@@ -39,8 +39,16 @@ object GoogleLogin {
     private val browsers = listOf("chromium", "chromium-browser", "google-chrome-stable", "google-chrome", "brave", "brave-browser", "vivaldi", "microsoft-edge-stable")
 
     fun findBrowser(): String? {
-        val dirs = (System.getenv("PATH") ?: "").split(':')
-        return browsers.firstOrNull { name -> dirs.any { File(it, name).canExecute() } }
+        if (Platform.isWindows) {
+            // Edge стоит в каждой Windows 10/11; Chrome и Brave — по обычным путям установки.
+            val roots = listOfNotNull(System.getenv("ProgramFiles(x86)"), System.getenv("ProgramFiles"), System.getenv("LOCALAPPDATA"))
+            val relative = listOf(
+                "Microsoft\\Edge\\Application\\msedge.exe", "Google\\Chrome\\Application\\chrome.exe",
+                "BraveSoftware\\Brave-Browser\\Application\\brave.exe", "Vivaldi\\Application\\vivaldi.exe", "Chromium\\Application\\chrome.exe",
+            )
+            return relative.flatMap { r -> roots.map { File(it, r) } }.firstOrNull { it.isFile }?.path
+        }
+        return browsers.firstNotNullOfOrNull { Platform.which(it)?.path }
     }
 
     /** Возвращает строку Cookie для music.youtube.com или null, если окно закрыли раньше. */

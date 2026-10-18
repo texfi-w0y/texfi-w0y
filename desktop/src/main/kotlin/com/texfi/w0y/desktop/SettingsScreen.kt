@@ -457,7 +457,7 @@ private fun buildRows(app: AppState, onAbout: () -> Unit, onMessage: (String) ->
     }
 }
 
-const val APP_VERSION = "0.0.3-beta-2"
+val APP_VERSION: String = Platform::class.java.getResourceAsStream("/version.txt")?.use { it.readBytes().toString(Charsets.UTF_8).trim() } ?: "dev"
 
 // ---------------------------------------------------------------- эквалайзер
 
@@ -663,15 +663,15 @@ private fun AboutPane(app: AppState, onBack: () -> Unit) {
     }
 }
 
-fun openUrl(url: String) {
-    runCatching { ProcessBuilder("xdg-open", url).start() }
-}
+fun openUrl(url: String) = Platform.openUrl(url)
 
 /** Выходы звука из самого mpv: `mpv --audio-device=help` печатает их список. */
 object MpvDevices {
     fun list(): List<Pair<String, String>> =
         runCatching {
-            val p = ProcessBuilder("mpv", "--audio-device=help").redirectErrorStream(true).start()
+            // Список выходов даёт сам движок звука; на Windows mpv.exe рядом с приложением, на Linux — системный.
+            val exe = Platform.which("mpv") ?: return@runCatching emptyList()
+            val p = ProcessBuilder(exe.path, "--audio-device=help").redirectErrorStream(true).start()
             val text = p.inputStream.bufferedReader().readText()
             p.waitFor()
             Regex("'([^']+)' \\((.*)\\)").findAll(text).map { it.groupValues[1] to it.groupValues[2] }.toList()

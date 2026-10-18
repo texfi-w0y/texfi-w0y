@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 class StandMode(private val app: AppState) {
     var on by mutableStateOf(false)
         private set
-    private var inhibit: Process? = null
+    private var inhibit: AutoCloseable? = null
     private var timer: Job? = null
     private var windowedBefore = false
 
@@ -69,10 +69,7 @@ class StandMode(private val app: AppState) {
         windowedBefore = !Actions.fullscreen
         Actions.fullscreen = true
         if (app.st.standKeepAwake) {
-            inhibit = runCatching {
-                ProcessBuilder("systemd-inhibit", "--what=idle:sleep", "--who=w0y", "--why=stand mode", "--mode=block", "sleep", "infinity")
-                    .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
-            }.getOrNull()
+            inhibit = Platform.keepAwake()
         }
         val max = app.st.standMaxMinutes
         if (max > 0) timer = app.scope.launch { delay(max * 60_000L); off() }
@@ -83,7 +80,7 @@ class StandMode(private val app: AppState) {
         on = false
         timer?.cancel()
         timer = null
-        runCatching { inhibit?.destroyForcibly() }
+        runCatching { inhibit?.close() }
         inhibit = null
         if (windowedBefore) Actions.fullscreen = false
     }

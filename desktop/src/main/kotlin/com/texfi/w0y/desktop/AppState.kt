@@ -97,7 +97,7 @@ class AppState(val scope: CoroutineScope, val yt: Yt, private val store: Store) 
         }
         lib.cookie?.let { yt.applySession(it) }
         player.start(lib.queue.map { it.toItem() }, if (lib.queue.isEmpty()) -1 else lib.queueIndex, lib.volume)
-        mpris = Mpris(this, scope).takeIf { it.start() }
+        mpris = if (Platform.isLinux) Mpris(this, scope).takeIf { it.start() } else null
         loadHome()
         if (signedIn) syncAccount(force = true)
     }
