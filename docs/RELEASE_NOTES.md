@@ -1,122 +1,65 @@
-# w0y v0.0.3 beta-3
+# w0y v0.0.4 beta-1
 
-A new player, a contour-map background, updates straight from GitHub, a
-Quick picks shelf on Home and a recap of your year. Plus a long polish pass:
-search errors you can read, safer deleting, recommendations that stop repeating.
+w0y now runs on the computer as a real desktop app: Windows (new) and Linux
+(rebuilt), in the Hairline look, sized for a mouse and a keyboard. Android gets
+a couple of small fixes.
 
-## Player
+## On the computer
 
-- **Two new layouts, Framed cover (the default) and Poster.** A blurred cover
-  fills the screen. Framed cover puts the cover in a thin frame with the track
-  progress running round it. Poster stretches the cover from the very top and
-  melts it into the background. Controls are outlined so it is clear what you
-  can tap, and everything fits on one screen without scrolling.
-- **The cover flies into the mini player** when you collapse the player, and
-  back when you open it. It follows your finger when you drag down.
-- **Swipe down collapses the player** in every layout.
-- **Tap the artist to open the artist, tap the title to open the album.**
-  Featured artists are separate links.
-- **Layout can be switched right in the player:** "⋯" → Look.
-- **Lyrics slide in from the top** over a blurred background; swipe up to
-  close. The edges of the text fade instead of being cut.
-- **Tabs in the panels** (Sound / Speed / Look, Queue / Similar) slide
-  instead of jumping, and the active underline glides.
-- **Closing a panel or the player is smooth:** the sheet follows your finger
-  and lands with the speed you threw it.
-- A video button is shown only where there is a real video; a song from an
-  album on YouTube Music has none.
-- In Poster the visualizer is bigger and stands in the free part of the cover,
-  never on top of the buttons.
+- **Windows installer and portable zip.** Per-user install, no administrator
+  rights. SmartScreen will warn about the unsigned installer; see
+  `docs/WINDOWS_INSTALL.md`.
+- **Linux AppImage and archive.** Wayland and X11.
+- **Sound is built in.** libmpv is called straight from the app, so there is nothing
+  to install on Windows. Speed, pitch without changing speed, reverb, equaliser and
+  loudness levelling work like on the phone, and each track remembers its own version.
+- **A real desktop layout.** A side bar that shrinks to icons in a narrow window, a
+  wide player bar along the bottom, a big player with a ticked disc and a View tab,
+  eight settings tabs on the left with wide rows on the right.
+- **Mouse and keyboard.** Right click opens the track menu, `Ctrl`/`Shift` select
+  several rows, double click plays, the queue is reordered only by its handle, focus
+  rings everywhere, a hotkey sheet on `?`, media keys work with the window hidden.
+- **Mini player** (`Ctrl+M`), tray icon, optional close-to-tray and start-with-system,
+  interface scale 80–150%, Motion levels (Auto picks light animations on a weak PC).
+- **Your session is no longer a plain-text cookie.** It is stored encrypted: Windows
+  DPAPI, or on Linux a key in the system keyring.
+- **Backup in one file** and **updates from GitHub** (Update / Later, off switch, six-hour
+  limit, checksum check on Windows).
+- **Copy debug info**, **Test connection** and a local crash record, all kept on the
+  computer. Times are in your time zone.
+- **Search like on the phone.** Tabs All / Tracks / Videos / Albums / Artists, search as
+  you type, suggestions over the results, a "You already have it" block from your own
+  library, artists first, wide covers for videos, readable errors with Retry, and a
+  keyboard-layout fix when the result is empty (`ghbdtn` finds "привет").
+- **Speed dial like on the phone.** A two-row grid you page through; pin tracks, artists,
+  albums and playlists (a pin button in the player, on the artist page and in the
+  playlist header); right click or long press for a menu, hide with Undo.
+- **My files.** Add your own mp3 / flac / m4a / ogg / wav by button or drag and drop,
+  edit title, artist, album and cover, put them in playlists and likes. They are
+  never sent to your YouTube account.
+- **Playlist editor.** Cover from a picture, name, description, eight colours and ten
+  glyphs, delete with a confirmation, the same as on the phone.
+- **Player background** that grows from the cover itself and fades to black
+  (Settings → View: glow, blurred cover, aurora, plain).
+- **Quick picks** and the weekly **Discoveries** playlist on Home; the equaliser is on by default.
+- Faster while playing: the progress is sent to the interface four times a second
+  instead of dozens, which took playback from about 23% to 8% of a CPU core here.
 
-## Home
+## Android
 
-- **Quick picks** right under the speed dial: your own picks built from what
-  you played recently, in columns of four rows you scroll sideways, with
-  "Play all". Shelves of tracks from YouTube Music use the same list look.
-- A track started from Home continues with similar ones even if you have
-  started it before: when everything fresh was already shown, the queue is
-  filled with earlier picks instead of staying empty, and the request is
-  retried once if the network hiccups.
-
-## Statistics
-
-- **Your year:** a story-style review of the calendar year (minutes, artist of
-  the year, top tracks, your rhythm: peak hour, longest streak, busiest month,
-  biggest day) and a 9:16 card to share. It is drawn on the phone; nothing is
-  uploaded.
-- Stats update by themselves, count a play after 30 seconds and are restored
-  from your history.
-
-## Updates and "What's new"
-
-- **Updates from GitHub, like Obtainium.** On launch (at most every 6 hours)
-  w0y asks GitHub whether a newer release is out. If so, you get
-  **Update / Later**. Update downloads the APK, checks its checksum and hands
-  it to the system installer. Later leaves it in Settings → App, where you can
-  check, update, switch the check off and read the notes.
-- **What's new** is shown once after an update, from the release description.
-- Only the release page of this repository is contacted: no account, nothing
-  about you or your phone. Android checks the signature too, so a file signed
-  with a different key will not install. Android asks once to allow w0y to
-  install apps.
-
-## Look
-
-- **Contour-map background** is the new default (Settings → Look → Background).
-  If you were on the old default (grid) you get the new one; a choice you made
-  yourself is kept. On the light theme the grid stays.
-- Toggle thumbs are centred in their pills.
-- On Downloads, My files, History, Likes and Settings the list ends above the
-  island and the background carries on behind it; the dimming behind a
-  settings choice panel now covers the island too. On Home, Search and Library
-  the screen still runs under the island.
-- A Hairline widget in three sizes, in light and dark.
-- Settings are back to eight tabs with search behind a magnifier.
-
-## Search and safety
-
-- **Search errors are visible:** a typed reason ("No connection", "Server took
-  too long", "Unexpected response") instead of an empty list, with Retry and
-  **Copy debug info**, plus **Test connection** in Settings → App. Nothing is
-  sent anywhere; you copy the text yourself.
-- **Delete protection:** long-press, confirm, then UNDO; reordering only by
-  the handle. Your own files stay in playlists after a sync.
-- Recommendations no longer repeat and show one shared reason. Crashes are
-  recorded locally and appear in Copy debug info.
-
-## Fixed
-
-- Dragging the player sometimes left a black screen; it now always settles.
-- Reordering tracks in a playlist works again.
-- The widget no longer takes the app down if it fails to draw, and its
-  rounding follows the system's.
-- A corrupted search-history file no longer breaks search.
-
-## Upgrading
-
-The database moves to version 11 and settings to schema 3. Both migrate
-automatically; playlists, likes and history stay.
+- The times in *Copy debug info* are now in your time zone and read like
+  `17 Oct, 19:08` instead of an odd `01-04 …Z`.
+- Build fixes for the new player animations (lint).
 
 ## Files
 
-- `TexFi-w0y-android.apk` — Android 8.0 (API 26) and newer.
-- `w0y-linux-x86_64.tar.gz` — Linux desktop build; needs `mpv`. Unpack it and
-  run `./install.sh`.
-- `SHA256SUMS.txt` — checksums of the files above.
+- `w0y-windows-x64-setup.exe` and a portable zip — Windows 10/11 (unsigned installer).
+- `w0y-linux-x86_64.AppImage` and `.tar.gz` — Linux, Wayland and X11.
+- `TexFi-w0y-android.apk` — Android 8.0 and newer; this beta only fixes small things there.
+- `SHA256SUMS.txt` — checksums.
 
-The APK is signed with the project key: it installs over the previous beta
-and your data stays.
+## Not in this beta
 
-## Honest about the limits
-
-- The flying cover works in Framed cover and Poster while the cover is on
-  stage; with the visualizer, lyrics, video or another layout the player
-  slides down as before.
-- Account sync works by reading YouTube's pages the way the web app does, and
-  YouTube can change them without notice.
-- The Linux version does not have any of the above: its interface is in
-  Russian only and without Hairline.
-- Video plays over YouTube's SABR protocol; on some tracks the picture can
-  stay black while the sound plays normally.
-
-w0y is not affiliated with YouTube or Google.
+Visualizer on Windows, the yearly recap on the computer, the Windows media panel
+(SMTC). Windows builds are made and smoke-tested only by CI: they have not been run
+on a real Windows machine by the author. See `docs/DESKTOP_PARITY.md`.

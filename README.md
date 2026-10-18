@@ -88,8 +88,8 @@ The full list is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 **Android 8.0 (API 26) or newer.**
 
-1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.3-beta-3/TexFi-w0y-android.apk)
-   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.3-beta-3)
+1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.4-beta-1/TexFi-w0y-android.apk)
+   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.4-beta-1)
    and open it. Checksums are in `SHA256SUMS.txt` next to it.
 2. Or add `https://github.com/texfi-w0y/texfi-w0y` to
    [Obtainium](https://github.com/ImranR98/Obtainium).
