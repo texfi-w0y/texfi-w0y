@@ -28,7 +28,9 @@ class Mpv(
     private val onPause: (Boolean) -> Unit,
     private val onEnd: (reason: String) -> Unit,
     private val onFileLoaded: () -> Unit,
-) {
+) : AudioEngine {
+    override val name = "mpv (процесс)"
+    override val version: String? = null
     private var process: Process? = null
     private var channel: SocketChannel? = null
     private val socket: Path =
@@ -37,7 +39,7 @@ class Mpv(
     @Volatile
     private var started = false
 
-    fun start(): Boolean {
+    override fun start(): Boolean {
         runCatching { Files.deleteIfExists(socket) }
         process =
             runCatching {
@@ -137,7 +139,7 @@ class Mpv(
 
     private fun observe(id: Int, property: String) = send("observe_property", id, property)
 
-    fun load(url: String, headers: Map<String, String>) {
+    override fun load(url: String, headers: Map<String, String>) {
         // Заголовки из извлечения (user-agent, origin) нужны googlevideo: без них часть ссылок отдаёт 403.
         val ua = headers.entries.firstOrNull { it.key.equals("user-agent", true) }?.value
         val rest = headers.filterKeys { !it.equals("user-agent", true) }.map { "${it.key}: ${it.value}" }
@@ -153,34 +155,25 @@ class Mpv(
      * высота тона — rubberband, эхо — aecho из ffmpeg; выравнивание громкости —
      * volume по данным YouTube, пропуск тишины — silenceremove.
      */
-    fun applyAudio(profile: com.texfi.w0y.data.SoundProfile, gainDb: Double?, skipSilence: Boolean, eqBands: List<Int>? = null) {
+    override fun applyAudio(profile: com.texfi.w0y.data.SoundProfile, gainDb: Double?, skipSilence: Boolean, eqBands: List<Int>?) {
         send("set_property", "speed", profile.speed.toDouble())
-        val filters = mutableListOf<String>()
-        if (skipSilence) filters += "lavfi=[silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB]"
-        if (gainDb != null) filters += "lavfi=[volume=${"%.2f".format(java.util.Locale.ROOT, gainDb)}dB]"
-        if (profile.pitch != 1f) filters += "rubberband=pitch-scale=${profile.pitch}"
-        if (eqBands != null) {
-            val freqs = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
-            filters += "lavfi=[" + freqs.zip(eqBands).filter { it.second != 0 }.joinToString(",") { (f, g) -> "equalizer=f=$f:t=o:w=1:g=$g" } + "]"
-        }
-        profile.reverb.filter?.let { filters += "lavfi=[$it]" }
-        send("set_property", "af", filters.joinToString(","))
+        send("set_property", "af", audioFilterChain(profile, gainDb, skipSilence, eqBands))
     }
 
     /** Заглушение строк с матом: отдельное свойство, громкость пользователя не трогается. */
-    fun setMute(muted: Boolean) = send("set_property", "mute", muted)
+    override fun setMute(muted: Boolean) = send("set_property", "mute", muted)
 
-    fun setAudioDevice(id: String) = send("set_property", "audio-device", id)
+    override fun setAudioDevice(id: String) = send("set_property", "audio-device", id)
 
-    fun setPause(paused: Boolean) = send("set_property", "pause", paused)
+    override fun setPause(paused: Boolean) = send("set_property", "pause", paused)
 
-    fun seek(seconds: Double) = send("seek", seconds, "absolute")
+    override fun seek(seconds: Double) = send("seek", seconds, "absolute")
 
-    fun setVolume(percent: Int) = send("set_property", "volume", percent)
+    override fun setVolume(percent: Int) = send("set_property", "volume", percent)
 
-    fun stop() = send("stop")
+    override fun stop() = send("stop")
 
-    fun shutdown() {
+    override fun shutdown() {
         runCatching { send("quit") }
         runCatching { channel?.close() }
         runCatching { process?.destroy() }

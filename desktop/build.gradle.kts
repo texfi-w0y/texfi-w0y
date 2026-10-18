@@ -67,6 +67,8 @@ dependencies {
     // D-Bus: управление с клавиатуры, из шторки и плагинов окружения (MPRIS).
     implementation("com.github.hypfvieh:dbus-java-core:5.1.0")
     implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.1.0")
+    // libmpv напрямую (Windows и Linux): без процесса и сокетов.
+    implementation("net.java.dev.jna:jna:5.17.0")
     implementation("org.slf4j:slf4j-nop:2.0.17")
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")

@@ -11,7 +11,7 @@ fun main() = runBlocking {
     println("first: ${song.artist} - ${song.title} (${song.id})")
     val s = yt.stream(song.id)
     var last = 0.0
-    val mpv = Mpv({ last = it }, {}, {}, { println("end: $it") }, { println("file-loaded") })
+    val mpv = AudioEngine.create({ last = it }, {}, {}, { println("end: $it") }, { println("file-loaded") })
     println("mpv started: ${mpv.start()}")
     mpv.applyAudio(SoundProfile.Slowed, null, false)
     mpv.load(s.audioUrl, s.headers)

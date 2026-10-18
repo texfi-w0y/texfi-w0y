@@ -55,8 +55,8 @@ class PlayerCtl(
     private var startJob: Job? = null
     private var mpvOk = true
 
-    private val mpv: Mpv =
-        Mpv(
+    private val mpv: AudioEngine =
+        AudioEngine.create(
             onTime = { t -> countPlayed(t); position = t },
             onDuration = { duration = it },
             onPause = { playing = !it && loaded },
