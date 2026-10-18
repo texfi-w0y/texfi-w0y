@@ -341,7 +341,7 @@ internal fun CoverPlayerPage(
                                     .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 3 } + fadeOut(outFade))
                             },
                             label = "coverTrack",
-                        ) { _ -> Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } }
+                        ) { trackId -> androidx.compose.runtime.key(trackId) { Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } } }
                     }
                 }
                 Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
@@ -460,7 +460,8 @@ private fun PosterPlayerPage(
                             .togetherWith(slideOutHorizontally(outSlide) { -it * dir / 4 } + fadeOut(outFade))
                     },
                     label = "posterTrack",
-                ) { _ ->
+                ) { trackId ->
+                    androidx.compose.runtime.key(trackId) {
                     Box(Modifier.fillMaxSize().coverFlightHide(flight)) {
                         // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
                         // встают поверх неё в свободной части между шапкой и управлением.
@@ -472,6 +473,8 @@ private fun PosterPlayerPage(
                         } else {
                             stage(song.thumbnailUrl)
                         }
+                    }
+                
                     }
                 }
                 // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.
