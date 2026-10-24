@@ -10,7 +10,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -131,16 +130,15 @@ private class Snow(count: Int) {
 }
 
 /**
- * Хэллоуин: туман у нижнего края, тёплые угольки поднимаются вверх и мерцают, раз в несколько
- * секунд через верх экрана пролетает летучая мышь (тонкий контур, крылья машут), а в тёмном
- * углу зажигаются и моргают два глаза.
+ * Хэллоуин: редкие мелкие угольки поднимаются вверх, раз в несколько секунд через верх экрана
+ * пролетает летучая мышь (тонкий контур, крылья машут), а у края зажигаются и моргают два глаза.
+ * Без тумана, свечений и ореолов — только точки и линии.
  */
 private class Night(count: Int) {
     private val rnd = Random(1031)
     private val x0 = FloatArray(count) { rnd.nextFloat() }
     private val y0 = FloatArray(count) { rnd.nextFloat() }
     private val rise = FloatArray(count) { 6f + rnd.nextFloat() * 14f }
-    private val flick = FloatArray(count) { 1.5f + rnd.nextFloat() * 3f }
     private val phase = FloatArray(count) { rnd.nextFloat() * 2f * PI.toFloat() }
     private val points = FloatArray(count * 2)
     private val paint = android.graphics.Paint().apply {
@@ -153,16 +151,7 @@ private class Night(count: Int) {
         val dp = density
         val w = size.width
         val h = size.height
-        // Туман: несколько мягких пятен у низа медленно плывут навстречу друг другу.
-        val fogTone = if (dark) Color(0xFF6B3FA0) else Color(0xFF9C7CC4)
-        drawRect(Brush.verticalGradient(0.62f to Color.Transparent, 1f to fogTone.copy(alpha = if (dark) 0.22f else 0.14f)))
-        for (k in 0..3) {
-            val cx = w * (0.15f + 0.25f * k) + sin(t * (0.05f + 0.02f * k) + k) * w * 0.18f
-            val cy = h * (0.86f + 0.04f * (k % 2))
-            val r = w * (0.38f + 0.06f * k)
-            drawCircle(Brush.radialGradient(listOf(fogTone.copy(alpha = if (dark) 0.16f else 0.10f), Color.Transparent), Offset(cx, cy), r), r, Offset(cx, cy))
-        }
-        // Угольки: поднимаются и мерцают.
+        // Угольки: поднимаются ровно, без мерцания.
         var n = 0
         for (i in x0.indices) {
             val travel = (y0[i] * h + rise[i] * dp * t) % h
@@ -171,20 +160,10 @@ private class Night(count: Int) {
             points[n++] = x
             points[n++] = y
         }
-        val pulse = 0.55f + 0.25f * sin(t * 2.3f)
         drawIntoCanvas { canvas ->
-            paint.strokeWidth = 2.2f * dp
-            paint.color = Color(0xFFFF8A3D).copy(alpha = 0.55f * pulse + 0.15f).toArgb()
+            paint.strokeWidth = 1.6f * dp
+            paint.color = Color(0xFFE07A3A).copy(alpha = 0.45f).toArgb()
             canvas.nativeCanvas.drawPoints(points, 0, n, paint)
-        }
-        // Мерцание отдельных угольков — крупнее и ярче, по очереди.
-        for (i in 0 until minOf(6, x0.size)) {
-            val a = (sin(t * flick[i] + phase[i]) * 0.5f + 0.5f)
-            if (a > 0.7f) {
-                val x = points[i * 2]
-                val y = points[i * 2 + 1]
-                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFB067).copy(alpha = 0.5f * (a - 0.7f) / 0.3f), Color.Transparent), Offset(x, y), 9f * dp), 9f * dp, Offset(x, y))
-            }
         }
         drawBat(t, w, h, dp, ink)
         drawEyes(t, w, h, dp)
@@ -219,7 +198,6 @@ private class Night(count: Int) {
         bat.quadraticTo(x + 0.45f * s, y + wy - 0.2f * s, x, y)
         bat.close()
         val fade = (minOf(p, 1f - p) * 6f).coerceIn(0f, 1f)
-        drawPath(bat, ink.copy(alpha = 0.10f * fade))
         drawPath(bat, ink.copy(alpha = 0.55f * fade), style = Stroke(1.2f * dp))
         // Ушки.
         drawLine(ink.copy(alpha = 0.55f * fade), Offset(x - 0.08f * s, y), Offset(x - 0.12f * s, y - 0.16f * s), 1.2f * dp, StrokeCap.Round)
@@ -242,7 +220,6 @@ private class Night(count: Int) {
         val tone = Color(0xFFFF7A1A)
         for (dx in listOf(-5f, 5f)) {
             val c = Offset(x + dx * dp, y)
-            drawCircle(Brush.radialGradient(listOf(tone.copy(alpha = 0.35f * on), Color.Transparent), c, 10f * dp), 10f * dp, c)
             drawOval(tone.copy(alpha = 0.9f * on), Offset(c.x - 2.2f * dp, c.y - 1.6f * dp * blink), androidx.compose.ui.geometry.Size(4.4f * dp, 3.2f * dp * blink))
         }
     }

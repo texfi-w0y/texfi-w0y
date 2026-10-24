@@ -403,8 +403,7 @@ private fun historyPhase(frame: Long): Float = ((frame + HISTORY_EVERY - 1) % HI
 /**
  * Hairline: «пульс». Каждое прошлое мгновение — кольцо, которое уже отошло от центра: чем
  * сильнее тогда был бас, тем ярче и толще кольцо, сильные удары — акцентом. Кольца плывут
- * между записями плавно. По внешнему кругу — шкала делений, в центре мягкий отсвет баса,
- * вокруг него — замкнутая линия спектра с лёгкой заливкой.
+ * между записями плавно. По внешнему кругу — шкала делений, в центре — замкнутая линия спектра.
  */
 private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, head: Long, frame: Long, bass: Float, line: Color, accent: Color, grid: Color, w: Float) {
     val c = center
@@ -414,10 +413,6 @@ private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, 
     val rows = history.size
     val phase = historyPhase(frame)
     val b = bass.coerceIn(0f, 1f)
-    if (b > 0.04f) {
-        val glow = base * 3.2f
-        drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.26f * b), Color.Transparent), center = c, radius = glow), glow, c)
-    }
     // Волны: от старых (дальних) к новым.
     val start = base * 1.6f
     for (age in rows - 1 downTo 1) {
@@ -457,15 +452,13 @@ private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, 
         if (i == 0) path.moveTo(mx, my) else path.quadraticTo(p0.x, p0.y, mx, my)
     }
     path.close()
-    drawPath(path, accent.copy(alpha = 0.10f + 0.10f * b))
     drawPath(path, accent, style = Stroke(w * 1.5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
     drawCircle(line.copy(alpha = 0.9f), base * (0.55f + 0.35f * b), c, style = Stroke(w * 1.3f))
     drawCircle(accent, w * 2.4f, c)
 }
 
 /**
- * Hairline: «горизонт». Плавная линия спектра по ширине со светом под ней, отражённая вниз
- * и бледнее. Прошлые линии отплывают вдаль — чуть выше и ниже ростом, плавно, без рывков.
+ * Hairline: «горизонт». Плавная линия спектра по ширине, отражённая вниз и бледнее. Прошлые линии отплывают вдаль — чуть выше и ниже ростом, плавно, без рывков.
  * Над самой громкой полосой висит акцентная точка с тонкой нитью до горизонта.
  */
 private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>, head: Long, frame: Long, line: Color, accent: Color, grid: Color, w: Float) {
@@ -506,18 +499,8 @@ private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>
         val lift = size.height * 0.16f * f
         drawPath(curve(row, mid - lift, 1f, 1f - 0.35f * f), line.copy(alpha = 0.22f * (1f - f)), style = Stroke(w))
     }
-    // Отражение и основная линия: под ней мягкий свет, по ней — широкий бледный ореол.
-    val mirror = curve(levels, mid, -1f, 0.55f)
-    drawPath(mirror, line.copy(alpha = 0.22f), style = Stroke(w))
-    val main = curve(levels, mid, 1f, 1f)
-    val fill = Path().apply {
-        addPath(main)
-        lineTo(pad, mid)
-        close()
-    }
-    drawPath(fill, Brush.verticalGradient(listOf(accent.copy(alpha = 0.30f), accent.copy(alpha = 0f)), startY = mid - amp, endY = mid))
-    drawPath(main, accent.copy(alpha = 0.16f), style = Stroke(w * 5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-    drawPath(main, accent, style = Stroke(w * 1.6f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    drawPath(curve(levels, mid, -1f, 0.55f), line.copy(alpha = 0.22f), style = Stroke(w))
+    drawPath(curve(levels, mid, 1f, 1f), accent, style = Stroke(w * 1.6f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
     // Пик: самая громкая полоса.
     var top = 0
     for (i in levels.indices) if (levels[i] > levels[top]) top = i
@@ -525,15 +508,14 @@ private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>
         val x = pad + width * (top + 0.5f) / levels.size
         val y = yOf(levels, top, mid, 1f, 1f)
         drawLine(accent.copy(alpha = 0.35f), Offset(x, y), Offset(x, mid), w)
-        drawCircle(accent.copy(alpha = 0.25f), w * 5f, Offset(x, y))
         drawCircle(accent, w * 2.4f, Offset(x, y))
     }
 }
 
 /**
  * Hairline: «точки». Матрица круглых точек: в колонке горит столько, сколько уровень полосы,
- * верхняя горящая разгорается плавно, а не щёлкает. Над колонкой висит акцентная точка пика
- * с ореолом, остальные — едва видны. Как табло из точек.
+ * верхняя горящая разгорается плавно, а не щёлкает. Над колонкой висит акцентная точка пика,
+ * остальные — едва видны. Как табло из точек.
  */
 private fun DrawScope.hairDots(levels: FloatArray, peaks: FloatArray, line: Color, accent: Color) {
     val cols = levels.size / 2
@@ -552,7 +534,6 @@ private fun DrawScope.hairDots(levels: FloatArray, peaks: FloatArray, line: Colo
             val y = top + (rows - 1 - ry) * step
             val c = Offset(x, y)
             if (ry == peakRow && pk > 0.05f) {
-                drawCircle(accent.copy(alpha = 0.22f), r * 1.9f, c)
                 drawCircle(accent, r, c)
                 continue
             }
