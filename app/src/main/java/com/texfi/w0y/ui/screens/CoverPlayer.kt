@@ -308,7 +308,7 @@ internal fun CoverPlayerPage(
                         Modifier
                             .size(side)
                             // Место обложки для полёта: рамка 6 dp вокруг картинки не в счёт; «дыхание» ниже по цепочке.
-                            .coverFlightPlayer(flight, enabled = coverShown, insetDp = 6.dp, radiusDp = radius)
+                            .coverFlightPlayer(flight, enabled = true, insetDp = 6.dp, radiusDp = radius, ghost = !coverShown)
                             .graphicsLayer {
                                 scaleX = breathe
                                 scaleY = breathe
@@ -419,7 +419,7 @@ private fun PosterPlayerPage(
                     .fillMaxWidth()
                     .height(coverH)
                     // Место постера для полёта: до входной анимации и «паузы» — они идут слоями ниже.
-                    .coverFlightPlayer(flight, enabled = coverShown && !visualizerOn, fadeDp = fade)
+                    .coverFlightPlayer(flight, enabled = true, fadeDp = fade, ghost = !(coverShown && !visualizerOn))
                     .hairEnter(0)
                     .graphicsLayer {
                         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -432,9 +432,10 @@ private fun PosterPlayerPage(
                     }
                     .drawWithContent {
                         drawContent()
-                        val f = (fade.toPx() / size.height).coerceIn(0.05f, 0.6f)
+                        // Растворение по плавной кривой и на полторы высоты зоны: край не читается линией.
+                        val f = (fade.toPx() * 1.6f / size.height).coerceIn(0.08f, 0.7f)
                         drawRect(
-                            Brush.verticalGradient(0f to Color.Black, (1f - f) to Color.Black, 1f to Color.Transparent),
+                            Brush.verticalGradient(*smoothFade(1f - f, 1f)),
                             blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
                         )
                     }
@@ -465,7 +466,27 @@ private fun PosterPlayerPage(
                     Box(Modifier.fillMaxSize().coverFlightHide(flight)) {
                         // С визуализатором обложка остаётся на месте, но гаснет до фона, а столбики
                         // встают поверх неё в свободной части между шапкой и управлением.
-                        PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha })
+                        // Размытие нарастает книзу: под резкой обложкой лежит её мягкая копия, а резкая
+                        // плавно тает раньше, чем копия. Получается переход «резко → мягко → фон» без шва.
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            PlainCover(song.thumbnailUrl, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha }.blur(18.dp))
+                        }
+                        PlainCover(
+                            song.thumbnailUrl,
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    alpha = coverAlpha
+                                    compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                                }
+                                .drawWithContent {
+                                    drawContent()
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val f = (fade.toPx() * 3.2f / size.height).coerceIn(0.15f, 0.85f)
+                                        drawRect(Brush.verticalGradient(*smoothFade(1f - f, 1f - f * 0.3f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+                                    }
+                                },
+                        )
                         if (visualizerOn) {
                             Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = stageTop, bottom = stageBottom)) {
                                 stage(song.thumbnailUrl)
@@ -481,8 +502,8 @@ private fun PosterPlayerPage(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
-                        .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)),
+                        .height(160.dp)
+                        .background(Brush.verticalGradient(*smoothFade(0f, 1f, from = 0.55f))),
                 )
             }
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -517,3 +538,19 @@ private fun PosterPlayerPage(
 }
 
 private const val SWIPE_PX = 120f
+
+/**
+ * Остановки градиента «чёрный → прозрачный» по плавной кривой (smoothstep) между [start] и
+ * [end]: у линейного перехода видны края зоны, у плавного — нет. [from] — непрозрачность в начале.
+ */
+internal fun smoothFade(start: Float, end: Float, from: Float = 1f, steps: Int = 10): Array<Pair<Float, Color>> {
+    val out = ArrayList<Pair<Float, Color>>(steps + 2)
+    if (start > 0f) out += 0f to Color.Black.copy(alpha = from)
+    for (i in 0..steps) {
+        val k = i.toFloat() / steps
+        val eased = k * k * (3f - 2f * k)
+        out += (start + (end - start) * k).coerceIn(0f, 1f) to Color.Black.copy(alpha = from * (1f - eased))
+    }
+    if (end < 1f) out += 1f to Color.Transparent
+    return out.toTypedArray()
+}

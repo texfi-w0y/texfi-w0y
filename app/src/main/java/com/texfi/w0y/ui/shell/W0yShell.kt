@@ -73,6 +73,10 @@ import androidx.compose.foundation.layout.widthIn
 import com.texfi.w0y.ui.components.SongActions
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.ui.components.softEnter
+import com.texfi.w0y.ui.components.hairTabEnter
+import com.texfi.w0y.ui.components.recordTouches
+import com.texfi.w0y.ui.components.revealProgress
+import com.texfi.w0y.ui.components.hairReveal
 import com.texfi.w0y.ui.components.W0yMotion
 import com.texfi.w0y.ui.components.pressScale
 import com.texfi.w0y.ui.components.popWhenActivated
@@ -217,7 +221,13 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     }
     val modalDim = remember { com.texfi.w0y.ui.screens.ModalDim() }
     val coverFlight = remember { com.texfi.w0y.ui.components.CoverFlight() }
+    val touchOrigin = remember { com.texfi.w0y.ui.components.TouchOrigin() }
+    // Направление смены вкладки: линия-прочерк и сдвиг идут туда, куда переключили.
+    var lastTab by remember { mutableStateOf(tab) }
+    val tabDirection = if (tab.ordinal >= lastTab.ordinal) 1 else -1
+    LaunchedEffect(tab) { lastTab = tab }
     CompositionLocalProvider(
+        com.texfi.w0y.ui.components.LocalTouchOrigin provides touchOrigin,
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
         LocalDownloadProgress provides downloadProgress,
@@ -331,6 +341,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                     },
                     modifier = Modifier.navigationBarsPadding(),
                     config = dockConfig,
+                    backdrop = barBackdrop,
                     mini = mini,
                 )
             } else {
@@ -365,6 +376,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     Box(
         Modifier
             .fillMaxSize()
+            .recordTouches(touchOrigin)
             .screenBackground(),
     ) {
         Box(
@@ -385,6 +397,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         } else {
             Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
         }
+        // Праздник на фоне: снег зимой, туман и летучие мыши на Хэллоуин. Пока плеер раскрыт — замирает.
+        val season by viewModel.seasonFx.collectAsStateWithLifecycle()
+        com.texfi.w0y.ui.components.SeasonLayer(season.first, season.second, active = !playerExpanded && !standOpen, modifier = Modifier.fillMaxSize())
         Box(
             Modifier
                 .fillMaxSize()
@@ -394,7 +409,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (cutBars) 0.dp else barsHeight, com.texfi.w0y.ui.components.LocalCutBottom provides if (cutBars) barsHeight else 0.dp) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
-                Box(Modifier.fillMaxSize().softEnter(tab)) {
+                Box(Modifier.fillMaxSize().then(if (hair) Modifier.hairTabEnter(tab, tabDirection) else Modifier.softEnter(tab))) {
                 when (tab) {
                     Tab.HOME ->
                         HomeScreen(
@@ -647,14 +662,19 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
 @Composable
 private fun BrowseOverlay(visible: Boolean, route: BrowseRoute?, onBack: () -> Unit) {
     val colors = LocalW0yColors.current
+    val hair = com.texfi.w0y.ui.theme.isHair
+    // Hairline: страница артиста или альбома раскрывается кругом из того места, где нажали.
+    val origin = rememberRevealOrigin(visible)
     AnimatedVisibility(
         visible = visible,
-        enter = slideInHorizontally(tween(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)) { it / 3 },
-        exit = slideOutHorizontally(tween(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)) { it / 3 },
+        enter = if (hair) fadeIn(snap()) else slideInHorizontally(tween(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)) { it / 3 },
+        exit = if (hair) fadeOut(tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS + 60)) else slideOutHorizontally(tween(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)) { it / 3 },
     ) {
+        val reveal = if (hair) revealModifier(origin) else Modifier
         Box(
             Modifier
                 .fillMaxSize()
+                .then(reveal)
                 .screenBackground(),
         ) {
             when (route) {
@@ -671,11 +691,39 @@ private val BAR_MAX_WIDTH = 560.dp
 /** Настройки с выездом снизу — одна обёртка для обоих мест, где они живут. */
 @Composable
 private fun SettingsLayer(visible: Boolean, onClose: () -> Unit, onOpenLogin: () -> Unit) {
+    val hair = com.texfi.w0y.ui.theme.isHair
+    // Hairline: настройки раскрываются кругом из шестерёнки и сворачиваются в неё же.
+    val origin = rememberRevealOrigin(visible)
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically(tween(W0yMotion.MID_MS, easing = W0yMotion.StepBack)) { it / 3 },
-        exit = slideOutVertically(tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)) { it / 3 },
+        enter = if (hair) fadeIn(snap()) else slideInVertically(tween(W0yMotion.MID_MS, easing = W0yMotion.StepBack)) { it / 3 },
+        exit = if (hair) fadeOut(tween(com.texfi.w0y.ui.theme.HairTokens.MID_MS + 60)) else slideOutVertically(tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)) { it / 3 },
     ) {
-        SettingsScreen(onClose = onClose, onOpenLogin = onOpenLogin)
+        Box(Modifier.fillMaxSize().then(if (hair) revealModifier(origin) else Modifier)) {
+            SettingsScreen(onClose = onClose, onOpenLogin = onOpenLogin)
+        }
     }
+}
+
+/** Точка, из которой раскрылся слой: запоминается в момент открытия, закрывается слой в неё же. */
+private class RevealMemo {
+    var origin: androidx.compose.ui.geometry.Offset? = null
+    var wasVisible = false
+}
+
+@Composable
+private fun rememberRevealOrigin(visible: Boolean): androidx.compose.ui.geometry.Offset? {
+    val touch = com.texfi.w0y.ui.components.LocalTouchOrigin.current
+    val memo = remember { RevealMemo() }
+    if (visible && !memo.wasVisible) memo.origin = touch?.last
+    memo.wasVisible = visible
+    return memo.origin
+}
+
+/** Круглое окно раскрытия для слоя в [AnimatedVisibility]; только при полных анимациях. */
+@Composable
+private fun androidx.compose.animation.AnimatedVisibilityScope.revealModifier(origin: androidx.compose.ui.geometry.Offset?): Modifier {
+    if (com.texfi.w0y.ui.theme.hairLook.motion != com.texfi.w0y.ui.theme.MotionLevel.FULL) return Modifier
+    val p = revealProgress()
+    return Modifier.hairReveal({ p.value }, origin)
 }

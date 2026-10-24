@@ -362,6 +362,16 @@ class SettingsViewModel @Inject constructor(
 
     fun setDockGlow(value: Boolean) = update { repository.setDockGlow(value) }
 
+    fun setDockSurface(value: com.texfi.w0y.data.DockSurface) = update { repository.setDockSurface(value) }
+
+    fun setDockProgress(value: Boolean) = update { repository.setDockProgress(value) }
+
+    fun setDockIndicator(value: com.texfi.w0y.data.DockIndicator) = update { repository.setDockIndicator(value) }
+
+    fun setDockSize(value: com.texfi.w0y.data.DockSize) = update { repository.setDockSize(value) }
+
+    fun setSeasonFx(value: com.texfi.w0y.data.SeasonFx) = update { repository.setSeasonFx(value) }
+
     fun setBackdropMode(value: com.texfi.w0y.data.BackdropMode) = update { repository.setBackdropMode(value) }
 
     /** Своя картинка фона: копия в приложении, ужатая до экрана, — оригинал можно удалять. */

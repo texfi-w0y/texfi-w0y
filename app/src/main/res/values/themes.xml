@@ -5,7 +5,7 @@
          Compose — системный сплэш держим на минимуме, запуск важнее эффекта. -->
     <style name="Theme.W0y.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/w0y_bg</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
         <item name="postSplashScreenTheme">@style/Theme.W0y</item>
     </style>
 

@@ -66,6 +66,12 @@ class CoverFlight {
     internal var playerRadiusPx = 0f
     internal var playerFadePx = 0f
 
+    /**
+     * На месте обложки в плеере сейчас не она (визуализатор, видео): полёт всё равно есть, но
+     * копия обложки проявляется по пути, а визуализатор не гаснет — он уезжает вместе со шторкой.
+     */
+    @JvmField var playerGhost = false
+
     /** «Дыхание» и пауза обложки плеера: в полёте стартуем с того же вида, чтобы не было скачка. */
     @JvmField var playerScale = 1f
     @JvmField var playerAlpha = 1f
@@ -144,7 +150,7 @@ fun Modifier.coverFlightMini(flight: CoverFlight?, sizeDp: Dp): Modifier {
  * [enabled] = false, когда вместо обложки показаны визуализатор, текст или видео.
  */
 @Composable
-fun Modifier.coverFlightPlayer(flight: CoverFlight?, enabled: Boolean, insetDp: Dp = 0.dp, radiusDp: Dp = 0.dp, fadeDp: Dp = 0.dp): Modifier {
+fun Modifier.coverFlightPlayer(flight: CoverFlight?, enabled: Boolean, insetDp: Dp = 0.dp, radiusDp: Dp = 0.dp, fadeDp: Dp = 0.dp, ghost: Boolean = false): Modifier {
     if (flight == null) return this
     val density = LocalDensity.current.density
     DisposableEffect(enabled) {
@@ -163,13 +169,14 @@ fun Modifier.coverFlightPlayer(flight: CoverFlight?, enabled: Boolean, insetDp: 
         flight.playerInsetPx = insetDp.value * density
         flight.playerRadiusPx = radiusDp.value * density
         flight.playerFadePx = fadeDp.value * density
+        flight.playerGhost = ghost
         flight.playerReady = true
     }
 }
 
 /** Прячет содержимое на время полёта: вместо него в воздухе летит копия. */
 fun Modifier.coverFlightHide(flight: CoverFlight?): Modifier =
-    if (flight == null) this else graphicsLayer { alpha = if (flight.flying) 0f else 1f }
+    if (flight == null) this else graphicsLayer { alpha = if (flight.flying && !flight.playerGhost) 0f else 1f }
 
 /** Рисует летящую обложку поверх всего. Вне полёта не занимает ничего. */
 @Composable
@@ -200,7 +207,14 @@ fun CoverFlightLayer(flight: CoverFlight, url: String?) {
                         val radius = lerp(flight.playerRadiusPx, flight.miniRadiusPx, t)
                         shape = RoundedCornerShape(radius.coerceAtLeast(0f).coerceAtMost(minOf(size.width, size.height) / 2f))
                         clip = true
-                        alpha = lerp(flight.playerAlpha, 1f, t)
+                        alpha =
+                            if (flight.playerGhost) {
+                                // Из визуализатора: обложка проявляется, пока летит, и к мини-плееру уже целиком.
+                                val k = ((t - 0.08f) / 0.55f).coerceIn(0f, 1f)
+                                k * k * (3f - 2f * k)
+                            } else {
+                                lerp(flight.playerAlpha, 1f, t)
+                            }
                         compositingStrategy = CompositingStrategy.Offscreen
                     }
                     .drawWithContent {

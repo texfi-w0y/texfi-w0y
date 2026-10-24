@@ -827,6 +827,8 @@ fun PlayerScreen(
                     onSeekLine = seekLine,
                     loading = lyricsLoading,
                     onClose = { lyricsOn = false },
+                    onToggle = viewModel.player::togglePlayPause,
+                    durationMs = knownDuration,
                     translate = {
                         if (lyrics != null) {
                             LyricsLangRow(

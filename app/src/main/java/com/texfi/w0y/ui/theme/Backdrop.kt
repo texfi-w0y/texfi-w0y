@@ -118,6 +118,13 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
                         Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.25f), startY = h * 0.6f, endY = h),
                         Offset.Zero, Size(w, h),
                     )
+                    // Цвет играющего трека ложится на карту светом сверху справа и отсветом снизу слева:
+                    // приложение живёт вместе с музыкой, а не стоит серым. Без трека — тихий свет акцента.
+                    val on = spec?.coverOn ?: 0f
+                    val glow = if (on > 0f) spec!!.tint.value else colors.accent
+                    val a = if (on > 0f) 0.26f else 0.10f
+                    drawRect(Brush.radialGradient(listOf(glow.copy(alpha = a), Color.Transparent), Offset(w * 0.88f, h * 0.04f), w * 1.1f), Offset.Zero, Size(w, h))
+                    drawRect(Brush.radialGradient(listOf(glow.copy(alpha = a * 0.45f), Color.Transparent), Offset(w * 0.08f, h * 0.92f), w * 0.85f), Offset.Zero, Size(w, h))
                 } else {
                     grid(w, h, colors.text.copy(alpha = 0.04f))
                 }

@@ -136,9 +136,16 @@ class ShellViewModel @Inject constructor(
 
     val dockConfig: StateFlow<com.texfi.w0y.ui.components.DockConfig> =
         settings.settings
-            .map { com.texfi.w0y.ui.components.DockConfig(it.dockShape, it.dockTint, it.dockLabels, it.dockGlow) }
+            .map { com.texfi.w0y.ui.components.DockConfig(it.dockShape, it.dockTint, it.dockLabels, it.dockGlow, it.dockSurface, it.dockProgress, it.dockIndicator, it.dockSize) }
             .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.ui.components.DockConfig())
+
+    /** Сезон и сила эффектов на фоне: снег зимой, туман и летучие мыши на Хэллоуин. */
+    val seasonFx: StateFlow<Pair<com.texfi.w0y.data.SeasonMode, com.texfi.w0y.data.SeasonFx>> =
+        settings.settings
+            .map { it.seasonMode to it.seasonFx }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.SeasonMode.AUTO to com.texfi.w0y.data.SeasonFx.FULL)
 
     val backdropMode: StateFlow<com.texfi.w0y.data.BackdropMode> =
         settings.settings

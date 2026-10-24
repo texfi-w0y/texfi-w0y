@@ -12,6 +12,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -75,8 +78,10 @@ fun HairLoader(modifier: Modifier = Modifier, color: Color? = null) {
 }
 
 /**
- * Заставка Hairline: «W» и кольцо-ноль рисуются одной линией, потом
- * надпись проявляется и всё растворяется. Тот же знак, что на иконке.
+ * Заставка Hairline: от центра расходится тонкая линия, по ней одной линией рисуется «W»,
+ * замыкается кольцо-ноль и проявляется подпись. Потом знак уходит на зрителя, а в фоне
+ * раскрывается круглое окно с тонким кольцом по краю — сквозь него уже видно приложение.
+ * Заставка не держит касания и не ждёт сети: экран под ней живой с первого кадра.
  * Без анимаций заставки нет вовсе.
  */
 @Composable
@@ -84,48 +89,110 @@ fun HairIntro(onFinished: () -> Unit) {
     val colors = LocalW0yColors.current
     val look = hairLook
     val tone = Contrast.ensure(colors.accent, colors.background)
-    val w = remember { Animatable(0f) }
-    val ring = remember { Animatable(0f) }
-    val fade = remember { Animatable(1f) }
+    val t = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         if (!look.motion.draws) {
             onFinished()
             return@LaunchedEffect
         }
-        w.animateTo(1f, tween(INTRO_W_MS, easing = HairTokens.EaseOut))
-        ring.animateTo(1f, tween(INTRO_RING_MS, easing = HairTokens.EaseOut))
-        kotlinx.coroutines.delay(INTRO_HOLD_MS)
-        fade.animateTo(0f, tween(HairTokens.MID_MS))
+        t.animateTo(1f, tween(INTRO_MS, easing = LinearEasing))
         onFinished()
     }
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = fade.value }.background(colors.background), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(180.dp)) {
-            val k = size.minDimension / 108f
-            val stroke = 7f * k * 0.5f
-            val wPath = Path().apply {
-                moveTo(28f * k, 40f * k)
-                lineTo(41f * k, 74f * k)
-                lineTo(54f * k, 50f * k)
-                lineTo(67f * k, 74f * k)
-                lineTo(80f * k, 40f * k)
+    // Доли общей шкалы: каждая часть со своей кривой Hairline.
+    fun part(from: Float, to: Float): Float = HairTokens.EaseOut.transform(((t.value - from) / (to - from)).coerceIn(0f, 1f))
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+            .drawBehind {
+                // Фон с круглым окном: окно растёт из центра до углов экрана, по кромке — кольцо.
+                drawRect(colors.background)
+                val open = part(0.62f, 1f)
+                if (open > 0f) {
+                    val maxR = kotlin.math.hypot(size.width / 2f, size.height / 2f)
+                    val r = maxR * open
+                    drawCircle(Color.Black, r, center, blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
+                    drawCircle(tone.copy(alpha = (1f - open) * 0.9f), r, center, style = Stroke(1.5.dp.toPx()))
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    // Знак уходит на зрителя и гаснет, пока раскрывается окно.
+                    val out = part(0.6f, 0.92f)
+                    val s = 1f + 0.22f * out
+                    scaleX = s
+                    scaleY = s
+                    alpha = 1f - out
+                },
+        ) {
+            val side = 180.dp.toPx()
+            val k = side / 108f
+            val ox = center.x - side / 2f
+            val oy = center.y - side / 2f
+            // Горизонт: линия расходится от центра и гаснет, когда знак готов.
+            val line = part(0f, 0.22f)
+            val lineFade = 1f - part(0.4f, 0.6f)
+            if (line > 0f && lineFade > 0f) {
+                val half = size.width * 0.32f * line
+                val y = oy + 54f * k
+                drawLine(colors.text.copy(alpha = 0.35f * lineFade), Offset(center.x - half, y), Offset(center.x + half, y), 1.dp.toPx())
             }
-            val part = Path()
+            val wPath = Path().apply {
+                moveTo(ox + 28f * k, oy + 40f * k)
+                lineTo(ox + 41f * k, oy + 74f * k)
+                lineTo(ox + 54f * k, oy + 50f * k)
+                lineTo(ox + 67f * k, oy + 74f * k)
+                lineTo(ox + 80f * k, oy + 40f * k)
+            }
+            val seg = Path()
             val m = PathMeasure().also { it.setPath(wPath, false) }
-            m.getSegment(0f, m.length * w.value, part, true)
-            drawPath(part, colors.text, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            m.getSegment(0f, m.length * part(0.08f, 0.42f), seg, true)
+            drawPath(seg, colors.text, style = Stroke(7f * k * 0.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
             val circle = Path().apply {
-                addOval(androidx.compose.ui.geometry.Rect(Offset(54f * k - 7.5f * k, 33f * k - 7.5f * k), androidx.compose.ui.geometry.Size(15f * k, 15f * k)))
+                addOval(androidx.compose.ui.geometry.Rect(Offset(ox + 54f * k - 7.5f * k, oy + 33f * k - 7.5f * k), androidx.compose.ui.geometry.Size(15f * k, 15f * k)))
             }
             val cm = PathMeasure().also { it.setPath(circle, false) }
             val cp = Path()
-            cm.getSegment(0f, cm.length * ring.value, cp, true)
+            cm.getSegment(0f, cm.length * part(0.3f, 0.52f), cp, true)
             drawPath(cp, tone, style = Stroke(3.6f * k * 0.5f, cap = StrokeCap.Round))
+            // Засечки по углам знака — как на чертёжном листе; сходятся к нему.
+            val ticks = part(0.18f, 0.48f)
+            if (ticks > 0f) {
+                val pad = 14.dp.toPx() * (2f - ticks)
+                val len = 10.dp.toPx() * ticks
+                val a = colors.text.copy(alpha = 0.5f * ticks)
+                val l = ox + 18f * k - pad
+                val r = ox + 90f * k + pad
+                val tp = oy + 18f * k - pad
+                val bt = oy + 90f * k + pad
+                listOf(Offset(l, tp) to Offset(1f, 1f), Offset(r, tp) to Offset(-1f, 1f), Offset(l, bt) to Offset(1f, -1f), Offset(r, bt) to Offset(-1f, -1f)).forEach { (c, d) ->
+                    drawLine(a, c, c + Offset(len * d.x, 0f), 1.dp.toPx())
+                    drawLine(a, c, c + Offset(0f, len * d.y), 1.dp.toPx())
+                }
+            }
         }
+        // Подпись под знаком: моно, с разрядкой, проявляется снизу.
+        val label = part(0.36f, 0.56f)
+        androidx.compose.material3.Text(
+            text = "W0Y",
+            style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(letterSpacing = 6.sp),
+            color = colors.textMuted,
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 150.dp)
+                    .graphicsLayer {
+                        alpha = label * (1f - part(0.6f, 0.8f))
+                        translationY = (1f - label) * 10.dp.toPx()
+                    },
+        )
     }
 }
 
 private const val LOADER_MS = 1_100
 private const val TICKS = 28
-private const val INTRO_W_MS = 650
-private const val INTRO_RING_MS = 320
-private const val INTRO_HOLD_MS = 260L
+private const val INTRO_MS = 1_250

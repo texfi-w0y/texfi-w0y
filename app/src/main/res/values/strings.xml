@@ -995,4 +995,31 @@
     <string name="update_dialog_hint">If you pick Later, the update stays in Settings → App.</string>
     <string name="whatsnew_dialog_label">What\'s new</string>
     <string name="whatsnew_ok">Got it</string>
+
+    <!-- Hairline: движение, остров, сезонные эффекты, визуализаторы -->
+    <string name="viz_pulse">Pulse</string>
+    <string name="viz_horizon">Horizon</string>
+    <string name="viz_dots">Dots</string>
+    <string name="dock_surface_title">Bar body</string>
+    <string name="dock_surface_desc">Glass blurs the screen under the bar; solid is a plain panel.</string>
+    <string name="dock_surface_glass">Glass</string>
+    <string name="dock_surface_solid">Solid</string>
+    <string name="dock_progress_title">Progress on the outline</string>
+    <string name="dock_progress_desc">Track progress runs as a line along the bar outline.</string>
+    <string name="dock_indicator_title">Active tab marker</string>
+    <string name="dock_indicator_desc">How the selected tab is marked: a line, a dot or a thin frame.</string>
+    <string name="dock_indicator_line">Line</string>
+    <string name="dock_indicator_dot">Dot</string>
+    <string name="dock_indicator_frame">Frame</string>
+    <string name="dock_size_title">Bar height</string>
+    <string name="dock_size_desc">Compact leaves more room for lists.</string>
+    <string name="dock_size_compact">Compact</string>
+    <string name="dock_size_regular">Regular</string>
+    <string name="season_fx_title">Seasonal effects</string>
+    <string name="season_fx_desc">Snow in winter, fog and bats on Halloween. On the background, behind the screens.</string>
+    <string name="season_fx_off">Off</string>
+    <string name="season_fx_light">Calm</string>
+    <string name="season_fx_full">Full</string>
+    <string name="hl_lyrics_focus">Hide the player</string>
+    <string name="hl_lyrics_show_player">Show the player</string>
 </resources>

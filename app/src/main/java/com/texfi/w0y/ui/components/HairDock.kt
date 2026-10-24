@@ -70,18 +70,23 @@ import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.MotionLevel
 import com.texfi.w0y.ui.theme.asLabel
+import com.texfi.w0y.ui.theme.glassBar
 import com.texfi.w0y.ui.theme.hairLook
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Настройки панели: форма, чем подкрашена, подписи, свечение. */
+/** Настройки панели: форма, чем подкрашена, подписи, свечение, корпус, прогресс, отметка вкладки и высота. */
 data class DockConfig(
     val shape: DockShape = DockShape.ISLAND,
     val tint: DockTint = DockTint.COVER,
     val labels: DockLabels = DockLabels.ALL,
     val glow: Boolean = true,
+    val surface: com.texfi.w0y.data.DockSurface = com.texfi.w0y.data.DockSurface.GLASS,
+    val progress: Boolean = true,
+    val indicator: com.texfi.w0y.data.DockIndicator = com.texfi.w0y.data.DockIndicator.LINE,
+    val size: com.texfi.w0y.data.DockSize = com.texfi.w0y.data.DockSize.REGULAR,
 )
 
 /**
@@ -106,6 +111,8 @@ fun HairDock(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     config: DockConfig = DockConfig(),
+    /** Экран под панелью: есть — корпус стеклянный и размывает его. */
+    backdrop: com.kyant.backdrop.Backdrop? = null,
     mini: @Composable () -> Unit,
 ) {
     val colors = LocalW0yColors.current
@@ -150,6 +157,8 @@ fun HairDock(
         else -> 28.dp
     }
     val shape = RoundedCornerShape(radius)
+    val glass = backdrop != null && config.surface == com.texfi.w0y.data.DockSurface.GLASS
+    val compact = config.size == com.texfi.w0y.data.DockSize.COMPACT
 
     Box(
         modifier
@@ -181,15 +190,37 @@ fun HairDock(
                     translationY = rise.value * 96.dp.toPx()
                     alpha = 1f - rise.value * 0.6f
                 }
-                .clip(shape)
-                .background(colors.surface)
-                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.2f else 0f), colors.text, colors.text),
+                .then(
+                    if (glass) {
+                        // Стекло: экран под панелью размыт и чуть преломлён у краёв, сверху — дымка.
+                        Modifier.glassBar(shape, backdrop!!).clip(shape)
+                    } else {
+                        Modifier.clip(shape).background(colors.surface).dockSheen(tint, tinted)
+                    },
+                )
+                .dockFrame(
+                    radius,
+                    if (config.progress) progress else ({ 0f }),
+                    lerp(colors.outline, tint, if (tinted) 0.2f else 0f).copy(alpha = if (glass) 0.7f else 1f),
+                    colors.text,
+                    colors.text,
+                ),
         ) {
             mini()
-            DockNav(items, selected, onSelect, tint, tinted, config.labels, radius)
+            DockNav(items, selected, onSelect, tint, tinted, config.labels, radius, config.indicator, compact)
         }
     }
 }
+
+/**
+ * Плотный корпус не плоский: сверху тонкий отсвет, снизу едва заметный цвет трека — панель
+ * читается как предмет над экраном, а не как вырезанный прямоугольник.
+ */
+private fun Modifier.dockSheen(tint: Color, tinted: Boolean): Modifier =
+    drawBehind {
+        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.06f), 0.45f to Color.Transparent))
+        if (tinted) drawRect(Brush.verticalGradient(0.4f to Color.Transparent, 1f to tint.copy(alpha = 0.10f)))
+    }
 
 /**
  * Рамка корпуса в одну линию. Прогресс идёт по ней же, по часовой, от левого
@@ -252,8 +283,11 @@ private fun DockNav(
     tinted: Boolean,
     labels: DockLabels,
     dockRadius: Dp,
+    indicator: com.texfi.w0y.data.DockIndicator = com.texfi.w0y.data.DockIndicator.LINE,
+    compact: Boolean = false,
 ) {
     val colors = LocalW0yColors.current
+    val itemHeight = if (compact) NAV_ITEM_HEIGHT_COMPACT else NAV_ITEM_HEIGHT
     val look = hairLook
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val head = remember { Animatable(selected.toFloat()) }
@@ -280,19 +314,55 @@ private fun DockNav(
     val select by rememberUpdatedState(onSelect)
     val lensTone = if (tinted) tint else colors.text
 
+    // Кольцо от выбранной вкладки: тонкая окружность расходится от значка и тает.
+    val ring = remember { Animatable(1f) }
+    var ringAt by remember { androidx.compose.runtime.mutableIntStateOf(selected) }
+    var firstSelect by remember { androidx.compose.runtime.mutableStateOf(true) }
+    LaunchedEffect(selected) {
+        if (firstSelect) {
+            firstSelect = false
+            return@LaunchedEffect
+        }
+        if (!look.motion.draws) return@LaunchedEffect
+        ringAt = selected
+        ring.snapTo(0f)
+        ring.animateTo(1f, tween(520, easing = HairTokens.EaseOut))
+    }
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-            .height(NAV_ITEM_HEIGHT)
+            .padding(horizontal = 8.dp, vertical = if (compact) 3.dp else 6.dp)
+            .height(itemHeight)
             .drawBehind {
                 val slot = size.width / items.size
-                val w = (slot * 0.5f).coerceIn(36.dp.toPx(), 64.dp.toPx())
-                val left = min(head.value, tail.value) * slot + (slot - w) / 2f
-                val right = max(head.value, tail.value) * slot + (slot + w) / 2f
-                val y = size.height / 2f + 14.dp.toPx()
-                // Как на сайте: тонкая линия под активным пунктом, перетекает между ними.
-                drawLine(lensTone, Offset(left, y), Offset(right, y), 2.dp.toPx(), StrokeCap.Round)
+                val lo = min(head.value, tail.value)
+                val hi = max(head.value, tail.value)
+                when (indicator) {
+                    com.texfi.w0y.data.DockIndicator.LINE -> {
+                        val w = (slot * 0.5f).coerceIn(36.dp.toPx(), 64.dp.toPx())
+                        val y = size.height / 2f + (if (compact) 12.dp else 14.dp).toPx()
+                        // Как на сайте: тонкая линия под активным пунктом, перетекает между ними.
+                        drawLine(lensTone, Offset(lo * slot + (slot - w) / 2f, y), Offset(hi * slot + (slot + w) / 2f, y), 2.dp.toPx(), StrokeCap.Round)
+                    }
+                    com.texfi.w0y.data.DockIndicator.DOT -> {
+                        // Точка под значком; на ходу вытягивается в короткую черту и снова собирается.
+                        val y = size.height / 2f + (if (compact) 13.dp else 16.dp).toPx()
+                        drawLine(lensTone, Offset(lo * slot + slot / 2f, y), Offset(hi * slot + slot / 2f, y), 5.dp.toPx(), StrokeCap.Round)
+                    }
+                    com.texfi.w0y.data.DockIndicator.FRAME -> {
+                        // Тонкая рамка вокруг вкладки и лёгкая подсветка внутри; на ходу тянется каплей.
+                        val inset = 4.dp.toPx()
+                        val r = (size.height / 2f - inset).coerceAtMost(16.dp.toPx())
+                        val rect = Rect(lo * slot + inset, inset, (hi + 1f) * slot - inset, size.height - inset)
+                        drawRoundRect(lensTone.copy(alpha = 0.08f), rect.topLeft, rect.size, CornerRadius(r))
+                        drawRoundRect(lensTone.copy(alpha = 0.7f), rect.topLeft, rect.size, CornerRadius(r), style = Stroke(1.dp.toPx()))
+                    }
+                }
+                val rp = ring.value
+                if (rp < 1f) {
+                    val c = Offset(ringAt * slot + slot / 2f, size.height / 2f)
+                    drawCircle(lensTone.copy(alpha = 0.55f * (1f - rp)), 10.dp.toPx() + 22.dp.toPx() * rp, c, style = Stroke(1.dp.toPx()))
+                }
             }
             .pointerInput(items.size) {
                 var last = -1
@@ -337,7 +407,7 @@ private fun DockNav(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(NAV_ITEM_HEIGHT)
+                        .height(itemHeight)
                         .semantics {
                             contentDescription = item.label
                             role = Role.Tab
@@ -378,6 +448,7 @@ private fun DockNav(
 }
 
 private val NAV_ITEM_HEIGHT = 48.dp
+private val NAV_ITEM_HEIGHT_COMPACT = 40.dp
 private val LENS_MAX = 104.dp
 private val LENS_RADIUS = 10.dp
 private const val PROGRESS_POLL_MS = 400L

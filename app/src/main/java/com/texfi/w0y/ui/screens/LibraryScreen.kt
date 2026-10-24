@@ -86,7 +86,21 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val route by viewModel.route.collectAsStateWithLifecycle()
-    when (val current = route) {
+    if (com.texfi.w0y.ui.theme.isHair) {
+        // Hairline: плейлист и списки раскрываются из плитки, по которой нажали, и сворачиваются в неё.
+        com.texfi.w0y.ui.components.HairNavHost(
+            target = route,
+            depth = { if (it == LibraryRoute.Root) 0 else 1 },
+            modifier = Modifier.fillMaxSize(),
+        ) { current -> LibraryRouteContent(current, viewModel, onOpenLogin) }
+    } else {
+        LibraryRouteContent(route, viewModel, onOpenLogin)
+    }
+}
+
+@Composable
+private fun LibraryRouteContent(current: LibraryRoute, viewModel: LibraryViewModel, onOpenLogin: () -> Unit) {
+    when (current) {
         LibraryRoute.Root -> if (com.texfi.w0y.ui.theme.isHair) HairLibraryRoot(viewModel, onOpenLogin) else LibraryRoot(viewModel, onOpenLogin)
         is LibraryRoute.Local -> LocalPlaylist(current.playlistId, viewModel)
         is LibraryRoute.Remote -> RemotePlaylist(current, viewModel)

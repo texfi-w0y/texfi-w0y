@@ -52,13 +52,14 @@ fun VisualizerStyle.forUi(style: UiStyle): VisualizerStyle =
         UiStyle.PIXEL ->
             when (this) {
                 VisualizerStyle.BARS, VisualizerStyle.LINES, VisualizerStyle.TERRAIN -> VisualizerStyle.SEGMENTS
-                VisualizerStyle.WAVE, VisualizerStyle.ORBIT -> VisualizerStyle.SCOPE
+                VisualizerStyle.WAVE, VisualizerStyle.ORBIT, VisualizerStyle.PULSE, VisualizerStyle.HORIZON -> VisualizerStyle.SCOPE
+                VisualizerStyle.DOTS -> VisualizerStyle.MOSAIC
                 else -> this
             }
         UiStyle.SMOOTH ->
             when (this) {
-                VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC, VisualizerStyle.LINES -> VisualizerStyle.BARS
-                VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.ORBIT, VisualizerStyle.TERRAIN -> VisualizerStyle.WAVE
+                VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC, VisualizerStyle.LINES, VisualizerStyle.DOTS -> VisualizerStyle.BARS
+                VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.ORBIT, VisualizerStyle.TERRAIN, VisualizerStyle.PULSE, VisualizerStyle.HORIZON -> VisualizerStyle.WAVE
                 else -> this
             }
         UiStyle.HAIRLINE ->
@@ -175,6 +176,9 @@ fun Visualizer(
                     VisualizerStyle.LINES -> hairLines(levels, peaks, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
                     VisualizerStyle.ORBIT -> hairOrbit(levels, analyzer.bass, frame, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.progress, colors.border, look.line.toPx())
                     VisualizerStyle.TERRAIN -> hairTerrain(history, historyHead, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.surface, look.line.toPx())
+                    VisualizerStyle.PULSE -> hairPulse(levels, history, historyHead, analyzer.bass, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
+                    VisualizerStyle.HORIZON -> hairHorizon(levels, history, historyHead, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
+                    VisualizerStyle.DOTS -> hairDots(levels, peaks, colors.text, Contrast.ensure(colors.accent, colors.surface))
                 }
             }
         }
@@ -383,6 +387,121 @@ private fun DrawScope.hairTerrain(history: Array<FloatArray>, head: Long, line: 
         drawPath(fill, ground)
         val t = row.toFloat() / (rows - 1)
         drawPath(path, if (row == rows - 1) accent else line.copy(alpha = 0.25f + 0.6f * t), style = Stroke(w * 1.2f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    }
+}
+
+/** Средний уровень нижних полос — «бас» прошлого спектра. */
+private fun bassOf(row: FloatArray): Float {
+    var sum = 0f
+    for (i in 0 until 4) sum += row[i]
+    return sum / 4f
+}
+
+/**
+ * Hairline: «пульс». Каждое прошлое мгновение — кольцо, которое уже отошло от центра: чем
+ * сильнее тогда был бас, тем ярче кольцо. Получаются расходящиеся волны в такт. В центре —
+ * круг, который дышит от баса, вокруг него — замкнутая линия спектра.
+ */
+private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, head: Long, bass: Float, line: Color, accent: Color, grid: Color, w: Float) {
+    val c = center
+    val base = min(size.width, size.height) * 0.14f
+    val reach = min(size.width, size.height) * 0.48f
+    val rows = history.size
+    // Волны: от старых (дальних) к новым.
+    for (age in rows - 1 downTo 1) {
+        val row = history[((head - age) % rows + rows).toInt() % rows]
+        val e = bassOf(row)
+        if (e < 0.08f) continue
+        val f = age.toFloat() / rows
+        val r = base * 1.6f + (reach - base * 1.6f) * f
+        drawCircle(line.copy(alpha = (e * (1f - f) * 0.85f).coerceIn(0f, 0.85f)), r, c, style = Stroke(w * (1f + e)))
+    }
+    drawCircle(grid, reach, c, style = Stroke(w))
+    // Замкнутый спектр вокруг центра: плавная линия через середины соседних точек.
+    val n = levels.size * 2
+    val pts = Array(n) { i ->
+        val v = levels[if (i < levels.size) i else n - 1 - i]
+        val a = (i.toFloat() / n) * 2f * PI.toFloat() - PI.toFloat() / 2f
+        val r = base * 1.25f + base * 0.9f * v
+        Offset(c.x + cos(a) * r, c.y + sin(a) * r)
+    }
+    val path = Path()
+    for (i in 0..n) {
+        val p0 = pts[i % n]
+        val p1 = pts[(i + 1) % n]
+        val mid = Offset((p0.x + p1.x) / 2f, (p0.y + p1.y) / 2f)
+        if (i == 0) path.moveTo(mid.x, mid.y) else path.quadraticTo(p0.x, p0.y, mid.x, mid.y)
+    }
+    path.close()
+    drawPath(path, accent, style = Stroke(w * 1.4f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    drawCircle(line.copy(alpha = 0.9f), base * (0.55f + 0.35f * bass.coerceIn(0f, 1f)), c, style = Stroke(w * 1.3f))
+    drawCircle(accent, w * 2.2f, c)
+}
+
+/**
+ * Hairline: «горизонт». Плавная линия спектра по ширине, отражённая вниз и бледнее; за ней
+ * тают три прошлых линии — как след на длинной выдержке. Посередине — линия горизонта.
+ */
+private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>, head: Long, line: Color, accent: Color, grid: Color, w: Float) {
+    val mid = size.height * 0.5f
+    val amp = size.height * 0.36f
+    val pad = size.width * 0.06f
+    val width = size.width - pad * 2f
+    drawLine(grid, Offset(0f, mid), Offset(size.width, mid), w)
+    fun curve(data: FloatArray, dir: Float): Path {
+        val path = Path()
+        val count = data.size
+        var px = pad
+        var py = mid
+        path.moveTo(px, py)
+        for (i in 0 until count) {
+            val f = (i + 0.5f) / count
+            val edge = sin(f * PI.toFloat()).coerceIn(0f, 1f)
+            val x = pad + width * f
+            val y = mid - dir * data[i] * amp * edge
+            val cx = (px + x) / 2f
+            path.cubicTo(cx, py, cx, y, x, y)
+            px = x
+            py = y
+        }
+        val endX = pad + width
+        path.cubicTo((px + endX) / 2f, py, (px + endX) / 2f, mid, endX, mid)
+        return path
+    }
+    val rows = history.size
+    for (age in 3 downTo 1) {
+        val row = history[((head - age * 2) % rows + rows).toInt() % rows]
+        drawPath(curve(row, 1f), line.copy(alpha = 0.10f + 0.06f * (3 - age)), style = Stroke(w))
+    }
+    drawPath(curve(levels, -1f), line.copy(alpha = 0.25f), style = Stroke(w))
+    drawPath(curve(levels, 1f), accent, style = Stroke(w * 1.6f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+}
+
+/**
+ * Hairline: «точки». Матрица круглых точек: в колонке горит столько, сколько уровень полосы,
+ * над ней висит акцентная точка пика, остальные — едва видны. Как табло из точек.
+ */
+private fun DrawScope.hairDots(levels: FloatArray, peaks: FloatArray, line: Color, accent: Color) {
+    val cols = levels.size / 2
+    val step = size.width / (cols + 1)
+    val rows = ((size.height * 0.84f) / step).toInt().coerceIn(6, 18)
+    val top = (size.height - rows * step) / 2f + step / 2f
+    val r = step * 0.28f
+    for (cx in 0 until cols) {
+        val v = (levels[cx * 2] + levels[cx * 2 + 1]) / 2f
+        val pk = (peaks[cx * 2] + peaks[cx * 2 + 1]) / 2f
+        val on = (v * rows).toInt()
+        val peakRow = (pk * rows).toInt().coerceIn(0, rows - 1)
+        val x = step * (cx + 1)
+        for (ry in 0 until rows) {
+            val y = top + (rows - 1 - ry) * step
+            val color = when {
+                ry == peakRow && pk > 0.05f -> accent
+                ry < on -> line.copy(alpha = 0.55f + 0.45f * (ry.toFloat() / rows))
+                else -> line.copy(alpha = 0.08f)
+            }
+            drawCircle(color, if (ry < on || ry == peakRow) r else r * 0.7f, Offset(x, y))
+        }
     }
 }
 

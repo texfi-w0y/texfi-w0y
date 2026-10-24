@@ -33,6 +33,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -320,7 +323,7 @@ fun HairSheetFrame(
                     .then(if (heightFraction != null) Modifier.fillMaxHeight(heightFraction) else Modifier)
                     .clip(shape)
                     .background(colors.surface)
-                    .border(look.line, colors.outline, shape)
+                    .sheetOutline(colors.outline, look.line, 18.dp)
                     .testTag("panel")
                     .navigationBarsPadding(),
             ) {
@@ -349,14 +352,51 @@ fun HairSheetFrame(
 }
 
 /**
+ * Контур панели без нижней кромки: сверху скругление, по бокам линии, которые к низу тают.
+ * Раньше рамка шла по всему периметру, и у самого низа экрана под жестовой полосой торчала
+ * лишняя горизонтальная черта, а боковые линии упирались в край.
+ */
+private fun Modifier.sheetOutline(color: Color, width: androidx.compose.ui.unit.Dp, radius: androidx.compose.ui.unit.Dp): Modifier =
+    drawWithCache {
+        val w = width.toPx().coerceAtLeast(1f)
+        val half = w / 2f
+        val r = radius.toPx()
+        val path =
+            androidx.compose.ui.graphics.Path().apply {
+                moveTo(half, size.height)
+                lineTo(half, r)
+                arcTo(androidx.compose.ui.geometry.Rect(half, half, half + 2 * r, half + 2 * r), 180f, 90f, false)
+                lineTo(size.width - half - r, half)
+                arcTo(androidx.compose.ui.geometry.Rect(size.width - half - 2 * r, half, size.width - half, half + 2 * r), 270f, 90f, false)
+                lineTo(size.width - half, size.height)
+            }
+        val brush = androidx.compose.ui.graphics.Brush.verticalGradient(0f to color, 0.6f to color, 1f to Color.Transparent)
+        onDrawWithContent {
+            drawContent()
+            drawPath(path, brush, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+        }
+    }
+
+/**
  * Полоса вкладок панели: 2–3 вкладки делят ширину поровну, без прокрутки и без усечения;
  * под активной — акцентная линия, под всей полосой — тонкая.
  */
 @Composable
 fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
-    // Акцентная линия не перепрыгивает, а едет к выбранной вкладке.
-    val at by androidx.compose.animation.core.animateFloatAsState(selected.toFloat(), hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "tabLine")
+    val look = hairLook
+    // Акцентная линия не перепрыгивает, а перетекает: передний край спешит, задний догоняет —
+    // на ходу линия вытягивается и у новой вкладки снова собирается.
+    val head = remember { androidx.compose.animation.core.Animatable(selected.toFloat()) }
+    val tail = remember { androidx.compose.animation.core.Animatable(selected.toFloat()) }
+    androidx.compose.runtime.LaunchedEffect(selected) {
+        val moves = look.motion.moves
+        kotlinx.coroutines.coroutineScope {
+            launch { if (moves) head.animateTo(selected.toFloat(), androidx.compose.animation.core.spring(0.7f, 600f)) else head.snapTo(selected.toFloat()) }
+            launch { if (moves) tail.animateTo(selected.toFloat(), androidx.compose.animation.core.spring(0.9f, 220f)) else tail.snapTo(selected.toFloat()) }
+        }
+    }
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.surface)
     Box(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth()) {
             labels.forEachIndexed { i, label ->
@@ -375,11 +415,33 @@ fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modi
                 }
             }
         }
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(hairLook.line).background(colors.outline))
-        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
-            val w = maxWidth / labels.size.coerceAtLeast(1)
-            Box(Modifier.offset(x = w * at).width(w).height(2.dp).background(colors.accent))
-        }
+        // Базовая линия и акцент рисуются вместе: акцент — короче вкладки, со скруглёнными концами,
+        // и никогда не вылезает за края полосы.
+        Box(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(2.dp)
+                .drawWithCache {
+                    val line = look.line.toPx().coerceAtLeast(1f)
+                    onDrawBehind {
+                        val y = size.height - line / 2f
+                        drawLine(colors.outline, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), line)
+                        val slot = size.width / labels.size.coerceAtLeast(1)
+                        val inset = slot * 0.18f
+                        val lo = minOf(head.value, tail.value) * slot + inset
+                        val hi = (maxOf(head.value, tail.value) + 1f) * slot - inset
+                        val ay = size.height - 1.dp.toPx()
+                        drawLine(
+                            tone,
+                            androidx.compose.ui.geometry.Offset(lo.coerceAtLeast(1.dp.toPx()), ay),
+                            androidx.compose.ui.geometry.Offset(hi.coerceAtMost(size.width - 1.dp.toPx()), ay),
+                            2.dp.toPx(),
+                            androidx.compose.ui.graphics.StrokeCap.Round,
+                        )
+                    }
+                },
+        )
     }
 }
 
@@ -419,7 +481,18 @@ private fun TabbedPanel(
             label = "panelTab",
         ) { tab ->
             LazyColumn(
-                (if (heightFraction != null) Modifier.fillMaxSize() else Modifier.heightIn(max = maxBody)).testTag("panel-list"),
+                (if (heightFraction != null) Modifier.fillMaxSize() else Modifier.heightIn(max = maxBody))
+                    .testTag("panel-list")
+                    // Список у нижнего края тает в фоне панели, а не обрезается по линейке.
+                    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        val fade = 28.dp.toPx() / size.height.coerceAtLeast(1f)
+                        drawRect(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color.Black, (1f - fade).coerceIn(0f, 1f) to Color.Black, 1f to Color.Transparent),
+                            blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                        )
+                    },
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             ) {
                 content(tab)
