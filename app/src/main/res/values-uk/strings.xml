@@ -1009,4 +1009,25 @@
     <string name="library_tile_mirrored">У YouTube</string>
     <string name="library_tile_saved">Лише читання</string>
     <string name="home_for_you">ДЛЯ ТЕБЕ</string>
+    <string name="day_today">Сьогодні</string>
+    <string name="day_yesterday">Учора</string>
+    <string name="day_earlier">Раніше</string>
+    <string name="stat_tracks">Треки</string>
+    <string name="stat_mb">МБ</string>
+    <string name="stat_queue">У черзі</string>
+    <string name="stat_files">Файли</string>
+    <string name="stat_minutes">Хвилини</string>
+    <string name="dl_folder_row">Тека для «зберегти в музику»</string>
+    <string name="dl_where_title">Де лежать завантаження</string>
+    <string name="downloads_saved">Завантажено</string>
+    <string name="welcome_label">Вхід виконано</string>
+    <string name="welcome_hello">Привіт, %1$s</string>
+    <string name="welcome_hello_plain">Привіт</string>
+    <string name="welcome_syncing">Забираю твою бібліотеку з YouTube Music</string>
+    <string name="welcome_ready">Усе на місці</string>
+    <string name="welcome_playlists">Плейлисти</string>
+    <string name="welcome_likes">Лайки</string>
+    <string name="welcome_albums">Альбоми</string>
+    <string name="welcome_go">Слухати</string>
+    <string name="welcome_later">Далі</string>
 </resources>

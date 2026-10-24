@@ -58,6 +58,9 @@ class LibraryRepository @Inject constructor(
         }
     val liked: Flow<List<SongItem>> = dao.likedSongs().map { list -> list.map(SongEntity::toItem) }
     val recent: Flow<List<SongItem>> = dao.recentSongs().map { list -> list.map(SongEntity::toItem) }
+
+    /** Время последнего прослушивания по треку: история делится по дням. */
+    val recentTimes: Flow<Map<String, Long>> = dao.recentPlayTimes().map { rows -> rows.associate { it.songId to it.lastPlayed } }
     val downloaded: Flow<List<SongItem>> =
         dao.songsWithDownloadState().map { list -> list.map(SongEntity::toItem) }
 

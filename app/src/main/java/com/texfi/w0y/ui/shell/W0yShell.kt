@@ -143,6 +143,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     var settingsOpen by remember { mutableStateOf(false) }
     var standOpen by remember { mutableStateOf(false) }
     var loginOpen by remember { mutableStateOf(false) }
+    // Приветствие после входа: один раз, сразу за экраном входа.
+    var welcomeOpen by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var loginBusy by remember { mutableStateOf(false) }
     val libraryViewModel: LibraryViewModel = hiltViewModel()
@@ -603,6 +605,24 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             )
         }
 
+        if (welcomeOpen) {
+            val name by libraryViewModel.accountName.collectAsStateWithLifecycle()
+            val avatar by libraryViewModel.accountAvatar.collectAsStateWithLifecycle()
+            val syncing by libraryViewModel.syncing.collectAsStateWithLifecycle()
+            val lists by libraryViewModel.playlists.collectAsStateWithLifecycle()
+            val liked by libraryViewModel.liked.collectAsStateWithLifecycle()
+            val albums by libraryViewModel.accountAlbums.collectAsStateWithLifecycle()
+            com.texfi.w0y.ui.components.HairWelcome(
+                name = name,
+                avatar = avatar,
+                syncing = syncing,
+                playlists = lists.count { it.remoteId != null },
+                likes = liked.size,
+                albums = albums.size,
+                onDone = { welcomeOpen = false },
+            )
+        }
+
         // Пиксельное перо — заставка Pixel/Smooth; в Hairline экран открывается сразу.
         if (!introDone && hair) {
             com.texfi.w0y.ui.components.HairIntro(onFinished = { introDone = true })
@@ -626,7 +646,11 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                             loginBusy = false
                             loginError = message
                             haptic(if (message == null) Buzz.DONE else Buzz.ERROR)
-                            if (message == null) loginOpen = false
+                            if (message == null) {
+                                loginOpen = false
+                                // Hairline: после входа — экран приветствия с итогом сверки.
+                                if (hair) welcomeOpen = true
+                            }
                         }
                     }
                 },

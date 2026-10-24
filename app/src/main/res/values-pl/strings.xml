@@ -1009,4 +1009,25 @@
     <string name="library_tile_mirrored">W YouTube</string>
     <string name="library_tile_saved">Tylko odczyt</string>
     <string name="home_for_you">DLA CIEBIE</string>
+    <string name="day_today">Dziś</string>
+    <string name="day_yesterday">Wczoraj</string>
+    <string name="day_earlier">Wcześniej</string>
+    <string name="stat_tracks">Utwory</string>
+    <string name="stat_mb">MB</string>
+    <string name="stat_queue">W kolejce</string>
+    <string name="stat_files">Pliki</string>
+    <string name="stat_minutes">Minuty</string>
+    <string name="dl_folder_row">Folder dla „zapisz w muzyce”</string>
+    <string name="dl_where_title">Gdzie są pobrane</string>
+    <string name="downloads_saved">Pobrane</string>
+    <string name="welcome_label">Zalogowano</string>
+    <string name="welcome_hello">Cześć, %1$s</string>
+    <string name="welcome_hello_plain">Cześć</string>
+    <string name="welcome_syncing">Pobieram twoją bibliotekę z YouTube Music</string>
+    <string name="welcome_ready">Wszystko na miejscu</string>
+    <string name="welcome_playlists">Playlisty</string>
+    <string name="welcome_likes">Polubienia</string>
+    <string name="welcome_albums">Albumy</string>
+    <string name="welcome_go">Słuchaj</string>
+    <string name="welcome_later">Dalej</string>
 </resources>

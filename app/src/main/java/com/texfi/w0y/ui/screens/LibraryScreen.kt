@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.texfi.w0y.ui.components.hairStagger
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
@@ -91,7 +93,9 @@ fun LibraryScreen(
         is LibraryRoute.Local -> LocalPlaylist(current.playlistId, viewModel)
         is LibraryRoute.Remote -> RemotePlaylist(current, viewModel)
         LibraryRoute.Liked -> SongList(stringResource(R.string.library_likes), viewModel.liked.collectAsStateWithLifecycle().value, viewModel, collection = true)
-        LibraryRoute.History -> SongList(stringResource(R.string.library_history), viewModel.recent.collectAsStateWithLifecycle().value, viewModel, onClear = viewModel::clearHistory)
+        LibraryRoute.History ->
+            if (com.texfi.w0y.ui.theme.isHair) HairHistory(viewModel)
+            else SongList(stringResource(R.string.library_history), viewModel.recent.collectAsStateWithLifecycle().value, viewModel, onClear = viewModel::clearHistory)
         LibraryRoute.Downloads -> DownloadsList(viewModel)
         LibraryRoute.Files -> LocalFilesList(viewModel)
         LibraryRoute.Stats -> StatsScreen(onBack = viewModel::back)
@@ -524,27 +528,45 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
             .fillMaxSize()
             .padding(horizontal = 18.dp),
     ) {
+        val hair = com.texfi.w0y.ui.theme.isHair
         ScreenTitle(title = stringResource(R.string.downloads_title), onBack = viewModel::back, horizontalPadding = 0.dp)
-        Text(
-            text =
-                stringResource(
-                    R.string.downloads_usage,
-                    (viewModel.downloads.usedBytes() / 1024 / 1024).toInt(),
-                    pending.size,
+        val usedMb = remember(songs.size, pending.size) { (viewModel.downloads.usedBytes() / 1024 / 1024).toInt() }
+        if (hair) {
+            // Hairline: вместо абзаца — три числа, строка папки и справка, раскрывающаяся по нажатию.
+            com.texfi.w0y.ui.components.HairStatStrip(
+                listOf(
+                    com.texfi.w0y.ui.components.HairStat(songs.size, stringResource(R.string.stat_tracks)),
+                    com.texfi.w0y.ui.components.HairStat(usedMb, stringResource(R.string.stat_mb)),
+                    com.texfi.w0y.ui.components.HairStat(pending.size, stringResource(R.string.stat_queue)),
                 ),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textMuted,
-        )
-        // «Где это» — вопрос, который задали первым. Ответ честный: не в
-        // папке «Музыка», а внутри приложения.
-        Text(
-            text = stringResource(R.string.downloads_where),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textMuted,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.downloads_usage, usedMb, pending.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textMuted,
+            )
+            // «Где это» — вопрос, который задали первым. Ответ честный: не в
+            // папке «Музыка», а внутри приложения.
+            Text(
+                text = stringResource(R.string.downloads_where),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textMuted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
         folder?.let { current ->
-            if (!current.asked) {
+            if (hair && current.asked) {
+                Box(Modifier.clickable { folderLauncher.launch(null) }) {
+                    PanelRow(com.texfi.w0y.ui.icons.HairGlyph.FOLDER, stringResource(R.string.dl_folder_row), folderName(current.tree) ?: stringResource(R.string.dl_folder_default))
+                }
+                com.texfi.w0y.ui.components.HairInfoToggle(stringResource(R.string.dl_where_title)) {
+                    Text(stringResource(R.string.downloads_where), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                    Spacer(Modifier.height(6.dp))
+                    Text(stringResource(R.string.export_warning_text), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                }
+            } else if (!current.asked) {
                 // Первый заход: куда сохранять на телефон — спрашиваем здесь,
                 // рядом с кнопкой сохранения, а не в глубине настроек.
                 PixelCard(label = stringResource(R.string.dl_folder_ask_title), modifier = Modifier.padding(top = 12.dp)) {
@@ -615,6 +637,7 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
                         },
                     onClick = { viewModel.exportDownloads(songs) },
                     enabled = !exporting,
+                    fill = if (hair) colors.surfaceHigh else null,
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
@@ -640,7 +663,8 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
         LazyColumn {
             if (failed.isNotEmpty()) {
                 item(key = "failed-header") {
-                    SectionHeader(stringResource(R.string.downloads_failed), modifier = Modifier.padding(vertical = 8.dp))
+                    if (hair) com.texfi.w0y.ui.components.HairGroupHeader(stringResource(R.string.downloads_failed), trailing = failed.size.toString())
+                    else SectionHeader(stringResource(R.string.downloads_failed), modifier = Modifier.padding(vertical = 8.dp))
                 }
                 items(failed, key = { "f-" + it.id }) { song ->
                     Column(Modifier.animateItem()) {
@@ -664,13 +688,16 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
                 }
                 item(key = "done-header") { Spacer(Modifier.height(10.dp)) }
             }
-            items(songs, key = { it.id }) { song ->
+            if (hair && songs.isNotEmpty()) {
+                item(key = "saved-header") { com.texfi.w0y.ui.components.HairGroupHeader(stringResource(R.string.downloads_saved), trailing = songs.size.toString()) }
+            }
+            itemsIndexed(songs, key = { _, it -> it.id }) { index, song ->
                 val state = progress[song.id]
                 val checked = song.id in selected
-                Column(Modifier.animateItem()) {
+                Column(Modifier.animateItem().then(if (hair) Modifier.hairStagger(index) else Modifier)) {
                     SongRow(
                         song = song,
-                        onClick = { if (selecting) toggle(song.id) else viewModel.playCollection(songs, songs.indexOf(song)) },
+                        onClick = { if (selecting) toggle(song.id) else viewModel.playCollection(songs, index) },
                         rowActions =
                             if (selecting) {
                                 emptyList()

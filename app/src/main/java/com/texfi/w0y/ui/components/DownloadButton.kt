@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -107,14 +108,17 @@ private fun HairDownloadButton(
 
         waiting -> SpriteButton(Sprites.timer, onClick = {}, active = true)
 
-        running ->
+        running -> {
+            // Кольцо догоняет проценты плавно, а не скачками по мере прихода замеров.
+            val shown by androidx.compose.animation.core.animateFloatAsState(fraction(), hairSpec(com.texfi.w0y.ui.theme.HairTokens.LONG_MS), label = "dlRing")
             androidx.compose.foundation.Canvas(Modifier.size(20.dp)) {
                 val w = look.line.toPx()
                 val inset = w / 2f + 1.dp.toPx()
                 val rect = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
                 drawArc(colors.border, 0f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), rect, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
-                drawArc(colors.progress, -90f, 360f * fraction(), false, androidx.compose.ui.geometry.Offset(inset, inset), rect, style = androidx.compose.ui.graphics.drawscope.Stroke(w * 1.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                drawArc(colors.progress, -90f, 360f * shown, false, androidx.compose.ui.geometry.Offset(inset, inset), rect, style = androidx.compose.ui.graphics.drawscope.Stroke(w * 1.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
+        }
 
         else -> SpriteButton(Sprites.download, onClick = onDownload)
     }

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -87,36 +88,51 @@ fun LocalFilesList(viewModel: LibraryViewModel) {
         if (target != null) {
             // Правка видит актуальную строку: после сохранения название меняется на месте.
             val live = songs.firstOrNull { it.id == target.id } ?: target
-            LocalFileEditor(
-                song = live,
-                onSave = { title, artist, album, cover, clear ->
-                    viewModel.editFile(live, title, artist, album, cover, clear)
-                    editing = null
-                },
-                onRemove = {
-                    viewModel.removeFile(live)
-                    editing = null
-                },
-                onClose = { editing = null },
-            )
+            val save: (String, String, String, Uri?, Boolean) -> Unit = { title, artist, album, cover, clear ->
+                viewModel.editFile(live, title, artist, album, cover, clear)
+                editing = null
+            }
+            val remove = {
+                viewModel.removeFile(live)
+                editing = null
+            }
+            if (isHair) {
+                HairFileEditor(song = live, onSave = save, onRemove = remove, onClose = { editing = null })
+            } else {
+                LocalFileEditor(song = live, onSave = save, onRemove = remove, onClose = { editing = null })
+            }
         } else {
             Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                 ScreenTitle(title = stringResource(R.string.lm_card).lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp) {
                     SpriteButton(Sprites.plus, onClick = { if (importing == null) picker.launch(arrayOf("audio/*")) }, active = true, size = 18)
                 }
+                if (isHair && songs.isNotEmpty()) {
+                    val minutes = remember(songs) { songs.sumOf { durationSeconds(it.durationText) } / 60 }
+                    com.texfi.w0y.ui.components.HairStatStrip(
+                        listOf(
+                            com.texfi.w0y.ui.components.HairStat(songs.size, stringResource(R.string.stat_files)),
+                            com.texfi.w0y.ui.components.HairStat(minutes, stringResource(R.string.stat_minutes)),
+                        ),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
                 ImportBanner(importing, result)
                 if (songs.isEmpty() && importing == null) {
-                    EmptyState(
-                        sprite = Sprites.note,
-                        title = stringResource(R.string.lm_empty_title),
-                        text = stringResource(R.string.lm_empty_text),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    PixelButton(stringResource(R.string.lm_add), onClick = { picker.launch(arrayOf("audio/*")) })
+                    if (isHair) {
+                        HairDropCard(onClick = { picker.launch(arrayOf("audio/*")) })
+                    } else {
+                        EmptyState(
+                            sprite = Sprites.note,
+                            title = stringResource(R.string.lm_empty_title),
+                            text = stringResource(R.string.lm_empty_text),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PixelButton(stringResource(R.string.lm_add), onClick = { picker.launch(arrayOf("audio/*")) })
+                    }
                 } else {
                     LazyColumn {
-                        items(songs, key = { it.id }) { song ->
-                            Box(Modifier.animateItem().hairStagger(songs.indexOf(song))) {
+                        itemsIndexed(songs, key = { _, it -> it.id }) { index, song ->
+                            Box(Modifier.animateItem().hairStagger(index)) {
                                 SongRow(
                                     song = song,
                                     // Играет один трек: дальше подборка (рекомендации по этому файлу), а не весь список файлов.
@@ -143,6 +159,19 @@ private fun ImportBanner(progress: Pair<Int, Int>?, result: Pair<Int, Int>?) {
         label = "importBanner",
     ) { (p, r, idle) ->
         when {
+            p != null && isHair -> {
+                // Hairline: счётчик и тонкая полоса — сколько из скольких уже добавлено.
+                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                    Text(
+                        stringResource(R.string.lm_adding, p.first.coerceAtMost(p.second), p.second).asLabel(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textMuted,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    com.texfi.w0y.ui.components.HairProgressLine(if (p.second > 0) p.first.toFloat() / p.second else null)
+                }
+            }
+
             p != null -> {
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 10.dp),
@@ -279,3 +308,7 @@ private fun EditorField(label: String, value: String, onChange: (String) -> Unit
         )
     }
 }
+
+/** «3:19» → 199, «1:02:11» → 3731; непонятное — ноль. */
+internal fun durationSeconds(text: String?): Int =
+    text?.split(':')?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.isNotEmpty() }?.fold(0) { acc, part -> acc * 60 + part } ?: 0

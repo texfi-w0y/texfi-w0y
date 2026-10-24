@@ -143,6 +143,8 @@ class LibraryViewModel @Inject constructor(
         library.liked.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val recent: StateFlow<List<SongItem>> =
         library.recent.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val recentTimes: StateFlow<Map<String, Long>> =
+        library.recentTimes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
     val downloaded: StateFlow<List<SongItem>> =
         library.downloaded.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val isSignedIn: StateFlow<Boolean> =

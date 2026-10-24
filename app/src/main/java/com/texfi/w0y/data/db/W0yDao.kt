@@ -440,6 +440,18 @@ interface W0yDao {
     )
     fun recentSongs(limit: Int = 50): Flow<List<SongEntity>>
 
+    /** Когда трек из истории играл последний раз и сколько раз всего — для групп по дням. */
+    @Query(
+        """
+        SELECT history.songId AS songId, MAX(history.playedAt) AS lastPlayed, COUNT(history.id) AS plays
+        FROM history
+        GROUP BY history.songId
+        ORDER BY lastPlayed DESC
+        LIMIT :limit
+        """,
+    )
+    fun recentPlayTimes(limit: Int = 50): Flow<List<RecentPlayRow>>
+
     /**
      * Что слушается чаще всего. Сортировка вторым ключом по свежести:
      * иначе два трека с равным счётом менялись бы местами при каждом
@@ -628,6 +640,9 @@ interface W0yDao {
     @Query("SELECT COUNT(*) FROM pins WHERE key = :key")
     suspend fun isPinned(key: String): Int
 }
+
+/** Последнее прослушивание трека и сколько раз он играл. */
+data class RecentPlayRow(val songId: String, val lastPlayed: Long, val plays: Int)
 
 /** Первая картинка плейлиста — обложка, когда своей нет. */
 data class PlaylistCoverRow(val playlistId: Long, val url: String)
