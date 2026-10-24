@@ -2056,18 +2056,6 @@ private fun MutableList<SettingRow>.addHairRows(
             control = SettingControl.Toggle(settings.dockGlow, viewModel::setDockGlow),
         ),
     )
-    choice("dock_surface_title", R.string.dock_surface_title, R.string.dock_surface_desc, com.texfi.w0y.data.DockSurface.entries, settings.dockSurface, { stringResource(if (it == com.texfi.w0y.data.DockSurface.GLASS) R.string.dock_surface_glass else R.string.dock_surface_solid) }, viewModel::setDockSurface, "panel glass blur frosted solid стекло размытие")
-    add(
-        SettingRow(
-            id = "dock_progress_title",
-            title = context.getString(R.string.dock_progress_title),
-            description = context.getString(R.string.dock_progress_desc),
-            keywords = "panel progress outline line прогресс контур",
-            control = SettingControl.Toggle(settings.dockProgress, viewModel::setDockProgress),
-        ),
-    )
-    choice("dock_indicator_title", R.string.dock_indicator_title, R.string.dock_indicator_desc, com.texfi.w0y.data.DockIndicator.entries, settings.dockIndicator, { stringResource(when (it) { com.texfi.w0y.data.DockIndicator.LINE -> R.string.dock_indicator_line; com.texfi.w0y.data.DockIndicator.DOT -> R.string.dock_indicator_dot; com.texfi.w0y.data.DockIndicator.FRAME -> R.string.dock_indicator_frame }) }, viewModel::setDockIndicator, "panel tab active marker underline dot frame")
-    choice("dock_size_title", R.string.dock_size_title, R.string.dock_size_desc, com.texfi.w0y.data.DockSize.entries, settings.dockSize, { stringResource(if (it == com.texfi.w0y.data.DockSize.COMPACT) R.string.dock_size_compact else R.string.dock_size_regular) }, viewModel::setDockSize, "panel height compact small")
     add(
         SettingRow(
             id = "hl_set_swipe",

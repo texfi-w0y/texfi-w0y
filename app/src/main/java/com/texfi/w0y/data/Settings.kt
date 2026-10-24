@@ -255,15 +255,6 @@ enum class DockTint { COVER, ACCENT, NONE }
 /** Подписи вкладок: у всех, только у активной или без подписей. */
 enum class DockLabels { ALL, ACTIVE, NONE }
 
-/** Корпус панели: плотная заливка или стекло, которое размывает экран под собой. */
-enum class DockSurface { SOLID, GLASS }
-
-/** Отметка активной вкладки: линия под ней, точка или тонкая рамка вокруг. */
-enum class DockIndicator { LINE, DOT, FRAME }
-
-/** Высота панели: компактная или обычная. */
-enum class DockSize { COMPACT, REGULAR }
-
 /** Сезонные эффекты на фоне (снег, туман): выключены, спокойно или в полную силу. */
 enum class SeasonFx { OFF, LIGHT, FULL }
 
@@ -455,11 +446,6 @@ data class W0ySettings(
     val dockLabels: DockLabels = DockLabels.ACTIVE,
     /** Дыхание и свечение панели, пока играет музыка. */
     val dockGlow: Boolean = true,
-    val dockSurface: DockSurface = DockSurface.GLASS,
-    /** Прогресс трека бежит по контуру панели. */
-    val dockProgress: Boolean = true,
-    val dockIndicator: DockIndicator = DockIndicator.LINE,
-    val dockSize: DockSize = DockSize.REGULAR,
     /** Своя картинка фона — файл на телефоне, file://…; null, пока не выбрана. */
     val backdropImage: String? = null,
     val seasonMode: SeasonMode = SeasonMode.AUTO,
@@ -602,10 +588,6 @@ class SettingsRepository @Inject constructor(
                     dockTint = prefs.enum(Keys.DOCK_TINT, d.dockTint),
                     dockLabels = prefs.enum(Keys.DOCK_LABELS, d.dockLabels),
                     dockGlow = prefs[Keys.DOCK_GLOW] ?: d.dockGlow,
-                    dockSurface = prefs.enum(Keys.DOCK_SURFACE, d.dockSurface),
-                    dockProgress = prefs[Keys.DOCK_PROGRESS] ?: d.dockProgress,
-                    dockIndicator = prefs.enum(Keys.DOCK_INDICATOR, d.dockIndicator),
-                    dockSize = prefs.enum(Keys.DOCK_SIZE, d.dockSize),
                     backdropImage = prefs[Keys.BACKDROP_IMAGE],
                     seasonMode = prefs.enum(Keys.SEASON_MODE, d.seasonMode),
                     seasonFx = prefs.enum(Keys.SEASON_FX, d.seasonFx),
@@ -919,14 +901,6 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setDockGlow(value: Boolean) = put(Keys.DOCK_GLOW, value)
 
-    suspend fun setDockSurface(value: DockSurface) = put(Keys.DOCK_SURFACE, value.name)
-
-    suspend fun setDockProgress(value: Boolean) = put(Keys.DOCK_PROGRESS, value)
-
-    suspend fun setDockIndicator(value: DockIndicator) = put(Keys.DOCK_INDICATOR, value.name)
-
-    suspend fun setDockSize(value: DockSize) = put(Keys.DOCK_SIZE, value.name)
-
     suspend fun setSeasonFx(value: SeasonFx) = put(Keys.SEASON_FX, value.name)
 
     suspend fun setBackdropImage(value: String?) {
@@ -1170,10 +1144,6 @@ class SettingsRepository @Inject constructor(
         val DOCK_TINT = stringPreferencesKey("dock_tint")
         val DOCK_LABELS = stringPreferencesKey("dock_labels")
         val DOCK_GLOW = booleanPreferencesKey("dock_glow")
-        val DOCK_SURFACE = stringPreferencesKey("dock_surface")
-        val DOCK_PROGRESS = booleanPreferencesKey("dock_progress")
-        val DOCK_INDICATOR = stringPreferencesKey("dock_indicator")
-        val DOCK_SIZE = stringPreferencesKey("dock_size")
         val SEASON_FX = stringPreferencesKey("season_fx")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")

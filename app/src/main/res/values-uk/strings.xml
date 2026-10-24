@@ -996,25 +996,10 @@
     <string name="whatsnew_dialog_label">Що нового</string>
     <string name="whatsnew_ok">Зрозуміло</string>
 
-    <!-- Hairline: движение, остров, сезонные эффекты, визуализаторы -->
+    <!-- Hairline: сезонные эффекты, визуализаторы, текст песни -->
     <string name="viz_pulse">Пульс</string>
     <string name="viz_horizon">Обрій</string>
     <string name="viz_dots">Крапки</string>
-    <string name="dock_surface_title">Корпус панелі</string>
-    <string name="dock_surface_desc">Скло розмиває екран під панеллю, щільний — звичайна заливка.</string>
-    <string name="dock_surface_glass">Скло</string>
-    <string name="dock_surface_solid">Щільний</string>
-    <string name="dock_progress_title">Прогрес по контуру</string>
-    <string name="dock_progress_desc">Хід треку біжить лінією по контуру панелі.</string>
-    <string name="dock_indicator_title">Позначка вкладки</string>
-    <string name="dock_indicator_desc">Як позначено вибрану вкладку: лінія, крапка чи тонка рамка.</string>
-    <string name="dock_indicator_line">Лінія</string>
-    <string name="dock_indicator_dot">Крапка</string>
-    <string name="dock_indicator_frame">Рамка</string>
-    <string name="dock_size_title">Висота панелі</string>
-    <string name="dock_size_desc">Компактна лишає більше місця спискам.</string>
-    <string name="dock_size_compact">Компактна</string>
-    <string name="dock_size_regular">Звичайна</string>
     <string name="season_fx_title">Сезонні ефекти</string>
     <string name="season_fx_desc">Узимку падає сніг, на Гелловін — туман і кажани. На тлі, за екранами.</string>
     <string name="season_fx_off">Вимк.</string>

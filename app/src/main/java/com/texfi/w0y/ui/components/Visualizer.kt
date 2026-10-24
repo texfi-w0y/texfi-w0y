@@ -176,8 +176,8 @@ fun Visualizer(
                     VisualizerStyle.LINES -> hairLines(levels, peaks, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
                     VisualizerStyle.ORBIT -> hairOrbit(levels, analyzer.bass, frame, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.progress, colors.border, look.line.toPx())
                     VisualizerStyle.TERRAIN -> hairTerrain(history, historyHead, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.surface, look.line.toPx())
-                    VisualizerStyle.PULSE -> hairPulse(levels, history, historyHead, analyzer.bass, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
-                    VisualizerStyle.HORIZON -> hairHorizon(levels, history, historyHead, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
+                    VisualizerStyle.PULSE -> hairPulse(levels, history, historyHead, frame, analyzer.bass, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
+                    VisualizerStyle.HORIZON -> hairHorizon(levels, history, historyHead, frame, colors.text, Contrast.ensure(colors.accent, colors.surface), colors.border, look.line.toPx())
                     VisualizerStyle.DOTS -> hairDots(levels, peaks, colors.text, Contrast.ensure(colors.accent, colors.surface))
                 }
             }
@@ -397,110 +397,170 @@ private fun bassOf(row: FloatArray): Float {
     return sum / 4f
 }
 
+/** Доля пути между двумя записями истории: 0 сразу после новой записи, к следующей — почти 1. Волны идут плавно, а не шагами. */
+private fun historyPhase(frame: Long): Float = ((frame + HISTORY_EVERY - 1) % HISTORY_EVERY).toFloat() / HISTORY_EVERY
+
 /**
  * Hairline: «пульс». Каждое прошлое мгновение — кольцо, которое уже отошло от центра: чем
- * сильнее тогда был бас, тем ярче кольцо. Получаются расходящиеся волны в такт. В центре —
- * круг, который дышит от баса, вокруг него — замкнутая линия спектра.
+ * сильнее тогда был бас, тем ярче и толще кольцо, сильные удары — акцентом. Кольца плывут
+ * между записями плавно. По внешнему кругу — шкала делений, в центре мягкий отсвет баса,
+ * вокруг него — замкнутая линия спектра с лёгкой заливкой.
  */
-private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, head: Long, bass: Float, line: Color, accent: Color, grid: Color, w: Float) {
+private fun DrawScope.hairPulse(levels: FloatArray, history: Array<FloatArray>, head: Long, frame: Long, bass: Float, line: Color, accent: Color, grid: Color, w: Float) {
     val c = center
-    val base = min(size.width, size.height) * 0.14f
-    val reach = min(size.width, size.height) * 0.48f
+    val m = min(size.width, size.height)
+    val base = m * 0.14f
+    val reach = m * 0.47f
     val rows = history.size
+    val phase = historyPhase(frame)
+    val b = bass.coerceIn(0f, 1f)
+    if (b > 0.04f) {
+        val glow = base * 3.2f
+        drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.26f * b), Color.Transparent), center = c, radius = glow), glow, c)
+    }
     // Волны: от старых (дальних) к новым.
+    val start = base * 1.6f
     for (age in rows - 1 downTo 1) {
         val row = history[((head - age) % rows + rows).toInt() % rows]
         val e = bassOf(row)
         if (e < 0.08f) continue
-        val f = age.toFloat() / rows
-        val r = base * 1.6f + (reach - base * 1.6f) * f
-        drawCircle(line.copy(alpha = (e * (1f - f) * 0.85f).coerceIn(0f, 0.85f)), r, c, style = Stroke(w * (1f + e)))
+        val f = ((age - 1 + phase) / (rows - 1)).coerceIn(0f, 1f)
+        val fade = 1f - f
+        val r = start + (reach - start) * f
+        val tone = if (e > 0.62f) accent else line
+        drawCircle(tone.copy(alpha = (e * fade * fade * 0.95f).coerceIn(0f, 0.95f)), r, c, style = Stroke(w * (1f + 1.6f * e * fade)))
     }
+    // Шкала по внешнему кругу: короткие деления, каждое восьмое длиннее, как на приборе.
     drawCircle(grid, reach, c, style = Stroke(w))
+    val ticks = 64
+    for (t in 0 until ticks) {
+        val a = t.toFloat() / ticks * 2f * PI.toFloat()
+        val dir = Offset(cos(a), sin(a))
+        val len = if (t % 8 == 0) 7.dp.toPx() else 3.dp.toPx()
+        drawLine(grid, c + dir * reach, c + dir * (reach + len), w)
+    }
     // Замкнутый спектр вокруг центра: плавная линия через середины соседних точек.
     val n = levels.size * 2
-    val pts = Array(n) { i ->
-        val v = levels[if (i < levels.size) i else n - 1 - i]
-        val a = (i.toFloat() / n) * 2f * PI.toFloat() - PI.toFloat() / 2f
-        val r = base * 1.25f + base * 0.9f * v
-        Offset(c.x + cos(a) * r, c.y + sin(a) * r)
+    fun pt(i: Int): Offset {
+        val k = i % n
+        val v = levels[if (k < levels.size) k else n - 1 - k]
+        val a = (k.toFloat() / n) * 2f * PI.toFloat() - PI.toFloat() / 2f
+        val r = base * 1.25f + base * 0.95f * v
+        return Offset(c.x + cos(a) * r, c.y + sin(a) * r)
     }
     val path = Path()
     for (i in 0..n) {
-        val p0 = pts[i % n]
-        val p1 = pts[(i + 1) % n]
-        val mid = Offset((p0.x + p1.x) / 2f, (p0.y + p1.y) / 2f)
-        if (i == 0) path.moveTo(mid.x, mid.y) else path.quadraticTo(p0.x, p0.y, mid.x, mid.y)
+        val p0 = pt(i)
+        val p1 = pt(i + 1)
+        val mx = (p0.x + p1.x) / 2f
+        val my = (p0.y + p1.y) / 2f
+        if (i == 0) path.moveTo(mx, my) else path.quadraticTo(p0.x, p0.y, mx, my)
     }
     path.close()
-    drawPath(path, accent, style = Stroke(w * 1.4f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-    drawCircle(line.copy(alpha = 0.9f), base * (0.55f + 0.35f * bass.coerceIn(0f, 1f)), c, style = Stroke(w * 1.3f))
-    drawCircle(accent, w * 2.2f, c)
+    drawPath(path, accent.copy(alpha = 0.10f + 0.10f * b))
+    drawPath(path, accent, style = Stroke(w * 1.5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    drawCircle(line.copy(alpha = 0.9f), base * (0.55f + 0.35f * b), c, style = Stroke(w * 1.3f))
+    drawCircle(accent, w * 2.4f, c)
 }
 
 /**
- * Hairline: «горизонт». Плавная линия спектра по ширине, отражённая вниз и бледнее; за ней
- * тают три прошлых линии — как след на длинной выдержке. Посередине — линия горизонта.
+ * Hairline: «горизонт». Плавная линия спектра по ширине со светом под ней, отражённая вниз
+ * и бледнее. Прошлые линии отплывают вдаль — чуть выше и ниже ростом, плавно, без рывков.
+ * Над самой громкой полосой висит акцентная точка с тонкой нитью до горизонта.
  */
-private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>, head: Long, line: Color, accent: Color, grid: Color, w: Float) {
-    val mid = size.height * 0.5f
+private fun DrawScope.hairHorizon(levels: FloatArray, history: Array<FloatArray>, head: Long, frame: Long, line: Color, accent: Color, grid: Color, w: Float) {
+    val mid = size.height * 0.56f
     val amp = size.height * 0.36f
     val pad = size.width * 0.06f
     val width = size.width - pad * 2f
     drawLine(grid, Offset(0f, mid), Offset(size.width, mid), w)
-    fun curve(data: FloatArray, dir: Float): Path {
+    fun yOf(data: FloatArray, i: Int, base: Float, dir: Float, scale: Float): Float {
+        val f = (i + 0.5f) / data.size
+        val edge = sin(f * PI.toFloat()).coerceIn(0f, 1f)
+        return base - dir * data[i] * amp * scale * edge
+    }
+    fun curve(data: FloatArray, base: Float, dir: Float, scale: Float): Path {
         val path = Path()
-        val count = data.size
         var px = pad
-        var py = mid
+        var py = base
         path.moveTo(px, py)
-        for (i in 0 until count) {
-            val f = (i + 0.5f) / count
-            val edge = sin(f * PI.toFloat()).coerceIn(0f, 1f)
-            val x = pad + width * f
-            val y = mid - dir * data[i] * amp * edge
+        for (i in data.indices) {
+            val x = pad + width * (i + 0.5f) / data.size
+            val y = yOf(data, i, base, dir, scale)
             val cx = (px + x) / 2f
             path.cubicTo(cx, py, cx, y, x, y)
             px = x
             py = y
         }
         val endX = pad + width
-        path.cubicTo((px + endX) / 2f, py, (px + endX) / 2f, mid, endX, mid)
+        path.cubicTo((px + endX) / 2f, py, (px + endX) / 2f, base, endX, base)
         return path
     }
+    // След: прошлые линии уходят вдаль, плывут между записями плавно.
     val rows = history.size
-    for (age in 3 downTo 1) {
-        val row = history[((head - age * 2) % rows + rows).toInt() % rows]
-        drawPath(curve(row, 1f), line.copy(alpha = 0.10f + 0.06f * (3 - age)), style = Stroke(w))
+    val phase = historyPhase(frame)
+    val echoes = 5
+    for (age in echoes downTo 1) {
+        val row = history[((head - age) % rows + rows).toInt() % rows]
+        val f = ((age - 1 + phase) / echoes).coerceIn(0f, 1f)
+        val lift = size.height * 0.16f * f
+        drawPath(curve(row, mid - lift, 1f, 1f - 0.35f * f), line.copy(alpha = 0.22f * (1f - f)), style = Stroke(w))
     }
-    drawPath(curve(levels, -1f), line.copy(alpha = 0.25f), style = Stroke(w))
-    drawPath(curve(levels, 1f), accent, style = Stroke(w * 1.6f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    // Отражение и основная линия: под ней мягкий свет, по ней — широкий бледный ореол.
+    val mirror = curve(levels, mid, -1f, 0.55f)
+    drawPath(mirror, line.copy(alpha = 0.22f), style = Stroke(w))
+    val main = curve(levels, mid, 1f, 1f)
+    val fill = Path().apply {
+        addPath(main)
+        lineTo(pad, mid)
+        close()
+    }
+    drawPath(fill, Brush.verticalGradient(listOf(accent.copy(alpha = 0.30f), accent.copy(alpha = 0f)), startY = mid - amp, endY = mid))
+    drawPath(main, accent.copy(alpha = 0.16f), style = Stroke(w * 5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    drawPath(main, accent, style = Stroke(w * 1.6f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    // Пик: самая громкая полоса.
+    var top = 0
+    for (i in levels.indices) if (levels[i] > levels[top]) top = i
+    if (levels[top] > 0.08f) {
+        val x = pad + width * (top + 0.5f) / levels.size
+        val y = yOf(levels, top, mid, 1f, 1f)
+        drawLine(accent.copy(alpha = 0.35f), Offset(x, y), Offset(x, mid), w)
+        drawCircle(accent.copy(alpha = 0.25f), w * 5f, Offset(x, y))
+        drawCircle(accent, w * 2.4f, Offset(x, y))
+    }
 }
 
 /**
  * Hairline: «точки». Матрица круглых точек: в колонке горит столько, сколько уровень полосы,
- * над ней висит акцентная точка пика, остальные — едва видны. Как табло из точек.
+ * верхняя горящая разгорается плавно, а не щёлкает. Над колонкой висит акцентная точка пика
+ * с ореолом, остальные — едва видны. Как табло из точек.
  */
 private fun DrawScope.hairDots(levels: FloatArray, peaks: FloatArray, line: Color, accent: Color) {
     val cols = levels.size / 2
     val step = size.width / (cols + 1)
     val rows = ((size.height * 0.84f) / step).toInt().coerceIn(6, 18)
     val top = (size.height - rows * step) / 2f + step / 2f
-    val r = step * 0.28f
+    val r = step * 0.30f
+    val dim = r * 0.55f
     for (cx in 0 until cols) {
-        val v = (levels[cx * 2] + levels[cx * 2 + 1]) / 2f
-        val pk = (peaks[cx * 2] + peaks[cx * 2 + 1]) / 2f
-        val on = (v * rows).toInt()
+        val v = ((levels[cx * 2] + levels[cx * 2 + 1]) / 2f).coerceIn(0f, 1f)
+        val pk = ((peaks[cx * 2] + peaks[cx * 2 + 1]) / 2f).coerceIn(0f, 1f)
+        val fill = v * rows
         val peakRow = (pk * rows).toInt().coerceIn(0, rows - 1)
         val x = step * (cx + 1)
         for (ry in 0 until rows) {
             val y = top + (rows - 1 - ry) * step
-            val color = when {
-                ry == peakRow && pk > 0.05f -> accent
-                ry < on -> line.copy(alpha = 0.55f + 0.45f * (ry.toFloat() / rows))
-                else -> line.copy(alpha = 0.08f)
+            val c = Offset(x, y)
+            if (ry == peakRow && pk > 0.05f) {
+                drawCircle(accent.copy(alpha = 0.22f), r * 1.9f, c)
+                drawCircle(accent, r, c)
+                continue
             }
-            drawCircle(color, if (ry < on || ry == peakRow) r else r * 0.7f, Offset(x, y))
+            // Сколько точка горит: целиком, частично (верхняя) или нет.
+            val lit = (fill - ry).coerceIn(0f, 1f)
+            val height = ry.toFloat() / rows
+            val alpha = 0.08f + lit * (0.5f + 0.42f * height)
+            drawCircle(line.copy(alpha = alpha), dim + (r - dim) * lit, c)
         }
     }
 }

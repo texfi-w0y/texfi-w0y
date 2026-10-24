@@ -996,25 +996,10 @@
     <string name="whatsnew_dialog_label">Что нового</string>
     <string name="whatsnew_ok">Понятно</string>
 
-    <!-- Hairline: движение, остров, сезонные эффекты, визуализаторы -->
+    <!-- Hairline: сезонные эффекты, визуализаторы, текст песни -->
     <string name="viz_pulse">Пульс</string>
     <string name="viz_horizon">Горизонт</string>
     <string name="viz_dots">Точки</string>
-    <string name="dock_surface_title">Корпус панели</string>
-    <string name="dock_surface_desc">Стекло размывает экран под панелью, плотный — обычная заливка.</string>
-    <string name="dock_surface_glass">Стекло</string>
-    <string name="dock_surface_solid">Плотный</string>
-    <string name="dock_progress_title">Прогресс по контуру</string>
-    <string name="dock_progress_desc">Ход трека бежит линией по контуру панели.</string>
-    <string name="dock_indicator_title">Отметка вкладки</string>
-    <string name="dock_indicator_desc">Как отмечена выбранная вкладка: линия, точка или тонкая рамка.</string>
-    <string name="dock_indicator_line">Линия</string>
-    <string name="dock_indicator_dot">Точка</string>
-    <string name="dock_indicator_frame">Рамка</string>
-    <string name="dock_size_title">Высота панели</string>
-    <string name="dock_size_desc">Компактная оставляет больше места спискам.</string>
-    <string name="dock_size_compact">Компактная</string>
-    <string name="dock_size_regular">Обычная</string>
     <string name="season_fx_title">Сезонные эффекты</string>
     <string name="season_fx_desc">Зимой идёт снег, на Хэллоуин — туман и летучие мыши. На фоне, за экранами.</string>
     <string name="season_fx_off">Выкл.</string>

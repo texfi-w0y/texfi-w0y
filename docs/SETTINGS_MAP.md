@@ -83,10 +83,6 @@
 | 5. ВИД | Bottom bar tint (`dock_tint_title`) | `dock_tint` | COVER |  |
 | 5. ВИД | Bottom bar labels (`dock_labels_title`) | `dock_labels` | ACTIVE |  |
 | 5. ВИД | Bottom bar glow (`dock_glow_title`) | `dock_glow` | true |  |
-| 5. ВИД | Bottom bar glass (`dock_surface_title`) | `dock_surface` | GLASS |  |
-| 5. ВИД | Progress on the bar outline (`dock_progress_title`) | `dock_progress` | true |  |
-| 5. ВИД | Active tab marker (`dock_indicator_title`) | `dock_indicator` | LINE |  |
-| 5. ВИД | Bottom bar height (`dock_size_title`) | `dock_size` | REGULAR |  |
 | 5. ВИД | Start tab (`settings_start_tab_title`) | `start_tab` | LAST |  |
 | 5. ВИД | Language (`settings_language_title`) | `language` | SYSTEM |  |
 | 5. ВИД | Compact rows (`settings_compact_title`) | `compact_rows` | false |  |

@@ -16,9 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,44 +110,21 @@ fun SectionHeader(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
-                if (hair) {
-                    // Hairline: стрелка — акцентом, подпись — приглушённо: заголовок не серый целиком.
-                    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
-                    Text(
-                        text =
-                            androidx.compose.ui.text.buildAnnotatedString {
-                                pushStyle(androidx.compose.ui.text.SpanStyle(color = tone))
-                                append("❯ ")
-                                pop()
-                                append(label.asLabel())
-                            },
-                        style = PixelSectionLabel,
-                        color = colors.textMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = labelMax),
-                    )
-                } else {
-                    Text(
-                        text = if (smooth) label else "❯ ${label.uppercase()}",
-                        style = if (smooth) MaterialTheme.typography.titleMedium else PixelSectionLabel,
-                        color = if (smooth) colors.text else colors.accentText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = labelMax),
-                    )
-                }
+                Text(
+                    text = if (hair) "❯ ${label.asLabel()}" else if (smooth) label else "❯ ${label.uppercase()}",
+                    style = if (hair) PixelSectionLabel else if (smooth) MaterialTheme.typography.titleMedium else PixelSectionLabel,
+                    color = if (hair) colors.textMuted else if (smooth) colors.text else colors.accentText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = labelMax),
+                )
                 Spacer(Modifier.width(10.dp))
-                if (hair) {
-                    HairRuleLine(Modifier.weight(1f).height(1.dp))
-                } else {
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(if (smooth) 0.dp else 2.dp)
-                            .background(colors.border),
-                    )
-                }
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(if (hair) 1.dp else if (smooth) 0.dp else 2.dp)
+                        .background(colors.border),
+                )
                 Spacer(Modifier.width(10.dp))
                 action()
             }
@@ -160,43 +134,6 @@ fun SectionHeader(
             Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         }
     }
-}
-
-/**
- * Линия раздела Hairline: при первом появлении вычерчивается слева направо, впереди бежит
- * короткая яркая «головка» акцента и гаснет у конца. Один раз за жизнь строки: при прокрутке
- * туда-обратно линия уже на месте.
- */
-@Composable
-private fun HairRuleLine(modifier: Modifier) {
-    val colors = LocalW0yColors.current
-    val draws = com.texfi.w0y.ui.theme.hairLook.motion.draws
-    var drawn by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(!draws) }
-    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (drawn) 1f else 0f) }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        if (!drawn) {
-            progress.animateTo(1f, androidx.compose.animation.core.tween(620, delayMillis = 80, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut))
-            drawn = true
-        }
-    }
-    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
-    Box(
-        modifier.drawBehind {
-            val p = progress.value
-            val y = size.height / 2f
-            val end = size.width * p
-            drawLine(colors.border, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(end, y), size.height.coerceAtLeast(1f))
-            if (p < 1f) {
-                val tip = 28.dp.toPx()
-                drawLine(
-                    androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(androidx.compose.ui.graphics.Color.Transparent, tone), startX = end - tip, endX = end),
-                    androidx.compose.ui.geometry.Offset((end - tip).coerceAtLeast(0f), y),
-                    androidx.compose.ui.geometry.Offset(end, y),
-                    1.5.dp.toPx(),
-                )
-            }
-        },
-    )
 }
 
 /**

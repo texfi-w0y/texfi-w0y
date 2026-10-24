@@ -136,7 +136,7 @@ class ShellViewModel @Inject constructor(
 
     val dockConfig: StateFlow<com.texfi.w0y.ui.components.DockConfig> =
         settings.settings
-            .map { com.texfi.w0y.ui.components.DockConfig(it.dockShape, it.dockTint, it.dockLabels, it.dockGlow, it.dockSurface, it.dockProgress, it.dockIndicator, it.dockSize) }
+            .map { com.texfi.w0y.ui.components.DockConfig(it.dockShape, it.dockTint, it.dockLabels, it.dockGlow) }
             .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.ui.components.DockConfig())
 
