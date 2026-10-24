@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.4 beta-2 — Bug fixed
+
+Android clean-up after beta-1: stray "&" in track subtitles, feeds switching to
+English, dates and numbering fixed; calmer Hairline without glow; seasonal effects,
+three new visualizers, lyrics without the player, a welcome screen after signing in,
+and redone Downloads, My files and History. Details in the
+[release notes](docs/RELEASE_NOTES.md).
+
 ## v0.0.4 beta-1 — w0y with desktop
 
 The computer version grows up: Windows is new, Linux is rebuilt in the Hairline

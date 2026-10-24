@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-v0.0.4%20beta--1-4a7cfb?style=flat-square">
+  <img alt="version" src="https://img.shields.io/badge/version-v0.0.4%20beta--2-4a7cfb?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-e0a860?style=flat-square">
   <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%20%C2%B7%20Windows%20%C2%B7%20Linux-4a7cfb?style=flat-square">
 </p>
@@ -88,8 +88,8 @@ The full list is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 **Android 8.0 (API 26) or newer.**
 
-1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.4-beta-1/TexFi-w0y-android.apk)
-   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.4-beta-1)
+1. Download [`TexFi-w0y-android.apk`](https://github.com/texfi-w0y/texfi-w0y/releases/download/v0.0.4-beta-2/TexFi-w0y-android.apk)
+   from the [release page](https://github.com/texfi-w0y/texfi-w0y/releases/tag/v0.0.4-beta-2)
    and open it. Checksums are in `SHA256SUMS.txt` next to it.
 2. Or add `https://github.com/texfi-w0y/texfi-w0y` to
    [Obtainium](https://github.com/ImranR98/Obtainium).
