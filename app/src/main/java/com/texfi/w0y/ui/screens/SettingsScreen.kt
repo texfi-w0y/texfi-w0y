@@ -11,6 +11,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import com.texfi.w0y.ui.theme.asLabel
@@ -534,7 +537,7 @@ private fun SearchResults(rows: List<SettingRow>, query: String, onOpen: (Settin
                         color = Contrast.ensure(colors.accent, colors.background),
                     )
                     Text(row.title, style = MaterialTheme.typography.bodyLarge, color = colors.text, maxLines = 2)
-                    Text(row.description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(row.description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
                 RowDivider()
             }
@@ -662,11 +665,12 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
                     maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
+                // Две строки: в одну описание обрывалось на полуслове и его нельзя было дочитать.
                 Text(
                     row.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
@@ -2049,15 +2053,6 @@ private fun MutableList<SettingRow>.addHairRows(
     choice("dock_labels_title", R.string.dock_labels_title, R.string.dock_labels_desc, com.texfi.w0y.data.DockLabels.entries, settings.dockLabels, { stringResource(when (it) { com.texfi.w0y.data.DockLabels.ALL -> R.string.dock_labels_all; com.texfi.w0y.data.DockLabels.ACTIVE -> R.string.dock_labels_active; com.texfi.w0y.data.DockLabels.NONE -> R.string.dock_labels_none }) }, viewModel::setDockLabels, "panel tabs names")
     add(
         SettingRow(
-            id = "dock_glow_title",
-            title = context.getString(R.string.dock_glow_title),
-            description = context.getString(R.string.dock_glow_desc),
-            keywords = "panel glow breathing light pulse",
-            control = SettingControl.Toggle(settings.dockGlow, viewModel::setDockGlow),
-        ),
-    )
-    add(
-        SettingRow(
             id = "hl_set_swipe",
             title = context.getString(R.string.hl_set_swipe),
             description = context.getString(R.string.hl_set_swipe_d),
@@ -2230,13 +2225,37 @@ private fun SettingsTabStrip(tabs: List<Pair<String, String>>, selected: String,
     val spec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
     val x by androidx.compose.animation.core.animateFloatAsState(spot?.first?.toFloat() ?: 0f, spec, label = "tabX")
     val w by androidx.compose.animation.core.animateFloatAsState(spot?.second?.toFloat() ?: 0f, spec, label = "tabW")
-    LaunchedEffect(spot, scroll.maxValue) {
+    var viewport by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    LaunchedEffect(spot, scroll.maxValue, viewport) {
         spot ?: return@LaunchedEffect
-        val target = (spot.first - 60).coerceIn(0, scroll.maxValue)
+        // Активная вкладка встаёт по центру полосы: соседние видны целиком, а не огрызком «ЕНТЫ».
+        val target = (spot.first + spot.second / 2 - viewport / 2).coerceIn(0, scroll.maxValue)
         scroll.animateScrollTo(target, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
     }
-    Box(Modifier.fillMaxWidth().testTag("settings-tabs")) {
-        Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
+    Box(Modifier.fillMaxWidth().testTag("settings-tabs").onSizeChanged { viewport = it.width }) {
+        // Края полосы, за которыми есть продолжение, тают в прозрачность: маска, а не плашка цвета
+        // фона — плашка была видна поверх узора фона.
+        val fadeStart = scroll.canScrollBackward
+        val fadeEnd = scroll.canScrollForward
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    val e = (28.dp.toPx() / size.width).coerceIn(0f, 0.5f)
+                    drawRect(
+                        Brush.horizontalGradient(
+                            0f to if (fadeStart) Color.Transparent else Color.Black,
+                            e to Color.Black,
+                            1f - e to Color.Black,
+                            1f to if (fadeEnd) Color.Transparent else Color.Black,
+                        ),
+                        blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                    )
+                }
+                .horizontalScroll(scroll),
+        ) {
             Row {
                 Spacer(Modifier.width(18.dp))
                 tabs.forEach { (key, label) ->
@@ -2268,15 +2287,6 @@ private fun SettingsTabStrip(tabs: List<Pair<String, String>>, selected: String,
                         .background(colors.accent),
                 )
             }
-        }
-        if (scroll.canScrollForward) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(28.dp)
-                    .height(48.dp)
-                    .background(Brush.horizontalGradient(listOf(Color.Transparent, colors.background.copy(alpha = 0.9f)))),
-            )
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(look.line).background(colors.border))
     }

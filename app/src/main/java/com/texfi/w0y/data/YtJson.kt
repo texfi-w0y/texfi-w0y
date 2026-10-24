@@ -408,11 +408,9 @@ object YtJson {
             .mapNotNull { obj ->
                 val videoId = obj.firstString("videoId") ?: return@mapNotNull null
                 val title = obj["title"]?.firstString("text") ?: return@mapNotNull null
-                val byline =
-                    obj["longBylineText"]
-                        ?.textRuns()
-                        ?.filter { it.isNotBlank() && it.trim() != "•" }
-                        .orEmpty()
+                // Подпись — «исполнители • альбом • год», но соисполнители и их «&» / «,»
+                // приходят отдельными ранами: режем по «•», иначе в альбом попадает «&».
+                val byline = splitByBullet(obj["longBylineText"]?.textRuns().orEmpty())
                 val links = obj.browseIds()
                 SongItem(
                     id = videoId,

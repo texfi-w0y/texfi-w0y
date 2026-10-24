@@ -561,27 +561,27 @@
     <string name="viz_backdrop_desc">Притушенная размытая обложка под столбиками. Размытие — с Android 12.</string>
     <string name="lyrics_size_title">Размер текста песни</string>
     <string name="lyrics_size_desc">Для вкладки текста и полноэкранного текста.</string>
-    <string name="stand_lyrics_title">Подставка: строка текста</string>
+    <string name="stand_lyrics_title">Строка текста</string>
     <string name="stand_lyrics_desc">В режиме подставки под названием бежит текущая строка текста, если у песни есть синхронный текст.</string>
-    <string name="stand_viz_title">Подставка: визуализатор</string>
+    <string name="stand_viz_title">Визуализатор</string>
     <string name="stand_viz_desc">Визуализатор над названием в режиме подставки, 30 кадров в секунду.</string>
-    <string name="stand_brightness_title">Подставка: яркость</string>
+    <string name="stand_brightness_title">Яркость</string>
     <string name="stand_brightness_desc">Яркость экрана, пока открыт режим подставки; её можно двигать и прямо в нём. «Как в системе» никогда не делает экран ярче, чем был.</string>
     <string name="stand_brightness_system">Как в системе</string>
-    <string name="stand_view_title">Подставка: вид</string>
+    <string name="stand_view_title">Вид</string>
     <string name="stand_view_desc">Что крупно на экране подставки. Переключить — долгое нажатие на экран.</string>
     <string name="stand_view_text">Название</string>
     <string name="stand_view_cover">Обложка</string>
-    <string name="stand_marquee_title">Подставка: бегущее название</string>
+    <string name="stand_marquee_title">Бегущее название</string>
     <string name="stand_marquee_desc">Длинное название бежит в одну строку, а не переносится.</string>
-    <string name="stand_flip_title">Подставка: вверх ногами</string>
+    <string name="stand_flip_title">Вверх ногами</string>
     <string name="stand_flip_desc">Если телефон стоит разъёмом вверх. Перевернуть можно и кнопкой в самой подставке.</string>
     <string name="stand_flip">Перевернуть</string>
-    <string name="stand_charging_title">Подставка: только на зарядке</string>
+    <string name="stand_charging_title">Только на зарядке</string>
     <string name="stand_charging_desc">Режим подставки закрывается, когда зарядку отключили.</string>
-    <string name="stand_max_title">Подставка: предел времени</string>
+    <string name="stand_max_title">Предел времени</string>
     <string name="stand_max_desc">Через это время режим подставки закроется и экран сможет погаснуть.</string>
-    <string name="stand_battery_title">Подставка: выход при низком заряде</string>
+    <string name="stand_battery_title">Выход при низком заряде</string>
     <string name="stand_battery_desc" formatted="false">Ниже 15% без зарядки режим подставки закрывается. Иначе только предупреждает.</string>
     <string name="stand_exit_unplugged">Подставка закрыта: зарядку отключили.</string>
     <string name="stand_exit_timeout">Подставка закрыта: вышло время.</string>
@@ -740,7 +740,7 @@
     <string name="season_winter">Зима</string>
     <string name="player_menu">Настройки плеера</string>
     <string name="tip_more">Ещё</string>
-    <string name="stand_clock_title">Подставка: часы</string>
+    <string name="stand_clock_title">Часы</string>
     <string name="stand_clock_desc">Крупные часы в режиме подставки.</string>
     <string name="stand_clock">Часы</string>
     <string name="pl_customize">Плейлист</string>
@@ -774,8 +774,6 @@
     <string name="dock_labels_all">Все</string>
     <string name="dock_labels_active">Активная</string>
     <string name="dock_labels_none">Скрыть</string>
-    <string name="dock_glow_title">Нижняя панель: свечение</string>
-    <string name="dock_glow_desc">Пока играет музыка, свет вокруг панели дышит, а внутри плывёт цветное пятно.</string>
 
     <!-- Диагностика поиска и соединения -->
     <string name="search_error_title">ПОИСК НЕ СРАБОТАЛ</string>
@@ -1007,4 +1005,8 @@
     <string name="season_fx_full">В полную силу</string>
     <string name="hl_lyrics_focus">Убрать плеер</string>
     <string name="hl_lyrics_show_player">Вернуть плеер</string>
+    <string name="library_tile_own">Свой</string>
+    <string name="library_tile_mirrored">В YouTube</string>
+    <string name="library_tile_saved">Только чтение</string>
+    <string name="home_for_you">ДЛЯ ТЕБЯ</string>
 </resources>

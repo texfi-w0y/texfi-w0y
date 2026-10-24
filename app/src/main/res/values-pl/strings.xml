@@ -561,27 +561,27 @@
     <string name="viz_backdrop_desc">Przyciemniona, rozmyta okładka pod słupkami. Rozmycie od Androida 12.</string>
     <string name="lyrics_size_title">Rozmiar tekstu piosenki</string>
     <string name="lyrics_size_desc">Dla karty tekstu i tekstu na pełnym ekranie.</string>
-    <string name="stand_lyrics_title">Podstawka: linia tekstu</string>
+    <string name="stand_lyrics_title">Linia tekstu</string>
     <string name="stand_lyrics_desc">W trybie podstawki pod tytułem przewija się bieżąca linia tekstu, jeśli piosenka ma tekst z czasem.</string>
-    <string name="stand_viz_title">Podstawka: wizualizator</string>
+    <string name="stand_viz_title">Wizualizator</string>
     <string name="stand_viz_desc">Wizualizator nad tytułem w trybie podstawki, 30 klatek na sekundę.</string>
-    <string name="stand_brightness_title">Podstawka: jasność</string>
+    <string name="stand_brightness_title">Jasność</string>
     <string name="stand_brightness_desc">Jasność ekranu w trybie podstawki; można ją zmieniać też w nim. „Systemowa” nigdy nie rozjaśnia ekranu bardziej niż był.</string>
     <string name="stand_brightness_system">Systemowa</string>
-    <string name="stand_view_title">Podstawka: widok</string>
+    <string name="stand_view_title">Widok</string>
     <string name="stand_view_desc">Co jest duże na ekranie podstawki. Przełączanie — długie przytrzymanie ekranu.</string>
     <string name="stand_view_text">Tytuł</string>
     <string name="stand_view_cover">Okładka</string>
-    <string name="stand_marquee_title">Podstawka: przewijany tytuł</string>
+    <string name="stand_marquee_title">Przewijany tytuł</string>
     <string name="stand_marquee_desc">Długi tytuł przewija się w jednej linii zamiast się zawijać.</string>
-    <string name="stand_flip_title">Podstawka: do góry nogami</string>
+    <string name="stand_flip_title">Do góry nogami</string>
     <string name="stand_flip_desc">Gdy telefon stoi złączem do góry. Obrócić można też przyciskiem w samej podstawce.</string>
     <string name="stand_flip">Obróć</string>
-    <string name="stand_charging_title">Podstawka: tylko podczas ładowania</string>
+    <string name="stand_charging_title">Tylko podczas ładowania</string>
     <string name="stand_charging_desc">Tryb podstawki zamyka się po odłączeniu ładowarki.</string>
-    <string name="stand_max_title">Podstawka: limit czasu</string>
+    <string name="stand_max_title">Limit czasu</string>
     <string name="stand_max_desc">Po tym czasie tryb podstawki się zamknie i ekran będzie mógł zgasnąć.</string>
-    <string name="stand_battery_title">Podstawka: wyjście przy niskiej baterii</string>
+    <string name="stand_battery_title">Wyjście przy niskiej baterii</string>
     <string name="stand_battery_desc" formatted="false">Poniżej 15% bez ładowania tryb podstawki się zamyka. W przeciwnym razie tylko ostrzega.</string>
     <string name="stand_exit_unplugged">Podstawka zamknięta: odłączono ładowarkę.</string>
     <string name="stand_exit_timeout">Podstawka zamknięta: minął czas.</string>
@@ -740,7 +740,7 @@
     <string name="season_winter">Zima</string>
     <string name="player_menu">Ustawienia odtwarzacza</string>
     <string name="tip_more">Więcej</string>
-    <string name="stand_clock_title">Stojak: zegar</string>
+    <string name="stand_clock_title">Zegar</string>
     <string name="stand_clock_desc">Duży zegar w trybie stojaka.</string>
     <string name="stand_clock">Zegar</string>
     <string name="pl_customize">Playlista</string>
@@ -774,8 +774,6 @@
     <string name="dock_labels_all">Wszystkie</string>
     <string name="dock_labels_active">Aktywna</string>
     <string name="dock_labels_none">Ukryte</string>
-    <string name="dock_glow_title">Dolny panel: blask</string>
-    <string name="dock_glow_desc">Gdy gra muzyka, światło wokół panelu oddycha, a w środku dryfuje plama koloru.</string>
 
     <!-- Диагностика поиска и соединения -->
     <string name="search_error_title">WYSZUKIWANIE NIE DZIAŁA</string>
@@ -1007,4 +1005,8 @@
     <string name="season_fx_full">Na całego</string>
     <string name="hl_lyrics_focus">Ukryj odtwarzacz</string>
     <string name="hl_lyrics_show_player">Pokaż odtwarzacz</string>
+    <string name="library_tile_own">Moja</string>
+    <string name="library_tile_mirrored">W YouTube</string>
+    <string name="library_tile_saved">Tylko odczyt</string>
+    <string name="home_for_you">DLA CIEBIE</string>
 </resources>

@@ -176,7 +176,6 @@ object SettingsCatalog {
             e("dock_shape_title", L, "dock_shape", "Bottom bar shape", group = SettingsGroup.PANEL) { it.dockShape },
             e("dock_tint_title", L, "dock_tint", "Bottom bar tint", group = SettingsGroup.PANEL) { it.dockTint },
             e("dock_labels_title", L, "dock_labels", "Bottom bar labels", group = SettingsGroup.PANEL) { it.dockLabels },
-            e("dock_glow_title", L, "dock_glow", "Bottom bar glow", group = SettingsGroup.PANEL) { it.dockGlow },
             e("settings_start_tab_title", L, "start_tab", "Start tab", group = SettingsGroup.GENERAL) { it.startTab },
             e("settings_language_title", L, "language", "Language", group = SettingsGroup.GENERAL) { it.language },
             e("settings_compact_title", L, "compact_rows", "Compact rows", group = SettingsGroup.STYLE) { it.compactRows },

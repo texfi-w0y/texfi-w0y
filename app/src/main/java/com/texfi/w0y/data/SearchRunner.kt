@@ -99,8 +99,10 @@ class SearchRunner(private val env: SearchEnv, private val host: String = HOST) 
                     login = false
                     continue
                 }
-                // Редкая локаль: на hl, которого YouTube не знает, он отвечает 400.
-                if (error is SearchError.Http && error.code == 400 && !localeRetried && env.hl() != SAFE_HL) {
+                // Редкая локаль: на hl, которого YouTube не знает, он отвечает 400. Языки
+                // приложения YouTube знает точно — для них случайный 400 не повод навсегда
+                // переводить все ленты на английский («Listen again» в русском интерфейсе).
+                if (error is SearchError.Http && error.code == 400 && !localeRetried && env.hl() != SAFE_HL && env.hl() !in KNOWN_HL) {
                     localeRetried = true
                     env.fallbackLocale()
                     continue
@@ -118,5 +120,8 @@ class SearchRunner(private val env: SearchEnv, private val host: String = HOST) 
     companion object {
         const val HOST = "music.youtube.com"
         const val SAFE_HL = "en"
+
+        /** Языки интерфейса w0y: YouTube принимает их в hl (проверено LocaleProbeTest). */
+        val KNOWN_HL = setOf("en", "ru", "uk", "pl")
     }
 }

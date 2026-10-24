@@ -81,19 +81,15 @@ data class DockConfig(
     val shape: DockShape = DockShape.ISLAND,
     val tint: DockTint = DockTint.COVER,
     val labels: DockLabels = DockLabels.ALL,
-    val glow: Boolean = true,
 )
 
 /**
  * Парящая панель Hairline: мини-плеер и навигация в одном корпусе.
  *
- *  - **цвет обложки** красит корпус сверху вниз, а внутри медленно плывёт
- *    пятно того же цвета — панель «живёт» вместе с треком;
- *  - **контур — прогресс**: линия со свечением и яркой «головкой» обводит
- *    корпус по часовой стрелке;
+ *  - **цвет обложки** красит корпус сверху вниз;
+ *  - **прогресс** — тонкая линия акцента по верхнему краю корпуса;
  *  - **линза** под активной вкладкой пружинит с перелётом, тянется каплей,
  *    а в момент выбора от неё расходится кольцо; значок подпрыгивает;
- *  - **дыхание**: пока играет музыка, свет вокруг панели пульсирует;
  *  - панель выезжает пружиной, мини-плеер раскрывается внутри неё.
  * Позиция и фазы читаются только при рисовании: строки не пересобираются.
  */
@@ -120,7 +116,6 @@ fun HairDock(
     }
     val tint by animateColorAsState(tintTarget, tween(600), label = "dockTintColor")
     val tinted = config.tint != DockTint.NONE
-    val glowOn = animateFloatAsState(if (song != null && config.glow) 1f else 0f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut), label = "dockGlowOn")
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.isPlaying, song?.id) {
@@ -132,10 +127,6 @@ fun HairDock(
     }
     val duration = state.durationMs
     val progress = { if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f }
-
-    // Фаза дыхания и плавания пятна: только пока играет и анимации включены.
-    val alive = state.isPlaying && look.motion.moves && config.glow
-    val phase = rememberAnimationPhase(9_000, 30, enabled = alive)
 
     // Выезд снизу пружиной — один раз за жизнь панели.
     val rise = remember { Animatable(if (look.motion.moves) 1f else 0f) }
@@ -154,24 +145,6 @@ fun HairDock(
     Box(
         modifier
             .fillMaxWidth()
-            // Свет вокруг панели: эллипс от нижнего края вверх, дышит в такт фазе.
-            .drawBehind {
-                val breath = if (alive) 0.82f + 0.18f * sin(phase.floatValue * 2f) else 1f
-                val a = glowOn.value * GLOW_ALPHA * breath
-                if (a > 0.01f && tinted) {
-                    val reach = GLOW_REACH.toPx()
-                    drawRect(
-                        brush =
-                            Brush.radialGradient(
-                                colors = listOf(tint.copy(alpha = a), tint.copy(alpha = a * 0.35f), Color.Transparent),
-                                center = Offset(size.width / 2f, size.height),
-                                radius = size.width * 0.7f,
-                            ),
-                        topLeft = Offset(0f, -reach),
-                        size = Size(size.width, size.height + reach),
-                    )
-                }
-            },
     ) {
         Column(
             Modifier
@@ -183,7 +156,7 @@ fun HairDock(
                 }
                 .clip(shape)
                 .background(colors.surface)
-                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.2f else 0f), colors.text, colors.text),
+                .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.2f else 0f), toneAccent),
         ) {
             mini()
             DockNav(items, selected, onSelect, tint, tinted, config.labels, radius)
@@ -192,52 +165,34 @@ fun HairDock(
 }
 
 /**
- * Рамка корпуса в одну линию. Прогресс идёт по ней же, по часовой, от левого
- * края через верх, правый бок и низ — линия проходит остров целиком до конца и
- * обводит скругления. Лежит на 1dp внутри корпуса, поэтому не обрезается.
- * Впереди короткий светлый «носик» того же размера.
+ * Рамка корпуса в одну линию 1dp. Прогресс трека — линия акцента по прямому участку верхнего
+ * края, между скруглениями: читается как полоса прогресса, а не как белая обводка вокруг.
  */
 private fun Modifier.dockFrame(
     radius: Dp,
     progress: () -> Float,
     border: Color,
     progressColor: Color,
-    head: Color,
 ): Modifier =
     drawWithCache {
         val line = 1.dp.toPx()
-        val thick = 2.dp.toPx()
-        val inset = 1.dp.toPx()
-        val rect = Rect(inset, inset, size.width - inset, size.height - inset)
-        val r = radius.toPx().coerceIn(0f, min(rect.width, rect.height) / 2f)
-        val frame =
-            Path().apply {
-                moveTo(rect.left, rect.top + r)
-                if (r > 0f) arcTo(Rect(rect.left, rect.top, rect.left + 2 * r, rect.top + 2 * r), 180f, 90f, false)
-                lineTo(rect.right - r, rect.top)
-                if (r > 0f) arcTo(Rect(rect.right - 2 * r, rect.top, rect.right, rect.top + 2 * r), -90f, 90f, false)
-                lineTo(rect.right, rect.bottom - r)
-                if (r > 0f) arcTo(Rect(rect.right - 2 * r, rect.bottom - 2 * r, rect.right, rect.bottom), 0f, 90f, false)
-                lineTo(rect.left + r, rect.bottom)
-                if (r > 0f) arcTo(Rect(rect.left, rect.bottom - 2 * r, rect.left + 2 * r, rect.bottom), 90f, 90f, false)
-                lineTo(rect.left, rect.top + r)
-            }
-        val measure = PathMeasure().also { it.setPath(frame, false) }
-        val length = measure.length
-        val part = Path()
-        val tip = 16.dp.toPx()
+        val thick = 1.5.dp.toPx()
+        val inset = line / 2f
+        val r = radius.toPx().coerceIn(0f, min(size.width, size.height) / 2f)
+        val start = r
+        val span = (size.width - 2 * r).coerceAtLeast(0f)
         onDrawWithContent {
             drawContent()
-            drawPath(frame, border, style = Stroke(line))
+            drawRoundRect(
+                border,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - line, size.height - line),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius((r - inset).coerceAtLeast(0f)),
+                style = Stroke(line),
+            )
             val p = progress()
-            if (p > 0f && length > 0f) {
-                val end = length * p
-                part.rewind()
-                measure.getSegment(0f, end, part, true)
-                drawPath(part, progressColor, style = Stroke(thick, cap = StrokeCap.Butt))
-                part.rewind()
-                measure.getSegment(max(0f, end - tip), end, part, true)
-                drawPath(part, head, style = Stroke(thick, cap = StrokeCap.Round))
+            if (p > 0f && span > 0f) {
+                drawLine(progressColor, Offset(start, thick / 2f), Offset(start + span * p, thick / 2f), thick, cap = StrokeCap.Butt)
             }
         }
     }
@@ -382,5 +337,3 @@ private val LENS_MAX = 104.dp
 private val LENS_RADIUS = 10.dp
 private const val PROGRESS_POLL_MS = 400L
 private const val PAUSED_POLL_MS = 1_000L
-private const val GLOW_ALPHA = 0.26f
-private val GLOW_REACH = 100.dp

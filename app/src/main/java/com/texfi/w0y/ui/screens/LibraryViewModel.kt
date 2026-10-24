@@ -76,7 +76,8 @@ class LibraryViewModel @Inject constructor(
     private val _weekPlays = MutableStateFlow<Int?>(null)
     val weekPlays: StateFlow<Int?> = _weekPlays.asStateFlow()
 
-    private fun refreshWeek() {
+    /** Пересчитать недельные прослушивания: плитка не должна отставать от «Итогов» на трек. */
+    fun refreshWeek() {
         viewModelScope.launch { _weekPlays.value = runCatching { stats.stats(com.texfi.w0y.data.StatsPeriod.WEEK).plays }.getOrNull() }
     }
 

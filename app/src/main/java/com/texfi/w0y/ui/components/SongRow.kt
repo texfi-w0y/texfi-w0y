@@ -168,7 +168,7 @@ fun SongRow(
                 }
                 Text(
                     text =
-                        listOfNotNull(song.artist.takeIf { it.isNotBlank() }, song.album, song.plays)
+                        listOfNotNull(song.artist.takeIf { it.isNotBlank() }, song.album?.takeIf { al -> al.any(Char::isLetterOrDigit) }, song.plays)
                             .joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted,

@@ -561,27 +561,27 @@
     <string name="viz_backdrop_desc">Приглушена розмита обкладинка під стовпчиками. Розмиття — з Android 12.</string>
     <string name="lyrics_size_title">Розмір тексту пісні</string>
     <string name="lyrics_size_desc">Для вкладки тексту й повноекранного тексту.</string>
-    <string name="stand_lyrics_title">Підставка: рядок тексту</string>
+    <string name="stand_lyrics_title">Рядок тексту</string>
     <string name="stand_lyrics_desc">У режимі підставки під назвою біжить поточний рядок тексту, якщо в пісні є синхронний текст.</string>
-    <string name="stand_viz_title">Підставка: візуалізатор</string>
+    <string name="stand_viz_title">Візуалізатор</string>
     <string name="stand_viz_desc">Візуалізатор над назвою в режимі підставки, 30 кадрів на секунду.</string>
-    <string name="stand_brightness_title">Підставка: яскравість</string>
+    <string name="stand_brightness_title">Яскравість</string>
     <string name="stand_brightness_desc">Яскравість екрана, поки відкрито режим підставки; її можна рухати й просто в ньому. «Як у системі» ніколи не робить екран яскравішим, ніж був.</string>
     <string name="stand_brightness_system">Як у системі</string>
-    <string name="stand_view_title">Підставка: вигляд</string>
+    <string name="stand_view_title">Вигляд</string>
     <string name="stand_view_desc">Що велике на екрані підставки. Перемкнути — довге натискання на екран.</string>
     <string name="stand_view_text">Назва</string>
     <string name="stand_view_cover">Обкладинка</string>
-    <string name="stand_marquee_title">Підставка: біжуча назва</string>
+    <string name="stand_marquee_title">Біжуча назва</string>
     <string name="stand_marquee_desc">Довга назва біжить в один рядок, а не переноситься.</string>
-    <string name="stand_flip_title">Підставка: догори дриґом</string>
+    <string name="stand_flip_title">Догори дриґом</string>
     <string name="stand_flip_desc">Якщо телефон стоїть роз’ємом догори. Перевернути можна й кнопкою в самій підставці.</string>
     <string name="stand_flip">Перевернути</string>
-    <string name="stand_charging_title">Підставка: лише на заряджанні</string>
+    <string name="stand_charging_title">Лише на заряджанні</string>
     <string name="stand_charging_desc">Режим підставки закривається, коли заряджання відʼєднали.</string>
-    <string name="stand_max_title">Підставка: межа часу</string>
+    <string name="stand_max_title">Межа часу</string>
     <string name="stand_max_desc">Через цей час режим підставки закриється й екран зможе згаснути.</string>
-    <string name="stand_battery_title">Підставка: вихід при низькому заряді</string>
+    <string name="stand_battery_title">Вихід при низькому заряді</string>
     <string name="stand_battery_desc" formatted="false">Нижче 15% без заряджання режим підставки закривається. Інакше лише попереджає.</string>
     <string name="stand_exit_unplugged">Підставку закрито: заряджання відʼєднали.</string>
     <string name="stand_exit_timeout">Підставку закрито: минув час.</string>
@@ -740,7 +740,7 @@
     <string name="season_winter">Зима</string>
     <string name="player_menu">Налаштування плеєра</string>
     <string name="tip_more">Ще</string>
-    <string name="stand_clock_title">Підставка: годинник</string>
+    <string name="stand_clock_title">Годинник</string>
     <string name="stand_clock_desc">Великий годинник у режимі підставки.</string>
     <string name="stand_clock">Годинник</string>
     <string name="pl_customize">Плейлист</string>
@@ -774,8 +774,6 @@
     <string name="dock_labels_all">Усі</string>
     <string name="dock_labels_active">Активна</string>
     <string name="dock_labels_none">Сховати</string>
-    <string name="dock_glow_title">Нижня панель: сяйво</string>
-    <string name="dock_glow_desc">Поки грає музика, світло навколо панелі дихає, а всередині пливе кольорова пляма.</string>
 
     <!-- Диагностика поиска и соединения -->
     <string name="search_error_title">ПОШУК НЕ СПРАЦЮВАВ</string>
@@ -1007,4 +1005,8 @@
     <string name="season_fx_full">На повну</string>
     <string name="hl_lyrics_focus">Сховати плеєр</string>
     <string name="hl_lyrics_show_player">Повернути плеєр</string>
+    <string name="library_tile_own">Свій</string>
+    <string name="library_tile_mirrored">У YouTube</string>
+    <string name="library_tile_saved">Лише читання</string>
+    <string name="home_for_you">ДЛЯ ТЕБЕ</string>
 </resources>

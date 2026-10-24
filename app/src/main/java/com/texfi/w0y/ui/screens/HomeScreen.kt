@@ -102,7 +102,6 @@ fun HomeScreen(
     val recommendationsFailed by home.failed.collectAsStateWithLifecycle()
     val showRecommendations by home.showRecommendations.collectAsStateWithLifecycle()
     val startupAverage by home.startupAverage.collectAsStateWithLifecycle()
-    val seasonMode by home.seasonMode.collectAsStateWithLifecycle()
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val signedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     // Меню плитки и плашка «отменить» после того, как плитку убрали на время.
@@ -152,7 +151,6 @@ fun HomeScreen(
                 // В Hairline шапка чистая: замер живёт в «О приложении».
                 subtitle = if (hair) null else startupAverage?.let { stringResource(R.string.home_meta, it.toInt()) },
                 actions = {
-                    if (hair) com.texfi.w0y.ui.components.SeasonMark(seasonMode, Modifier.padding(end = 12.dp))
                     SpriteButton(Sprites.gear, onClick = onOpenSettings, size = 22)
                 },
             )
@@ -195,11 +193,24 @@ fun HomeScreen(
         }
 
         // Подборки по твоему вкусу: каждый блок появляется, только когда в нём есть что показать.
+        // Разделы нумеруются подряд: пустой раздел не оставляет дыры в счёте.
+        var section = 1
         // Быстрый выбор — сразу под быстрым набором: своя подборка из радио недавних треков.
         // Пока истории нет (первый запуск), берём первую ленту треков YouTube Music.
         run {
             val own = recBlocks.quickPicks.map { it.song }
             val quick = own.ifEmpty { shelves.firstOrNull { it.songs.isNotEmpty() }?.songs.orEmpty() }
+            val anyOwn = quick.isNotEmpty() || recBlocks.discoveries.isNotEmpty() || recBlocks.forgotten.isNotEmpty() ||
+                recBlocks.timeOfDay.isNotEmpty() || recBlocks.releases.isNotEmpty()
+            if (anyOwn) {
+                val n = ++section
+                item(key = "for-you-header") {
+                    Column(Modifier.padding(horizontal = Gutter)) {
+                        Spacer(Modifier.height(22.dp))
+                        SectionHeader(index = n, label = stringResource(R.string.home_for_you))
+                    }
+                }
+            }
             if (quick.isNotEmpty()) {
                 item(key = "quick-picks") {
                     com.texfi.w0y.ui.components.QuickPicksShelf(
@@ -229,11 +240,12 @@ fun HomeScreen(
         }
 
         if (showRecommendations) {
+            val n = ++section
             item {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     Spacer(Modifier.height(22.dp))
                     SectionHeader(
-                        index = 2,
+                        index = n,
                         label = stringResource(R.string.home_recommendations),
                         action = { SpriteButton(Sprites.repeat, onClick = home::refresh, size = 18) },
                     )
@@ -294,10 +306,11 @@ fun HomeScreen(
         }
 
         if (recent.isNotEmpty()) {
+            val n = ++section
             item {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     Spacer(Modifier.height(26.dp))
-                    SectionHeader(stringResource(R.string.home_recent), index = 3)
+                    SectionHeader(stringResource(R.string.home_recent), index = n)
                     Spacer(Modifier.height(6.dp))
                 }
             }
@@ -312,10 +325,11 @@ fun HomeScreen(
         }
 
         if (liked.isNotEmpty()) {
+            val n = ++section
             item {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     Spacer(Modifier.height(26.dp))
-                    SectionHeader(stringResource(R.string.library_likes), index = 4)
+                    SectionHeader(stringResource(R.string.library_likes), index = n)
                     Spacer(Modifier.height(6.dp))
                 }
             }
@@ -661,20 +675,25 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recBlockRow(
     val items = rawItems.distinctBy { it.song.id }
     if (items.isEmpty()) return
     item(key = "block-$title") {
+        val shelfName = stringResource(title)
         Column(Modifier.padding(top = 16.dp)) {
-            ShelfTitle(stringResource(title).asLabel(), Modifier.padding(horizontal = Gutter))
+            ShelfTitle(shelfName.asLabel(), Modifier.padding(horizontal = Gutter))
             Spacer(Modifier.height(12.dp))
             LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(items, key = { "b-${it.song.id}" }) { rec ->
                     Column(Modifier.width(132.dp)) {
                         SongTile(rec.song) { home.playRecs(items, items.indexOf(rec)) }
-                        Text(
-                            whyLabel(rec.why).asLabel(),
-                            style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                            color = LocalW0yColors.current.textMuted,
-                            maxLines = 2,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
+                        // Причина, совпадающая с названием ряда, ничего не добавляет — её не повторяем.
+                        val why = whyLabel(rec.why)
+                        if (!why.equals(shelfName, ignoreCase = true)) {
+                            Text(
+                                why.asLabel(),
+                                style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                                color = LocalW0yColors.current.textMuted,
+                                maxLines = 2,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
                     }
                 }
             }

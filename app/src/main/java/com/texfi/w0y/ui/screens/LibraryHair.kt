@@ -73,6 +73,8 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     val liked by viewModel.liked.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val weekPlays by viewModel.weekPlays.collectAsStateWithLifecycle()
+    // Новое прослушивание попадает в историю — счётчик на плитке «Итоги» обновляется вместе с ней.
+    LaunchedEffect(recent.firstOrNull()?.id, recent.size) { viewModel.refreshWeek() }
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val files by viewModel.files.collectAsStateWithLifecycle()
     val signedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
@@ -283,13 +285,15 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                             Text(
                                 text =
                                     when {
-                                        playlist.remoteId != null && !playlist.remoteEditable -> stringResource(R.string.library_playlist_saved)
-                                        playlist.remoteId != null -> stringResource(R.string.library_playlist_mirrored)
-                                        else -> stringResource(R.string.library_own_playlist)
+                                        // Под узкой плиткой — короткая подпись: длинная обрезалась на «· в».
+                                        playlist.remoteId != null && !playlist.remoteEditable -> stringResource(R.string.library_tile_saved)
+                                        playlist.remoteId != null -> stringResource(R.string.library_tile_mirrored)
+                                        else -> stringResource(R.string.library_tile_own)
                                     },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colors.textMuted,
                                 maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                         }
                     }

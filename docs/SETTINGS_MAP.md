@@ -82,7 +82,6 @@
 | 5. ВИД | Bottom bar shape (`dock_shape_title`) | `dock_shape` | ISLAND |  |
 | 5. ВИД | Bottom bar tint (`dock_tint_title`) | `dock_tint` | COVER |  |
 | 5. ВИД | Bottom bar labels (`dock_labels_title`) | `dock_labels` | ACTIVE |  |
-| 5. ВИД | Bottom bar glow (`dock_glow_title`) | `dock_glow` | true |  |
 | 5. ВИД | Start tab (`settings_start_tab_title`) | `start_tab` | LAST |  |
 | 5. ВИД | Language (`settings_language_title`) | `language` | SYSTEM |  |
 | 5. ВИД | Compact rows (`settings_compact_title`) | `compact_rows` | false |  |
@@ -91,7 +90,7 @@
 | 5. ВИД | Backdrop photo (`backdrop_image_title`) | `backdrop_image` | — |  |
 | 5. ВИД | Seasonal mood (`season_title`) | `season_mode` | AUTO |  |
 | 5. ВИД | Seasonal effects (`season_fx_title`) | `season_fx` | FULL |  |
-| 5. ВИД | Cover glow in player (`settings_cover_glow_title`) | `player_cover_glow` | true |  |
+| 5. ВИД | Cover glow in player (`settings_cover_glow_title`) | `player_cover_glow` | false |  |
 | 5. ВИД | State badge in player (`player_state_badge`) | `player_state_badge` | true |  |
 | 5. ВИД | Vibration (`settings_haptics_title`) | `haptics` | true |  |
 | 5. ВИД | Vibration strength (`hl_set_haptics`) | `hl_haptic_level` | FULL |  |

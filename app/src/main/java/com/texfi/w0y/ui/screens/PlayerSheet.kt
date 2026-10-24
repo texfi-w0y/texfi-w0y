@@ -634,7 +634,7 @@ fun RecRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(rec.song.title, style = MaterialTheme.typography.bodyLarge, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(rec.song.artist, style = HairLabelStyle, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(rec.song.artist, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (showWhy) {
                 Text(
                     whyLabel(rec.why).asLabel(),
@@ -685,9 +685,11 @@ fun LazyListScope.similarItems(
                 color = colors.textMuted,
                 modifier = Modifier.weight(1f),
             )
+            // Второстепенное действие — контурная кнопка, а не белая плашка.
             com.texfi.w0y.ui.components.PixelButton(
                 text = stringResource(R.string.similar_refresh),
                 onClick = onRefresh,
+                fill = colors.surfaceHigh,
                 enabled = !loading,
             )
         }

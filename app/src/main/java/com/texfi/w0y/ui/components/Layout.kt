@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,8 +112,10 @@ fun SectionHeader(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
+                // Стрелку ставит сам заголовок: если она уже есть в строке, второй не будет.
+                val bare = label.removePrefix("❯").trimStart()
                 Text(
-                    text = if (hair) "❯ ${label.asLabel()}" else if (smooth) label else "❯ ${label.uppercase()}",
+                    text = if (hair) "❯ ${bare.asLabel()}" else if (smooth) bare else "❯ ${bare.uppercase()}",
                     style = if (hair) PixelSectionLabel else if (smooth) MaterialTheme.typography.titleMedium else PixelSectionLabel,
                     color = if (hair) colors.textMuted else if (smooth) colors.text else colors.accentText,
                     maxLines = 1,
@@ -209,3 +213,23 @@ fun Hairline(modifier: Modifier = Modifier) {
             .background(colors.border),
     )
 }
+
+/**
+ * Края бегущей строки тают в прозрачность, а не режутся ножом по краю экрана.
+ * Маска, а не свет: под ней ничего не рисуется, просто текст плавно уходит.
+ */
+fun Modifier.fadeEdges(edge: androidx.compose.ui.unit.Dp = 16.dp): Modifier =
+    graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val e = (edge.toPx() / size.width).coerceIn(0f, 0.5f)
+            drawRect(
+                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    0f to androidx.compose.ui.graphics.Color.Transparent,
+                    e to androidx.compose.ui.graphics.Color.Black,
+                    1f - e to androidx.compose.ui.graphics.Color.Black,
+                    1f to androidx.compose.ui.graphics.Color.Transparent,
+                ),
+                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+            )
+        }

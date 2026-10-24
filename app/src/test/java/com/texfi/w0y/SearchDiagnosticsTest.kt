@@ -203,6 +203,19 @@ class SearchDiagnosticsTest {
     }
 
     @Test
+    fun appLanguageIsNotDroppedOnStray400() = runBlocking {
+        val env = FakeEnv(hl = "ru")
+        try {
+            SearchRunner(env).run("X") { RawResponse(400, """{"error":{"code":400}}""") }
+            fail()
+        } catch (e: SearchException) {
+            assertEquals(SearchError.Http(400), e.error)
+        }
+        assertFalse(env.localeReset)
+        assertEquals("ru", env.hl)
+    }
+
+    @Test
     fun cancellationPropagatesAndIsNotLogged() = runBlocking {
         val env = FakeEnv()
         try {

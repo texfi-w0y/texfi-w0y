@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -306,13 +307,15 @@ private fun DrawScope.smoothWave(levels: FloatArray, lit: Color, peak: Color) {
 
 /** Hairline: «линии» — вертикальные штрихи, пик висит точкой, под основанием дрожит отражение. */
 private fun DrawScope.hairLines(levels: FloatArray, peaks: FloatArray, line: Color, accent: Color, grid: Color, w: Float) {
-    val slot = size.width / levels.size
+    // Поля по краям, как у остальных стилей: штрихи не упираются в край экрана.
+    val pad = size.width * 0.06f
+    val slot = (size.width - pad * 2f) / levels.size
     val base = size.height * 0.58f
     val room = base - size.height * 0.06f
     // Основание и деления под ним.
-    drawLine(grid, Offset(0f, base), Offset(size.width, base), w)
+    drawLine(grid, Offset(pad, base), Offset(size.width - pad, base), w)
     levels.forEachIndexed { i, v ->
-        val x = i * slot + slot / 2f
+        val x = pad + i * slot + slot / 2f
         val h = (room * v).coerceAtLeast(w * 2f)
         drawLine(line.copy(alpha = 0.9f), Offset(x, base), Offset(x, base - h), w * 1.4f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
         // Отражение: короче и бледнее.
@@ -360,7 +363,9 @@ private fun DrawScope.hairTerrain(history: Array<FloatArray>, head: Long, line: 
     val points = 46
     val padX = size.width * 0.08f
     val width = size.width - padX * 2f
-    // От дальних (старых) к ближним (новым): новые закрывают старые.
+    // От дальних (старых) к ближним (новым): новые закрывают старые. Закрывают не заливкой
+    // цвета, а стиранием в отдельном слое — иначе поверх обложки встаёт тёмный прямоугольник.
+    drawIntoCanvas { it.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, size), androidx.compose.ui.graphics.Paint()) }
     for (row in 0 until rows) {
         val age = rows - 1 - row
         val data = history[((head - age) % rows + rows).toInt() % rows]
@@ -384,10 +389,11 @@ private fun DrawScope.hairTerrain(history: Array<FloatArray>, head: Long, line: 
             lineTo(padX, y0 + step)
             close()
         }
-        drawPath(fill, ground)
+        drawPath(fill, ground, blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
         val t = row.toFloat() / (rows - 1)
         drawPath(path, if (row == rows - 1) accent else line.copy(alpha = 0.25f + 0.6f * t), style = Stroke(w * 1.2f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
     }
+    drawIntoCanvas { it.restore() }
 }
 
 /** Средний уровень нижних полос — «бас» прошлого спектра. */

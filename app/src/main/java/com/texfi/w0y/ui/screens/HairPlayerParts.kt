@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.basicMarquee
+import com.texfi.w0y.ui.components.fadeEdges
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.heightIn
@@ -206,7 +207,7 @@ internal fun HairTitleBlock(
                 text = song.title,
                 style = HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
                 // Долгое нажатие копирует название — чтобы найти трек где-то ещё.
-                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title").basicMarquee(),
+                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title").fadeEdges().basicMarquee(),
                 color = colors.text,
                 maxLines = 1,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,

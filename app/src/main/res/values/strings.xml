@@ -561,27 +561,27 @@
     <string name="viz_backdrop_desc">A dimmed, blurred cover behind the bars. Blur needs Android 12+.</string>
     <string name="lyrics_size_title">Lyrics size</string>
     <string name="lyrics_size_desc">For the lyrics tab and the fullscreen lyrics.</string>
-    <string name="stand_lyrics_title">Stand: lyrics line</string>
+    <string name="stand_lyrics_title">Lyrics line</string>
     <string name="stand_lyrics_desc">In stand mode the current lyrics line runs under the title, if the song has timed lyrics.</string>
-    <string name="stand_viz_title">Stand: visualizer</string>
+    <string name="stand_viz_title">Visualizer</string>
     <string name="stand_viz_desc">A visualizer above the title in stand mode, at 30 frames per second.</string>
-    <string name="stand_brightness_title">Stand: brightness</string>
+    <string name="stand_brightness_title">Brightness</string>
     <string name="stand_brightness_desc">Screen brightness while stand mode is open; also adjustable right in it. “System” never makes the screen brighter than it was.</string>
     <string name="stand_brightness_system">System</string>
-    <string name="stand_view_title">Stand: view</string>
+    <string name="stand_view_title">View</string>
     <string name="stand_view_desc">What is big on the stand screen. Long-press the screen to switch.</string>
     <string name="stand_view_text">Title</string>
     <string name="stand_view_cover">Cover</string>
-    <string name="stand_marquee_title">Stand: scrolling title</string>
+    <string name="stand_marquee_title">Scrolling title</string>
     <string name="stand_marquee_desc">A long title scrolls in one line instead of wrapping.</string>
-    <string name="stand_flip_title">Stand: upside down</string>
+    <string name="stand_flip_title">Upside down</string>
     <string name="stand_flip_desc">For a phone standing with its port up. The button in stand mode flips it too.</string>
     <string name="stand_flip">Flip</string>
-    <string name="stand_charging_title">Stand: only while charging</string>
+    <string name="stand_charging_title">Only while charging</string>
     <string name="stand_charging_desc">Stand mode closes when the charger is unplugged.</string>
-    <string name="stand_max_title">Stand: time limit</string>
+    <string name="stand_max_title">Time limit</string>
     <string name="stand_max_desc">After this time stand mode closes and the screen can sleep.</string>
-    <string name="stand_battery_title">Stand: leave on low battery</string>
+    <string name="stand_battery_title">Leave on low battery</string>
     <string name="stand_battery_desc" formatted="false">Below 15% without charging stand mode closes. Otherwise it only warns.</string>
     <string name="stand_exit_unplugged">Stand mode closed: the charger was unplugged.</string>
     <string name="stand_exit_timeout">Stand mode closed: time limit reached.</string>
@@ -740,7 +740,7 @@
     <string name="season_winter">Winter</string>
     <string name="player_menu">Player settings</string>
     <string name="tip_more">More</string>
-    <string name="stand_clock_title">Stand: clock</string>
+    <string name="stand_clock_title">Clock</string>
     <string name="stand_clock_desc">Show the big clock in stand mode.</string>
     <string name="stand_clock">Clock</string>
     <string name="pl_customize">Playlist</string>
@@ -774,8 +774,6 @@
     <string name="dock_labels_all">All</string>
     <string name="dock_labels_active">Active</string>
     <string name="dock_labels_none">Hidden</string>
-    <string name="dock_glow_title">Bottom panel: glow</string>
-    <string name="dock_glow_desc">The light around the panel breathes and a colour spot drifts inside while music plays.</string>
 
     <!-- Диагностика поиска и соединения -->
     <string name="search_error_title">SEARCH FAILED</string>
@@ -1007,4 +1005,8 @@
     <string name="season_fx_full">Full</string>
     <string name="hl_lyrics_focus">Hide the player</string>
     <string name="hl_lyrics_show_player">Show the player</string>
+    <string name="library_tile_own">My playlist</string>
+    <string name="library_tile_mirrored">On YouTube</string>
+    <string name="library_tile_saved">Read-only</string>
+    <string name="home_for_you">FOR YOU</string>
 </resources>

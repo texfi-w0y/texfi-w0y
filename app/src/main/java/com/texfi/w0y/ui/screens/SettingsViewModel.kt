@@ -360,8 +360,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setDockLabels(value: com.texfi.w0y.data.DockLabels) = update { repository.setDockLabels(value) }
 
-    fun setDockGlow(value: Boolean) = update { repository.setDockGlow(value) }
-
     fun setSeasonFx(value: com.texfi.w0y.data.SeasonFx) = update { repository.setSeasonFx(value) }
 
     fun setBackdropMode(value: com.texfi.w0y.data.BackdropMode) = update { repository.setBackdropMode(value) }

@@ -379,7 +379,7 @@ data class W0ySettings(
     val searchSuggestions: Boolean = true,
     val haptics: Boolean = true,
     val seekStepSec: Int = 10,
-    val playerCoverGlow: Boolean = true,
+    val playerCoverGlow: Boolean = false,
     val fallbackAudio: Boolean = true,
     val fallbackSource: FallbackSource = FallbackSource.AUTO,
     val lyricsLang: String = "",
@@ -444,8 +444,6 @@ data class W0ySettings(
     val dockShape: DockShape = DockShape.ISLAND,
     val dockTint: DockTint = DockTint.COVER,
     val dockLabels: DockLabels = DockLabels.ACTIVE,
-    /** Дыхание и свечение панели, пока играет музыка. */
-    val dockGlow: Boolean = true,
     /** Своя картинка фона — файл на телефоне, file://…; null, пока не выбрана. */
     val backdropImage: String? = null,
     val seasonMode: SeasonMode = SeasonMode.AUTO,
@@ -587,7 +585,6 @@ class SettingsRepository @Inject constructor(
                     dockShape = prefs.enum(Keys.DOCK_SHAPE, d.dockShape),
                     dockTint = prefs.enum(Keys.DOCK_TINT, d.dockTint),
                     dockLabels = prefs.enum(Keys.DOCK_LABELS, d.dockLabels),
-                    dockGlow = prefs[Keys.DOCK_GLOW] ?: d.dockGlow,
                     backdropImage = prefs[Keys.BACKDROP_IMAGE],
                     seasonMode = prefs.enum(Keys.SEASON_MODE, d.seasonMode),
                     seasonFx = prefs.enum(Keys.SEASON_FX, d.seasonFx),
@@ -899,8 +896,6 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setDockLabels(value: DockLabels) = put(Keys.DOCK_LABELS, value.name)
 
-    suspend fun setDockGlow(value: Boolean) = put(Keys.DOCK_GLOW, value)
-
     suspend fun setSeasonFx(value: SeasonFx) = put(Keys.SEASON_FX, value.name)
 
     suspend fun setBackdropImage(value: String?) {
@@ -1143,7 +1138,6 @@ class SettingsRepository @Inject constructor(
         val DOCK_SHAPE = stringPreferencesKey("dock_shape")
         val DOCK_TINT = stringPreferencesKey("dock_tint")
         val DOCK_LABELS = stringPreferencesKey("dock_labels")
-        val DOCK_GLOW = booleanPreferencesKey("dock_glow")
         val SEASON_FX = stringPreferencesKey("season_fx")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")

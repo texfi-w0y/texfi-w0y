@@ -50,14 +50,17 @@ fun ListenChart(
     val colors = LocalW0yColors.current
     val peak = max(1, bars.maxOfOrNull { it.minutes } ?: 1)
     var selected by remember(bars) { mutableStateOf(bars.indexOfLast { it.minutes > 0 }) }
+    val hair = com.texfi.w0y.ui.theme.isHair
     val grow = remember { Animatable(0f) }
     LaunchedEffect(bars) {
         grow.snapTo(0f)
-        grow.animateTo(1f, tween(W0yMotion.SLOW_MS, easing = W0yMotion.StepWide))
+        grow.animateTo(1f, tween(W0yMotion.SLOW_MS, easing = if (hair) com.texfi.w0y.ui.theme.HairTokens.EaseOut else W0yMotion.StepWide))
     }
+    // Язык даты — язык приложения, а не системы: иначе в русском интерфейсе «Oct 24, 2026».
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val formatter =
-        remember(bucket) {
-            if (bucket == StatsBucket.MONTH) DateTimeFormatter.ofPattern("LLL yyyy") else DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+        remember(bucket, locale) {
+            if (bucket == StatsBucket.MONTH) DateTimeFormatter.ofPattern("LLL yyyy", locale) else DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
         }
 
     Column(modifier.fillMaxWidth()) {
@@ -84,6 +87,22 @@ fun ListenChart(
         ) {
             if (bars.isEmpty()) return@Canvas
             val slot = size.width / bars.size
+            if (hair) {
+                // Hairline: тонкие сплошные столбики на линии основания, выбранный — акцентом.
+                val line = 1.dp.toPx()
+                drawRect(colors.border, Offset(0f, size.height - line), Size(size.width, line))
+                val w = (slot * 0.5f).coerceIn(2f, 8.dp.toPx())
+                bars.forEachIndexed { i, bar ->
+                    if (bar.minutes <= 0) return@forEachIndexed
+                    val h = max(2.dp.toPx(), (size.height - line) * bar.minutes / peak * grow.value)
+                    drawRect(
+                        if (i == selected) colors.accent else colors.text.copy(alpha = 0.32f),
+                        Offset(i * slot + (slot - w) / 2f, size.height - line - h),
+                        Size(w, h),
+                    )
+                }
+                return@Canvas
+            }
             val gap = max(1f, slot * 0.22f)
             val barWidth = slot - gap
             // Клетка — квадрат по ширине столбика, но не мельче 3 px и не

@@ -99,4 +99,21 @@ class BylineParseTest {
         val old = com.texfi.w0y.data.SongItem(id = "x", title = "t", artist = "A, B", artistId = "UCa")
         assertEquals(listOf(com.texfi.w0y.data.ArtistLink("UCa", "A, B")), old.artistLinks())
     }
+
+    @Test
+    fun queueBylineKeepsCoArtistsOutOfAlbum() {
+        val runs = listOf("Aarne", " & ", "BUSHIDO ZHO", " • ", "DRAIN SEASON", " • ", "2024")
+            .joinToString(",") { """{"text":${Json.encodeToString(it)}}""" }
+        val payload =
+            """
+            {"contents":[{"playlistPanelVideoRenderer":{
+              "videoId":"abc12345678",
+              "title":{"runs":[{"text":"DRAIN SEASON"}]},
+              "longBylineText":{"runs":[$runs]}
+            }}]}
+            """.trimIndent()
+        val item = YtJson.queueSongs(Json.parseToJsonElement(payload)).single()
+        assertEquals("Aarne & BUSHIDO ZHO", item.artist)
+        assertEquals("DRAIN SEASON", item.album)
+    }
 }
