@@ -201,11 +201,14 @@ class ShellViewModel @Inject constructor(
             settings.setStylePicked(true)
         }
 
-    /** null, пока настройки не прочитаны: предложение вслепую не показываем. */
-    val islandOffered: StateFlow<Boolean?> =
+    /**
+     * Показать ли предложение Hairline New. Считается из одного снимка настроек: флаги из разных
+     * потоков обновляются вразнобой, и предложение успевало мелькнуть сразу после выбора стиля.
+     */
+    val showIslandOffer: StateFlow<Boolean> =
         settings.settings
-            .map { it.islandOffered }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+            .map { it.welcomeSeen && it.stylePicked && !it.islandOffered && it.uiStyle != com.texfi.w0y.data.UiStyle.ISLAND }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /** Ответ на предложение Hairline New: попробовать — включить стиль; так или иначе больше не спрашивать. */
     fun answerIslandOffer(tryIt: Boolean) =

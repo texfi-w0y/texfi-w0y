@@ -154,7 +154,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val stylePicked by viewModel.stylePicked.collectAsStateWithLifecycle()
-    val islandOffered by viewModel.islandOffered.collectAsStateWithLifecycle()
+    val showIslandOffer by viewModel.showIslandOffer.collectAsStateWithLifecycle()
     val uiStyle by viewModel.uiStyle.collectAsStateWithLifecycle()
     val smoothGlass by viewModel.smoothGlass.collectAsStateWithLifecycle()
     val accent by viewModel.accent.collectAsStateWithLifecycle()
@@ -579,7 +579,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         }
 
         // Hairline New (бета) — один раз тем, кто обновился: после «что нового», не поверх него.
-        if (welcomeSeen == true && stylePicked == true && islandOffered == false && whatsNew == null && uiStyle != UiStyle.ISLAND) {
+        if (showIslandOffer && whatsNew == null) {
             IslandOfferDialog(onTry = { viewModel.answerIslandOffer(true) }, onStay = { viewModel.answerIslandOffer(false) })
         }
 
