@@ -40,17 +40,22 @@ class ShellSmokeTest {
         compose.waitForIdle()
         compose.onNode(androidx.compose.ui.test.hasText("SKIP")).performClick()
         compose.waitForIdle()
+        dismissIslandOffer()
         compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
         compose.waitForIdle()
-        // Окна поверх оболочки (диалоги) — отдельные корни. Если их больше одного, пишем каждый:
-        // на CI — в сводку запуска, иначе причину падения не увидеть.
-        val roots = compose.onAllNodes(androidx.compose.ui.test.isRoot())
-        val count = roots.fetchSemanticsNodes().size
-        if (count > 1) {
-            val dump = (0 until count).joinToString("\n\n") { "ROOT $it:\n" + roots[it].printToString(maxDepth = 12) }
-            System.getenv("GITHUB_STEP_SUMMARY")?.let { java.io.File(it).appendText("```\n$dump\n```\n") }
-            println(dump)
-        }
+        dismissIslandOffer()
         println("SHELL>>" + compose.onRoot().printToString(maxDepth = 40))
+    }
+
+    /**
+     * Обновившемуся (выбор стиля уже пройден) один раз предлагается Hairline New — отдельным окном.
+     * Это ожидаемо; закрываем «остаться на старом», чтобы дальше проверять саму оболочку.
+     */
+    private fun dismissIslandOffer() {
+        val stay = compose.onAllNodes(androidx.compose.ui.test.hasTestTag("island-offer-stay"))
+        if (stay.fetchSemanticsNodes().isNotEmpty()) {
+            stay[0].performClick()
+            compose.waitForIdle()
+        }
     }
 }
