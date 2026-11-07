@@ -42,6 +42,15 @@ class ShellSmokeTest {
         compose.waitForIdle()
         compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
         compose.waitForIdle()
+        // Окна поверх оболочки (диалоги) — отдельные корни. Если их больше одного, пишем каждый:
+        // на CI — в сводку запуска, иначе причину падения не увидеть.
+        val roots = compose.onAllNodes(androidx.compose.ui.test.isRoot())
+        val count = roots.fetchSemanticsNodes().size
+        if (count > 1) {
+            val dump = (0 until count).joinToString("\n\n") { "ROOT $it:\n" + roots[it].printToString(maxDepth = 12) }
+            System.getenv("GITHUB_STEP_SUMMARY")?.let { java.io.File(it).appendText("```\n$dump\n```\n") }
+            println(dump)
+        }
         println("SHELL>>" + compose.onRoot().printToString(maxDepth = 40))
     }
 }
