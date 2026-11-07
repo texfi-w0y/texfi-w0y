@@ -109,6 +109,8 @@ android {
         // не по делу.
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
+        // Полный текст упавшей проверки в логе: на CI иначе видно только «AssertionError в строке N».
+        unitTests.all { it.testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL } }
     }
 
     packaging {
