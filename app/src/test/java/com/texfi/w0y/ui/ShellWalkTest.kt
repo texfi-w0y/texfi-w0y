@@ -97,13 +97,26 @@ class ShellWalkTest {
         if (lists.fetchSemanticsNodes().isEmpty()) {
             throw AssertionError("$label: нет прокручиваемого списка\n" + compose.onRoot().printToString(maxDepth = 10).take(2500))
         }
-        val list = lists.onFirst()
-        val node = list.fetchSemanticsNode()
-        val rows = node.config.getOrNull(SemanticsProperties.CollectionInfo)?.rowCount ?: 0
-        if (rows > 0) list.performScrollToIndex(rows - 1)
-        compose.waitForIdle()
-        val listNode = compose.onAllNodes(verticalList).onFirst().fetchSemanticsNode()
-        val lowest = listNode.children.maxOfOrNull { it.boundsInRoot.bottom } ?: 0f
+        // Данные приходят из базы и настроек на других потоках, и ряд может появиться уже после
+        // прокрутки: список тогда стоит на старом месте и отступ под остров не виден. Докручиваем
+        // до конца, пока раскладка не устоится, — проверяется итог, а не промежуточный кадр.
+        var lowest = Float.NaN
+        var listNode = lists.onFirst().fetchSemanticsNode()
+        for (attempt in 0 until 5) {
+            val list = compose.onAllNodes(verticalList).onFirst()
+            val rows = list.fetchSemanticsNode().config.getOrNull(SemanticsProperties.CollectionInfo)?.rowCount ?: 0
+            if (rows > 0) list.performScrollToIndex(rows - 1)
+            compose.waitForIdle()
+            compose.mainClock.advanceTimeBy(400)
+            // Потоки базы и настроек идут по настоящим часам, не по часам теста.
+            Thread.sleep(200)
+            compose.waitForIdle()
+            listNode = compose.onAllNodes(verticalList).onFirst().fetchSemanticsNode()
+            val now = listNode.children.maxOfOrNull { it.boundsInRoot.bottom } ?: 0f
+            val settled = now == lowest
+            lowest = now
+            if (settled) break
+        }
         val top = islandTop()
         assertTrue("$label: низ последней строки $lowest заходит под остров $top", lowest <= top + 1f)
         val listBottom = listNode.boundsInRoot.bottom
