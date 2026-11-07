@@ -44,6 +44,10 @@ class ShellSmokeTest {
         compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
         compose.waitForIdle()
         dismissIslandOffer()
+        // Лишнее окно поверх оболочки — падаем с его содержимым в тексте ошибки, а не с одним «2 корня».
+        val roots = compose.onAllNodes(androidx.compose.ui.test.isRoot())
+        val count = roots.fetchSemanticsNodes().size
+        if (count > 1) throw AssertionError((1 until count).joinToString("\n") { "Лишнее окно:\n" + roots[it].printToString(maxDepth = 12) })
         println("SHELL>>" + compose.onRoot().printToString(maxDepth = 40))
     }
 
