@@ -623,6 +623,7 @@
     <string name="hl_icons_line">Line</string>
     <string name="hl_icons_filled">Filled outline</string>
     <string name="hl_icons_dots">Dots</string>
+    <string name="hl_icon_sketch">Sketch</string>
     <string name="hl_icon_w">W ring</string>
     <string name="hl_icon_leaf">Leaf</string>
     <string name="hl_icon_bars">Bars</string>

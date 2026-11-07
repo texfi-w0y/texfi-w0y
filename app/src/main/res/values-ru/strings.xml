@@ -623,6 +623,7 @@
     <string name="hl_icons_line">Линия</string>
     <string name="hl_icons_filled">Контур с заливкой</string>
     <string name="hl_icons_dots">Точки</string>
+    <string name="hl_icon_sketch">Набросок</string>
     <string name="hl_icon_w">W с кольцом</string>
     <string name="hl_icon_leaf">Перо</string>
     <string name="hl_icon_bars">Столбики</string>

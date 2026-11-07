@@ -32,9 +32,9 @@
     <application
         android:name=".W0yApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/icon_w"
+        android:icon="@mipmap/icon_sketch"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/icon_w"
+        android:roundIcon="@mipmap/icon_sketch"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.W0y.Splash">
@@ -49,10 +49,24 @@
             Иконка приложения выбирается в настройках: по алиасу на вариант,
             все ведут на одну MainActivity. Включён ровно один (по умолчанию
             IconW), переключает его AppIconSwitcher. Имена — в AppIcon.alias.
+            IconW показывает «Набросок»: алиас тот же, чтобы у обновившихся не появилось
+            второго значка. Прежняя «W с кольцом» — отдельный IconWRing.
         -->
         <activity-alias
             android:name=".IconW"
             android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/icon_sketch"
+            android:roundIcon="@mipmap/icon_sketch"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconWRing"
+            android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/icon_w"
             android:roundIcon="@mipmap/icon_w"

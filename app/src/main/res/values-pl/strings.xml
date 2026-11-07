@@ -623,6 +623,7 @@
     <string name="hl_icons_line">Linia</string>
     <string name="hl_icons_filled">Kontur z wypełnieniem</string>
     <string name="hl_icons_dots">Kropki</string>
+    <string name="hl_icon_sketch">Szkic</string>
     <string name="hl_icon_w">W z pierścieniem</string>
     <string name="hl_icon_leaf">Pióro</string>
     <string name="hl_icon_bars">Słupki</string>

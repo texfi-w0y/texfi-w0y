@@ -2225,6 +2225,14 @@ private fun AppIconPicker(selected: com.texfi.w0y.data.AppIcon, onPick: (com.tex
                             androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                         ).forEach { mask ->
                             Box(Modifier.size(34.dp).clip(mask).background(Color(ICON_BG))) {
+                                icon.background?.let { bg ->
+                                    androidx.compose.foundation.Image(
+                                        painter = androidx.compose.ui.res.painterResource(bg),
+                                        contentDescription = null,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                                 androidx.compose.foundation.Image(
                                     painter = androidx.compose.ui.res.painterResource(icon.foreground),
                                     contentDescription = null,
