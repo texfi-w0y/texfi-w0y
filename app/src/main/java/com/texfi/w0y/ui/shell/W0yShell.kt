@@ -579,8 +579,13 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         }
 
         // Hairline New (бета) — один раз тем, кто обновился: после «что нового», не поверх него.
-        if (showIslandOffer && whatsNew == null) {
-            IslandOfferDialog(onTry = { viewModel.answerIslandOffer(true) }, onStay = { viewModel.answerIslandOffer(false) })
+        // Ответ прячет окно сразу, не дожидаясь записи настроек на диск.
+        var islandAnswered by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+        if (showIslandOffer && whatsNew == null && !islandAnswered) {
+            IslandOfferDialog(
+                onTry = { islandAnswered = true; viewModel.answerIslandOffer(true) },
+                onStay = { islandAnswered = true; viewModel.answerIslandOffer(false) },
+            )
         }
 
         // Выбор стиля — после приветствия, один раз; обновившимся тоже один раз.

@@ -40,7 +40,6 @@ class ShellSmokeTest {
         compose.waitForIdle()
         compose.onNode(androidx.compose.ui.test.hasText("SKIP")).performClick()
         compose.waitForIdle()
-        dismissIslandOffer()
         compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
         compose.waitForIdle()
         dismissIslandOffer()
@@ -57,6 +56,8 @@ class ShellSmokeTest {
      */
     private fun dismissIslandOffer() {
         val stay = compose.onAllNodes(androidx.compose.ui.test.hasTestTag("island-offer-stay"))
+        // Окно появляется после чтения настроек с диска — ждём его недолго; не появилось — и не надо.
+        runCatching { compose.waitUntil(2_000) { stay.fetchSemanticsNodes().isNotEmpty() } }
         if (stay.fetchSemanticsNodes().isNotEmpty()) {
             stay[0].performClick()
             compose.waitForIdle()
