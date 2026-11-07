@@ -21,6 +21,8 @@ data class LyricLine(val timeMs: Long, val text: String, val words: List<LyricWo
 data class Lyrics(
     val plain: String?,
     val synced: List<LyricLine>,
+    /** Откуда текст: lrclib, netease, lyrics.ovh, genius — подпись над перемоткой. */
+    val source: String? = null,
 ) {
     val isEmpty: Boolean get() = plain.isNullOrBlank() && synced.isEmpty()
 }
@@ -114,7 +116,7 @@ class LyricsRepository @Inject constructor(
     }
 
     private inline fun attempt(source: String, block: () -> Lyrics?): Lyrics? =
-        runCatching(block)
+        runCatching { block()?.copy(source = source) }
             .onFailure { Timber.w(it, "Лирика: источник %s не ответил", source) }
             .getOrNull()
 

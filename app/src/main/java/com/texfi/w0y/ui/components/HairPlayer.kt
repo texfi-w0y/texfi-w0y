@@ -129,6 +129,8 @@ fun HairPlayButton(
     val morph by animateFloatAsState(if (playing) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "playMorph")
     val tone = Contrast.ensure(colors.accent, colors.background)
     val description = stringResource(if (playing) R.string.hl_cd_pause else R.string.hl_cd_play)
+    // Hairline New: светлый круг с тёмным знаком — единственная залитая кнопка на экране.
+    val island = com.texfi.w0y.ui.theme.isIsland
     Box(
         modifier
             .size(maxOf(size, HairTokens.TOUCH))
@@ -151,7 +153,8 @@ fun HairPlayButton(
                 val c = center
                 // Без круга: только сама иконка, она крупнее и под пальцем уходит в тон акцента.
                 // Иконка: два четырёхугольника, треугольник ↔ две полосы.
-                val k = r * 1.2f / 12f
+                if (island) drawCircle(colors.text, r * 1.04f, c)
+                val k = (if (island) r * 0.62f else r * 1.2f) / 12f
                 val ox = c.x - 12f * k
                 val oy = c.y - 12f * k
                 val path = Path()
@@ -163,7 +166,7 @@ fun HairPlayButton(
                     }
                     path.close()
                 }
-                drawPath(path, androidx.compose.ui.graphics.lerp(colors.text, tone, press), style = Fill)
+                drawPath(path, if (island) colors.background else androidx.compose.ui.graphics.lerp(colors.text, tone, press), style = Fill)
             },
     )
 }

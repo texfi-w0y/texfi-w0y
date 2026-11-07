@@ -50,6 +50,8 @@ import com.texfi.w0y.ui.components.ScreenTitle
 import com.texfi.w0y.ui.components.SectionHeader
 import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.components.hairStagger
+import com.texfi.w0y.ui.components.hairSpec
+import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.icons.HairGlyph
 import com.texfi.w0y.ui.icons.HairIcon
 import com.texfi.w0y.ui.nav.BrowseRoute
@@ -85,6 +87,10 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val syncError by viewModel.syncError.collectAsStateWithLifecycle()
     val mirrorFailure by viewModel.mirrorFailure.collectAsStateWithLifecycle()
+    val week by viewModel.week.collectAsStateWithLifecycle()
+    val island = com.texfi.w0y.ui.theme.isIsland
+    // Hairline New: данные аккаунта прячутся под аватаром в шапке, открываются по нажатию.
+    var accountOpen by remember { mutableStateOf(false) }
 
     var prompt by remember { mutableStateOf<Prompt?>(null) }
     var moving by remember { mutableStateOf<PlaylistEntity?>(null) }
@@ -109,12 +115,26 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                 Spacer(Modifier.height(8.dp))
             }
         } else {
-            item(key = "title") { ScreenTitle(title = stringResource(R.string.library_title), horizontalPadding = 0.dp) }
+            item(key = "title") {
+                if (island) {
+                    IslandLibraryHeader(
+                        title = stringResource(R.string.library_title),
+                        avatar = accountAvatar.takeIf { signedIn },
+                        avatarLabel = stringResource(R.string.library_account),
+                        onAvatar = { if (signedIn) accountOpen = !accountOpen else onOpenLogin() },
+                    )
+                } else ScreenTitle(title = stringResource(R.string.library_title), horizontalPadding = 0.dp)
+            }
 
             // Аккаунт: имя и две кнопки, без рамок-карточек.
             item(key = "account") {
-                Column(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 20.dp)) {
-                    if (signedIn) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !island || !signedIn || accountOpen || syncError != null || mirrorFailure != null,
+                    enter = androidx.compose.animation.expandVertically(hairSpec(HairTokens.MID_MS)) + androidx.compose.animation.fadeIn(hairSpec(HairTokens.MID_MS)),
+                    exit = androidx.compose.animation.shrinkVertically(hairSpec(HairTokens.MID_MS)) + androidx.compose.animation.fadeOut(hairSpec(HairTokens.SHORT_MS)),
+                ) {
+                Column(Modifier.fillMaxWidth().padding(top = if (island) 0.dp else 6.dp, bottom = 20.dp)) {
+                    if (signedIn && (!island || accountOpen)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CoverImage(url = accountAvatar, px = Thumbnails.ROW, modifier = Modifier.size(44.dp), circle = true)
                             Spacer(Modifier.width(14.dp))
@@ -141,7 +161,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                             )
                             PixelButton(text = stringResource(R.string.library_sign_out), onClick = viewModel::signOut, fill = colors.surfaceHigh)
                         }
-                    } else {
+                    } else if (!signedIn) {
                         Text(stringResource(R.string.library_sign_in_hint), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
                         Spacer(Modifier.height(12.dp))
                         PixelButton(text = stringResource(R.string.library_sign_in), onClick = onOpenLogin)
@@ -163,8 +183,46 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                         }
                     }
                 }
+                }
             }
 
+            if (island) {
+                item(key = "stats") {
+                    val hours = (week?.listenedMs ?: 0L) / 3_600_000L
+                    val minutes = ((week?.listenedMs ?: 0L) / 60_000L).toInt()
+                    com.texfi.w0y.ui.components.HairStatStrip(
+                        listOf(
+                            com.texfi.w0y.ui.components.HairStat(liked.size, stringResource(R.string.island_stat_likes)),
+                            com.texfi.w0y.ui.components.HairStat(playlists.size, stringResource(R.string.island_stat_playlists)),
+                            if (hours >= 1) {
+                                com.texfi.w0y.ui.components.HairStat(hours.toInt(), stringResource(R.string.island_stat_week), " " + stringResource(R.string.island_unit_hours))
+                            } else {
+                                com.texfi.w0y.ui.components.HairStat(minutes, stringResource(R.string.island_stat_week), " " + stringResource(R.string.island_unit_minutes))
+                            },
+                        ),
+                        modifier = Modifier.padding(bottom = 18.dp),
+                    )
+                }
+                item(key = "lib-grid") {
+                    val hours = (week?.listenedMs ?: 0L) / 3_600_000L
+                    val minutes = (week?.listenedMs ?: 0L) / 60_000L
+                    IslandLibraryGrid(
+                        tiles = listOf(
+                            IslandTile(HairGlyph.HEART, stringResource(R.string.library_likes), liked.size) { viewModel.open(LibraryRoute.Liked) },
+                            IslandTile(HairGlyph.TIMER, stringResource(R.string.library_history), recent.size) { viewModel.open(LibraryRoute.History) },
+                            IslandTile(HairGlyph.DOWNLOAD, stringResource(R.string.library_downloaded), downloaded.size) { viewModel.open(LibraryRoute.Downloads) },
+                            IslandTile(HairGlyph.FOLDER, stringResource(R.string.lm_card), files.size) { viewModel.open(LibraryRoute.Files) },
+                        ),
+                        statsLabel = stringResource(R.string.library_stats).lowercase().replaceFirstChar { it.uppercase() },
+                        weekLabel = week?.let {
+                            val amount = if (hours >= 1) "$hours ${stringResource(R.string.island_unit_hours)}" else "$minutes ${stringResource(R.string.island_unit_minutes)}"
+                            "$amount · ${stringResource(R.string.island_week)}"
+                        },
+                        week = week,
+                        onStats = { viewModel.open(LibraryRoute.Stats) },
+                    )
+                }
+            } else {
             item(key = "lib-header") { SectionHeader(stringResource(R.string.library_section_library), index = 1) }
             item(key = "lib-rows") {
                 Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -179,13 +237,15 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                     }
                 }
             }
+            }
             item(key = "gap1") { Spacer(Modifier.height(26.dp)) }
 
-            // Папки.
-            item(key = "folders-header") {
+            // Папки. В Hairline New раздел появляется, когда папки есть: новую создают из
+            // меню плейлиста (долгое нажатие → «переложить» → «новая папка»).
+            if (!island || folders.isNotEmpty()) item(key = "folders-header") {
                 SectionHeader(
                     label = stringResource(R.string.folders_title),
-                    index = 2,
+                    index = if (island) 1 else 2,
                     action = { HairIconButton(HairGlyph.PLUS, stringResource(R.string.folder_new), { prompt = Prompt.NewFolder(null) }, size = 18.dp) },
                 )
             }
@@ -201,14 +261,17 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                     }
                 }
             }
-            item(key = "gap2") { Spacer(Modifier.height(26.dp)) }
+            if (!island || folders.isNotEmpty()) item(key = "gap2") { Spacer(Modifier.height(26.dp)) }
         }
 
         item(key = "pl-header") {
             SectionHeader(
                 label = stringResource(R.string.library_playlists),
-                index = if (openFolder != null) null else 3,
-                action = { HairIconButton(HairGlyph.PLUS, stringResource(R.string.library_create), { prompt = Prompt.NewPlaylist }, size = 18.dp) },
+                index = if (openFolder != null) null else if (island) (if (folders.isNotEmpty()) 2 else 1) else 3,
+                action = {
+                    if (island) IslandPlusCircle(stringResource(R.string.library_create)) { prompt = Prompt.NewPlaylist }
+                    else HairIconButton(HairGlyph.PLUS, stringResource(R.string.library_create), { prompt = Prompt.NewPlaylist }, size = 18.dp)
+                },
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -240,6 +303,24 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted,
                     modifier = Modifier.padding(vertical = 6.dp),
+                )
+            }
+        } else if (island) {
+            items(shown, key = { "ip-" + it.id }) { playlist ->
+                val own = stringResource(R.string.library_tile_own)
+                IslandPlaylistRow(
+                    cover = covers[playlist.id],
+                    name = playlist.name,
+                    subtitle =
+                        when {
+                            playlist.remoteId != null && !playlist.remoteEditable -> stringResource(R.string.island_saved) + " · " + stringResource(R.string.library_tile_saved)
+                            playlist.remoteId != null -> own + " · " + stringResource(R.string.library_tile_mirrored)
+                            else -> own
+                        },
+                    tint = playlist.accent?.let { androidx.compose.ui.graphics.Color(it) },
+                    index = shown.indexOf(playlist),
+                    onClick = { viewModel.open(LibraryRoute.Local(playlist.id)) },
+                    onLongClick = { moving = playlist },
                 )
             }
         } else {
@@ -305,7 +386,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
         if (openFolder == null && accountAlbums.isNotEmpty()) {
             item(key = "albums-header") {
                 Spacer(Modifier.height(10.dp))
-                SectionHeader(stringResource(R.string.library_albums), index = 4)
+                SectionHeader(stringResource(R.string.library_albums), index = if (island) (if (folders.isNotEmpty()) 3 else 2) else 4)
                 Spacer(Modifier.height(10.dp))
             }
             items(accountAlbums, key = { "a-" + it.browseId }) { card ->

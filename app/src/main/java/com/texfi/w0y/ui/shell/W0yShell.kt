@@ -154,6 +154,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val stylePicked by viewModel.stylePicked.collectAsStateWithLifecycle()
+    val islandOffered by viewModel.islandOffered.collectAsStateWithLifecycle()
     val uiStyle by viewModel.uiStyle.collectAsStateWithLifecycle()
     val smoothGlass by viewModel.smoothGlass.collectAsStateWithLifecycle()
     val accent by viewModel.accent.collectAsStateWithLifecycle()
@@ -260,6 +261,8 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // и преломляют. В остальных стилях панели стоят под экраном, как раньше:
     // список кончается над ними, и под непрозрачной панелью ничего не прячется.
     val glassBars = com.texfi.w0y.ui.theme.isSmooth && com.texfi.w0y.ui.theme.styleTokens.glass
+    // Hairline New: матовый остров тоже размывает экран под собой.
+    val island = com.texfi.w0y.ui.theme.isIsland
     val barBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
     // Остров парит над экраном: на Главной, в поиске и в корне «Моё» экран идёт под ним до самого низа
     // (последняя строка достаётся отступом). А в «Скачанном», «Моих файлах», «Истории», «Лайках» и в
@@ -289,7 +292,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // Мини-плеер появляется и исчезает: отступ списков едет плавно, а не рывком.
     val barsHeight by androidx.compose.animation.core.animateDpAsState(barsHeightTarget, androidx.compose.animation.core.tween(220), label = "barsInset")
     val bars: @Composable (Modifier) -> Unit = { modifier ->
-        CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalBarBackdrop provides if (glassBars) barBackdrop else null) {
+        CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalBarBackdrop provides if (glassBars || island) barBackdrop else null) {
         Column(
             modifier
                 .fillMaxWidth()
@@ -573,6 +576,11 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 onDefer = viewModel::deferUpdate,
                 onCloseWhatsNew = viewModel::dismissWhatsNew,
             )
+        }
+
+        // Hairline New (бета) — один раз тем, кто обновился: после «что нового», не поверх него.
+        if (welcomeSeen == true && stylePicked == true && islandOffered == false && whatsNew == null && uiStyle != UiStyle.ISLAND) {
+            IslandOfferDialog(onTry = { viewModel.answerIslandOffer(true) }, onStay = { viewModel.answerIslandOffer(false) })
         }
 
         // Выбор стиля — после приветствия, один раз; обновившимся тоже один раз.

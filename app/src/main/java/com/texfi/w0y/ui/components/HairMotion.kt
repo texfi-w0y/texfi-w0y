@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.components
 
+import com.texfi.w0y.ui.theme.LocalW0yColors
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -115,6 +117,8 @@ fun Modifier.hairOutline(
     delayMs: Int = 0,
     drawOn: Boolean = true,
 ): Modifier {
+    // Hairline New: контур острова — светлая полупрозрачная линия, а не серая обводка.
+    val color = if (com.texfi.w0y.ui.theme.isIsland) LocalW0yColors.current.text.copy(alpha = 0.1f) else color
     val animate = drawOn && hairLook.motion.draws
     val progress = remember { Animatable(if (animate) 0f else 1f) }
     LaunchedEffect(Unit) {

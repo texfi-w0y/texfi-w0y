@@ -1,5 +1,9 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.ui.draw.drawBehind
+
+import com.texfi.w0y.ui.theme.matte
+
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
@@ -126,7 +130,8 @@ fun PlayerSheetHandle(label: String, badge: String?, onOpen: () -> Unit, modifie
             .fillMaxWidth()
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(look.cardRadius.coerceAtMost(12.dp)))
-            .border(look.line, colors.outline, RoundedCornerShape(look.cardRadius.coerceAtMost(12.dp)))
+            // Hairline New: плашку уже держит матовый остров вокруг, своя рамка была бы второй.
+            .then(if (com.texfi.w0y.ui.theme.isIsland) Modifier else Modifier.border(look.line, colors.outline, RoundedCornerShape(look.cardRadius.coerceAtMost(12.dp))))
             .semantics { contentDescription = description; role = Role.Button }
             .pointerInput(Unit) {
                 var drag = 0f
@@ -313,7 +318,8 @@ fun HairSheetFrame(
             enter = slideInVertically(hairSpec<IntOffset>()) { it },
             exit = slideOutVertically(hairSpec<IntOffset>()) { it },
         ) {
-            val shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+            val island = com.texfi.w0y.ui.theme.isIsland
+            val shape = RoundedCornerShape(topStart = if (island) 26.dp else 18.dp, topEnd = if (island) 26.dp else 18.dp)
             Column(
                 Modifier
                     .offset { IntOffset(0, dragPx.toInt()) }
@@ -321,9 +327,14 @@ fun HairSheetFrame(
                     .nestedScroll(connection)
                     .fillMaxWidth()
                     .then(if (heightFraction != null) Modifier.fillMaxHeight(heightFraction) else Modifier)
-                    .clip(shape)
-                    .background(colors.surface)
-                    .sheetOutline(colors.outline, look.line, 18.dp)
+                    .then(
+                        // Hairline New: панель — матовый лист с зерном и светлой кромкой сверху.
+                        if (island) {
+                            Modifier.matte(shape, fill = colors.surface.copy(alpha = 1f), alpha = 0.94f)
+                        } else {
+                            Modifier.clip(shape).background(colors.surface).sheetOutline(colors.outline, look.line, 18.dp)
+                        },
+                    )
                     .testTag("panel")
                     .navigationBarsPadding(),
             ) {
@@ -383,6 +394,10 @@ private fun Modifier.sheetOutline(color: Color, width: androidx.compose.ui.unit.
  */
 @Composable
 fun PanelTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        com.texfi.w0y.ui.components.IslandSegmented(labels, selected, onSelect, modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        return
+    }
     val colors = LocalW0yColors.current
     val look = hairLook
     // Акцентная линия не перепрыгивает, а перетекает: передний край спешит, задний догоняет —

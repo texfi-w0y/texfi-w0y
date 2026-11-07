@@ -82,6 +82,8 @@ fun SongRow(
     /** Моно-метка под строкой: «только на этом телефоне», «файл недоступен». */
     tag: String? = null,
     tagWarn: Boolean = false,
+    /** Метка справа вместо длительности — «у тебя» в выдаче поиска Hairline New. */
+    badge: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit = {},
 ) {
     val colors = LocalW0yColors.current
@@ -184,9 +186,14 @@ fun SongRow(
                     )
                 }
             }
-            song.durationText?.let {
+            if (badge != null) {
                 Spacer(Modifier.width(8.dp))
-                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                badge()
+            } else {
+                song.durationText?.let {
+                    Spacer(Modifier.width(8.dp))
+                    Text(it, style = if (com.texfi.w0y.ui.theme.isIsland) com.texfi.w0y.ui.theme.HairLabelStyle else MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                }
             }
             Spacer(Modifier.width(8.dp))
             actions()

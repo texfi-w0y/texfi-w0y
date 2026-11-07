@@ -193,6 +193,17 @@ enum class UiStyle(@StringRes val label: Int, @StringRes val hint: Int) {
     HAIRLINE(R.string.style_hairline, R.string.style_hairline_hint),
     PIXEL(R.string.style_pixel, R.string.style_pixel_hint),
     SMOOTH(R.string.style_smooth, R.string.style_smooth_hint),
+
+    /**
+     * Hairline New: тот же Hairline со всеми его настройками, но поверхности — матовые острова
+     * с зерном, фон в точку, шрифты Geologica и IBM Plex Mono, плеер-постер. Стоит последним:
+     * у сохранённых настроек порядок прежних стилей не сдвигается.
+     */
+    ISLAND(R.string.style_island, R.string.style_island_hint),
+    ;
+
+    /** Рисуется как Hairline: его компоненты, вид и настройки. */
+    val hairBased: Boolean get() = this == HAIRLINE || this == ISLAND
 }
 
 /** Размер текста лирики. */
@@ -415,6 +426,8 @@ data class W0ySettings(
     val smoothGlass: Boolean = true,
     /** Показан ли выбор стиля — на первом запуске и один раз после обновления. */
     val stylePicked: Boolean = false,
+    /** Предложен ли Hairline New (бета) — один раз после обновления, ответ любой. */
+    val islandOffered: Boolean = false,
     // ── Лирика и визуализатор ────────────────────────────────────────────
     val lyricsSize: LyricsSize = LyricsSize.MEDIUM,
     /** Насколько позже звучащей строки подсвечивать текст, мс (минус — раньше). */
@@ -566,6 +579,7 @@ class SettingsRepository @Inject constructor(
                     uiStyle = prefs.enum(Keys.UI_STYLE, d.uiStyle),
                     smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: d.smoothGlass,
                     stylePicked = prefs[Keys.STYLE_PICKED] ?: d.stylePicked,
+                    islandOffered = prefs[Keys.ISLAND_OFFERED] ?: d.islandOffered,
                     lyricsSize = prefs.enum(Keys.LYRICS_SIZE, d.lyricsSize),
                     lyricsDelayMs = prefs[Keys.LYRICS_DELAY] ?: d.lyricsDelayMs,
                     lyricsAllSources = prefs[Keys.LYRICS_ALL] ?: d.lyricsAllSources,
@@ -851,11 +865,24 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setDialMinPlays(value: Int) = put(Keys.DIAL_MIN_PLAYS, value.coerceIn(1, 20))
 
-    suspend fun setUiStyle(value: UiStyle) = put(Keys.UI_STYLE, value.name)
+    suspend fun setUiStyle(value: UiStyle) {
+        put(Keys.UI_STYLE, value.name)
+        // Hairline New задуман вокруг плеера-постера: при переходе на него раскладка становится
+        // постером. Дальше её можно сменить в настройках, как обычно.
+        // Фон — «сетка»: в Hairline New это точки, как на сайте. Заголовки — обычным регистром,
+        // заглавные остаются у моно-подписей.
+        if (value == UiStyle.ISLAND) {
+            setPlayerLayout(PlayerLayout.POSTER)
+            setBackdropMode(BackdropMode.GRID)
+            setCaps(CapsMode.LABELS)
+        }
+    }
 
     suspend fun setSmoothGlass(value: Boolean) = put(Keys.SMOOTH_GLASS, value)
 
     suspend fun setStylePicked(value: Boolean) = put(Keys.STYLE_PICKED, value)
+
+    suspend fun setIslandOffered(value: Boolean) = put(Keys.ISLAND_OFFERED, value)
 
     suspend fun setLyricsSize(value: LyricsSize) = put(Keys.LYRICS_SIZE, value.name)
 
@@ -1119,6 +1146,7 @@ class SettingsRepository @Inject constructor(
         val UI_STYLE = stringPreferencesKey("ui_style")
         val SMOOTH_GLASS = booleanPreferencesKey("smooth_glass")
         val STYLE_PICKED = booleanPreferencesKey("style_picked")
+        val ISLAND_OFFERED = booleanPreferencesKey("island_offered")
         val LYRICS_SIZE = stringPreferencesKey("lyrics_size")
         val LYRICS_DELAY = intPreferencesKey("lyrics_delay_ms")
         val LYRICS_ALL = booleanPreferencesKey("lyrics_all_sources")

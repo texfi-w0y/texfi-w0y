@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.components
 
+import androidx.compose.ui.draw.drawBehind
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.basicMarquee
@@ -101,6 +103,8 @@ fun LyricsView(
 
     val base = size.sp.sp * (if (big) 1.2f else 1f)
     val hair = com.texfi.w0y.ui.theme.isHair
+    val island = com.texfi.w0y.ui.theme.isIsland
+    val accentLine = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
     LazyColumn(
         state = list,
         modifier =
@@ -119,7 +123,8 @@ fun LyricsView(
                         blendMode = BlendMode.DstIn,
                     )
                 },
-        contentPadding = PaddingValues(vertical = 120.dp),
+        // Черта акцента у звучащей строки рисуется левее текста — оставляем ей место.
+        contentPadding = PaddingValues(start = if (island && !centered) 16.dp else 0.dp, top = 120.dp, bottom = 120.dp),
     ) {
         itemsIndexed(lines, key = { i, line -> "$i-${line.timeMs}" }) { index, line ->
             val distance = if (active < 0) 3 else abs(index - active)
@@ -136,6 +141,9 @@ fun LyricsView(
             )
             val style =
                 TextStyle(
+                    // Hairline New: текст песни тем же гротеском, что весь экран.
+                    fontFamily = if (island) com.texfi.w0y.ui.theme.GeologicaFamily else null,
+                    letterSpacing = if (island) (-0.3).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
                     fontSize = if (isActive && !big) base * (if (hair) 1.2f else 1.12f) else base,
                     lineHeight = base * 1.35f,
                     fontWeight = if (big) FontWeight.ExtraBold else if (isActive) FontWeight.Bold else FontWeight.SemiBold,
@@ -147,6 +155,11 @@ fun LyricsView(
                 if (big && isActive) BIG_ACTIVE_SCALE else 1f,
                 androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 260f),
                 label = "lyricScale",
+            )
+            val bar by androidx.compose.animation.core.animateFloatAsState(
+                if (isActive) 1f else 0f,
+                com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS),
+                label = "lyricBar",
             )
             Column(
                 Modifier
@@ -164,6 +177,21 @@ fun LyricsView(
                         },
                     )
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSeek(line.timeMs) }
+                    // Hairline New: звучащая строка отмечена чертой акцента слева (у выровненных влево).
+                    .then(
+                        if (island && !centered) {
+                            // Черта растёт от середины строки, когда строка начинает звучать, и так же сходит.
+                            Modifier.drawBehind {
+                                if (bar > 0f) {
+                                    val mid = this.size.height / 2f
+                                    val half = (mid - 12.dp.toPx()).coerceAtLeast(0f) * bar
+                                    drawLine(accentLine, androidx.compose.ui.geometry.Offset(-12.dp.toPx(), mid - half), androidx.compose.ui.geometry.Offset(-12.dp.toPx(), mid + half), 2.dp.toPx())
+                                }
+                            }
+                        } else {
+                            Modifier
+                        },
+                    )
                     .padding(vertical = 8.dp),
             ) {
                 if (isActive && line.words.isNotEmpty()) {

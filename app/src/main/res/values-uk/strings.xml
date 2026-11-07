@@ -589,6 +589,8 @@
     <string name="stand_low_battery">Мало заряду</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Тонкі лінії, чиста геометрія, диск-обкладинка з кільцем прогресу. Швидко і спокійно.</string>
+    <string name="style_island">Hairline New</string>
+    <string name="style_island_hint">Hairline з матовими островами, тлом у крапку, шрифтом Geologica і плеєром-постером.</string>
     <string name="accent_light_blue">СВІТЛО-СИНІЙ</string>
     <string name="accent_warm">ТЕПЛИЙ</string>
     <string name="hl_weight_thin">Тонка 1 dp</string>
@@ -1030,4 +1032,27 @@
     <string name="welcome_albums">Альбоми</string>
     <string name="welcome_go">Слухати</string>
     <string name="welcome_later">Далі</string>
+    <string name="island_kind_song">Трек</string>
+    <string name="island_kind_album">Альбом</string>
+    <string name="island_kind_playlist">Плейлист</string>
+    <string name="island_kind_artist">Виконавець</string>
+    <string name="island_seek">Позиція в треку</string>
+    <string name="island_text">Текст</string>
+    <string name="island_tone">тон %1$s</string>
+    <string name="island_best">Найкращий результат</string>
+    <string name="island_yours">У тебе</string>
+    <string name="island_all">Усі</string>
+    <string name="island_stat_likes">вподобань</string>
+    <string name="island_stat_playlists">плейлистів</string>
+    <string name="island_stat_week">за тиждень</string>
+    <string name="island_unit_hours">год</string>
+    <string name="island_unit_minutes">хв</string>
+    <string name="island_week">тиждень</string>
+    <string name="island_saved">Збережений</string>
+    <string name="common_back">Назад</string>
+    <string name="island_offer_label">Новий дизайн · бета</string>
+    <string name="island_offer_title">Спробувати Hairline New?</string>
+    <string name="island_offer_text">Матові острови, нові шрифти, плеєр-постер і текст пісні на весь екран. Це бета: повернути старий вигляд можна будь-коли — Налаштування → Вигляд → Стиль.</string>
+    <string name="island_offer_try">Спробувати новий</string>
+    <string name="island_offer_stay">Лишитися на старому</string>
 </resources>

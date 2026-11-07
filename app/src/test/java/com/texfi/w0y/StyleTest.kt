@@ -29,7 +29,12 @@ import org.robolectric.annotation.Config
 class StyleTest {
     @Test
     fun everyStyleHasTokens() {
-        UiStyle.entries.forEach { style -> assertEquals(style, tokensFor(style).style) }
+        // Hairline New рисуется компонентами Hairline (и берёт все его настройки), отличие — флаг острова.
+        UiStyle.entries.forEach { style ->
+            val tokens = tokensFor(style)
+            assertEquals(if (style == UiStyle.ISLAND) UiStyle.HAIRLINE else style, tokens.style)
+            assertEquals(style == UiStyle.ISLAND, tokens.island)
+        }
         val pixel = tokensFor(UiStyle.PIXEL)
         val smooth = tokensFor(UiStyle.SMOOTH)
         assertTrue(pixel.stepped && pixel.segmented && pixel.cardShadow.value > 0)

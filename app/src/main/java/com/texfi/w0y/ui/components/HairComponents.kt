@@ -1,5 +1,17 @@
 package com.texfi.w0y.ui.components
 
+import com.texfi.w0y.ui.theme.HairLabelStyle
+
+import androidx.compose.ui.semantics.semantics
+
+import androidx.compose.ui.semantics.selected
+
+import androidx.compose.ui.semantics.role
+
+import androidx.compose.ui.semantics.Role
+
+import androidx.compose.ui.draw.drawBehind
+
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -52,6 +64,7 @@ import com.texfi.w0y.data.Thumbnails
 import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.theme.LocalW0yColors
+import com.texfi.w0y.ui.theme.drawGrain
 import com.texfi.w0y.ui.theme.PixelSectionLabel
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
@@ -71,10 +84,15 @@ import kotlin.math.roundToInt
  */
 @Composable
 internal fun Modifier.hairSurface(shape: androidx.compose.ui.graphics.Shape, fill: Color = LocalW0yColors.current.surface): Modifier =
-    this.background(
-        androidx.compose.ui.graphics.Brush.verticalGradient(listOf(lerp(fill, Color.White, 0.055f), fill)),
-        shape,
-    )
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        // Hairline New: матовая подложка — полупрозрачная, с зерном; сквозь неё видна точка фона.
+        this.background(fill.copy(alpha = 0.62f), shape).clip(shape).drawBehind { drawGrain(0.9f) }
+    } else {
+        this.background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(listOf(lerp(fill, Color.White, 0.055f), fill)),
+            shape,
+        )
+    }
 
 /** Карточка: поверхность и контур, который «рисуется» при появлении. Тени нет. */
 @Composable
@@ -159,6 +177,7 @@ internal fun HairButton(
 internal fun HairSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, haptic: (Buzz) -> Unit) {
     val colors = LocalW0yColors.current
     val on by animateFloatAsState(if (checked) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "hairSwitch")
+    val island = com.texfi.w0y.ui.theme.isIsland
     val tone = Contrast.ensure(colors.accent, colors.background)
     val shape = RoundedCornerShape(50)
     Box(
@@ -166,8 +185,9 @@ internal fun HairSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, ha
             .size(width = 46.dp, height = 28.dp)
             .testTag("hair-switch")
             .clip(shape)
-            .background(tone.copy(alpha = 0.16f * on))
-            .border(hairLook.line, lerp(colors.outline, tone, on), shape)
+            // Hairline New: включённый — сплошная капсула акцента с белым бегунком.
+            .background(if (island) tone.copy(alpha = on) else tone.copy(alpha = 0.16f * on))
+            .border(hairLook.line, if (island) lerp(colors.text.copy(alpha = 0.18f), tone, on) else lerp(colors.outline, tone, on), shape)
             .clickable(role = androidx.compose.ui.semantics.Role.Switch) {
                 haptic(if (checked) Buzz.OFF else Buzz.ON)
                 onCheckedChange(!checked)
@@ -183,7 +203,7 @@ internal fun HairSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, ha
                 .size(18.dp)
                 .testTag("hair-switch-thumb")
                 .clip(CircleShape)
-                .background(lerp(colors.textMuted, tone, on)),
+                .background(if (island) lerp(colors.textMuted, Color.White, on) else lerp(colors.textMuted, tone, on)),
         )
     }
 }
@@ -218,6 +238,10 @@ internal fun HairSegmented(
     modifier: Modifier,
     onSelect: (Int) -> Unit,
 ) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        IslandSegmented(options, selectedIndex, onSelect, modifier)
+        return
+    }
     val colors = LocalW0yColors.current
     val look = hairLook
     val tap = rememberTapHaptic()
@@ -267,6 +291,57 @@ internal fun HairSegmented(
                 .padding(horizontal = 8.dp)
                 .background(Contrast.ensure(colors.accent, colors.background)),
         )
+    }
+}
+
+/**
+ * Переключатель Hairline New: капсула с тонкой рамкой, выбранное — светлая капсула внутри,
+ * она переезжает к новому пункту за 140 мс.
+ */
+@Composable
+fun IslandSegmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    val pos = remember { androidx.compose.animation.core.Animatable(selected.toFloat()) }
+    androidx.compose.runtime.LaunchedEffect(selected) {
+        if (look.motion.moves) pos.animateTo(selected.toFloat(), androidx.compose.animation.core.tween(140, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut)) else pos.snapTo(selected.toFloat())
+    }
+    val pill = colors.text.copy(alpha = 0.1f)
+    val tap = rememberTapHaptic()
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .border(1.dp, colors.text.copy(alpha = 0.12f), RoundedCornerShape(50))
+            .padding(3.dp)
+            .drawBehind {
+                val slot = size.width / labels.size.coerceAtLeast(1)
+                drawRoundRect(
+                    pill,
+                    topLeft = androidx.compose.ui.geometry.Offset(pos.value * slot, 0f),
+                    size = androidx.compose.ui.geometry.Size(slot, size.height),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
+                )
+            },
+    ) {
+        labels.forEachIndexed { i, label ->
+            val active = i == selected
+            val ink by androidx.compose.animation.animateColorAsState(if (active) colors.text else colors.textMuted, hairSpec(com.texfi.w0y.ui.theme.HairTokens.SHORT_MS), label = "segInk")
+            Box(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 38.dp)
+                    .testTag("panel-tab-$i")
+                    .semantics { role = Role.Tab; this.selected = active }
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        if (i != selected) tap()
+                        onSelect(i)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label.asLabel(), style = HairLabelStyle, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 4.dp))
+            }
+        }
     }
 }
 

@@ -27,7 +27,8 @@ fun Modifier.screenBackground(): Modifier {
         // Оверлеи лежат под строкой состояния: заливку продлеваем вверх, чтобы не было шва.
         val statusTop = WindowInsets.statusBars.getTop(androidx.compose.ui.platform.LocalDensity.current).toFloat()
         val spec = LocalBackdrop.current
-        return background(colors.background).drawBehind { drawBackdrop(spec, colors, statusTop) }
+        val island = isIsland
+        return background(colors.background).drawBehind { drawBackdrop(spec, colors, statusTop, island) }
     }
     if (!colors.glass) return background(colors.background)
     val accent = colors.accent

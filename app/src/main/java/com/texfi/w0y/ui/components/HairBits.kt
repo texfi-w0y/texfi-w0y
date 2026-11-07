@@ -52,7 +52,6 @@ import com.texfi.w0y.ui.theme.HairLabelStyle
 import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.MotionLevel
-import com.texfi.w0y.ui.theme.UnboundedFamily
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
 
@@ -167,8 +166,9 @@ fun HairInfoToggle(title: String, modifier: Modifier = Modifier, content: @Compo
 }
 
 /** Крупное число строки цифр: тот же гротеск, что у заголовков, но мельче. */
-internal val StatNumberStyle =
-    TextStyle(fontFamily = UnboundedFamily, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.02).sp)
+internal val StatNumberStyle: TextStyle
+    @Composable @androidx.compose.runtime.ReadOnlyComposable
+    get() = TextStyle(fontFamily = com.texfi.w0y.ui.theme.hairDisplayFamily, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.02).sp)
 
 private const val COUNT_MS = 700
 private const val RUN_MS = 1_100

@@ -193,7 +193,26 @@ class ShellViewModel @Inject constructor(
     fun setAccent(accent: Accent) = viewModelScope.launch { settings.setAccent(accent) }
 
     /** Выбор стиля закрыт — выбором или пропуском; больше не показываем. */
-    fun completeStylePick() = viewModelScope.launch { settings.setStylePicked(true) }
+    fun completeStylePick() =
+        viewModelScope.launch {
+            // Новый пользователь видел Hairline New в самом выборе — отдельно не предлагаем.
+            // Сначала этот флаг: иначе между двумя записями предложение успевает мелькнуть.
+            settings.setIslandOffered(true)
+            settings.setStylePicked(true)
+        }
+
+    /** null, пока настройки не прочитаны: предложение вслепую не показываем. */
+    val islandOffered: StateFlow<Boolean?> =
+        settings.settings
+            .map { it.islandOffered }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Ответ на предложение Hairline New: попробовать — включить стиль; так или иначе больше не спрашивать. */
+    fun answerIslandOffer(tryIt: Boolean) =
+        viewModelScope.launch {
+            if (tryIt) settings.setUiStyle(com.texfi.w0y.data.UiStyle.ISLAND)
+            settings.setIslandOffered(true)
+        }
 
     val theme: StateFlow<ThemeMode> =
         settings.settings

@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +73,7 @@ import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.MotionLevel
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
+import com.texfi.w0y.ui.theme.matte
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.delay
@@ -135,6 +138,7 @@ fun HairDock(
     }
 
     val bar = config.shape == DockShape.BAR
+    val island = com.texfi.w0y.ui.theme.isIsland
     val radius = when {
         bar -> 0.dp
         look.corners == CornerStyle.SHARP -> 10.dp
@@ -154,8 +158,14 @@ fun HairDock(
                     translationY = rise.value * 96.dp.toPx()
                     alpha = 1f - rise.value * 0.6f
                 }
-                .clip(shape)
-                .background(colors.surface)
+                .then(
+                    if (island) {
+                        // Hairline New: тот же корпус, но матовый — размывает экран под собой, сверху зерно.
+                        Modifier.matte(shape, com.texfi.w0y.ui.theme.LocalBarBackdrop.current, fill = colors.surface, edge = false)
+                    } else {
+                        Modifier.clip(shape).background(colors.surface)
+                    },
+                )
                 .dockFrame(radius, progress, lerp(colors.outline, tint, if (tinted) 0.2f else 0f), toneAccent),
         ) {
             mini()

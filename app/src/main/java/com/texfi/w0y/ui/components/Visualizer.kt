@@ -63,7 +63,7 @@ fun VisualizerStyle.forUi(style: UiStyle): VisualizerStyle =
                 VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.ORBIT, VisualizerStyle.TERRAIN, VisualizerStyle.PULSE, VisualizerStyle.HORIZON -> VisualizerStyle.WAVE
                 else -> this
             }
-        UiStyle.HAIRLINE ->
+        UiStyle.HAIRLINE, UiStyle.ISLAND ->
             when (this) {
                 VisualizerStyle.SEGMENTS, VisualizerStyle.MOSAIC, VisualizerStyle.BARS -> VisualizerStyle.LINES
                 VisualizerStyle.SCOPE, VisualizerStyle.RING, VisualizerStyle.WAVE -> VisualizerStyle.ORBIT

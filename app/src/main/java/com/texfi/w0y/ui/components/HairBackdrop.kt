@@ -28,8 +28,9 @@ import com.texfi.w0y.ui.theme.drawBackdrop
 @Composable
 fun HairBackdrop(coverUrl: String?, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
+    val island = com.texfi.w0y.ui.theme.isIsland
     val spec = com.texfi.w0y.ui.theme.LocalBackdrop.current
-    Box(modifier.drawBehind { drawBackdrop(spec, colors, 0f) })
+    Box(modifier.drawBehind { drawBackdrop(spec, colors, 0f, island) })
 }
 
 private val GRID = 48.dp

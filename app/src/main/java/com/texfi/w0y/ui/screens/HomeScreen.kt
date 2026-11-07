@@ -91,6 +91,7 @@ fun HomeScreen(
 ) {
     val colors = LocalW0yColors.current
     val hair = com.texfi.w0y.ui.theme.isHair
+    val island = com.texfi.w0y.ui.theme.isIsland
     val playing by viewModel.player.state.collectAsStateWithLifecycle()
     val navigator = LocalBrowseNavigator.current
     val dial by viewModel.speedDial.collectAsStateWithLifecycle()
@@ -142,7 +143,9 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize(),
     ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
-        item {
+        if (island) {
+            item { IslandHomeHeader(onOpenSettings) }
+        } else item {
             ScreenTitle(
                 title = stringResource(if (hair) R.string.tab_home else R.string.app_name),
                 // Замер старта стоит рядом с названием: обещание «быстро»
@@ -161,7 +164,8 @@ fun HomeScreen(
                 SectionHeader(
                     index = 1,
                     label = stringResource(R.string.home_dial),
-                    hint = if (dial.isEmpty()) null else stringResource(R.string.home_dial_hint),
+                    // Hairline New: подсказка стоит под сеткой, справа от страниц.
+                    hint = if (dial.isEmpty() || island) null else stringResource(R.string.home_dial_hint),
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -184,7 +188,7 @@ fun HomeScreen(
             }
         } else {
             item {
-                if (hair) HairDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem) else SpeedDialPager(
+                if (island) IslandDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem, columns = HAIR_COLUMNS, rows = HAIR_ROWS, hint = stringResource(R.string.home_dial_hint)) else if (hair) HairDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem) else SpeedDialPager(
                     items = dial,
                     onOpen = { item -> openDial(item) },
                     onLongPress = { menuItem = it },

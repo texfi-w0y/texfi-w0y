@@ -1,5 +1,20 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.clickable
+
+import androidx.compose.foundation.layout.offset
+
+import androidx.compose.foundation.layout.widthIn
+
+import com.texfi.w0y.ui.theme.asLabel
+
+import androidx.compose.ui.draw.drawBehind
+
+import com.texfi.w0y.ui.theme.screenBackdrop
+
+import com.texfi.w0y.ui.theme.matte
+import com.texfi.w0y.ui.theme.drawGrain
+
 import com.texfi.w0y.ui.components.coverFlightHide
 import com.texfi.w0y.ui.components.coverFlightPlayer
 import android.os.Build
@@ -118,6 +133,10 @@ internal fun overBlurColors() =
  */
 @Composable
 fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        IslandFlowBackdrop(url, playing, modifier)
+        return
+    }
     val context = LocalContext.current
     val moves = hairLook.motion.moves && playing
     val drift = rememberInfiniteTransition(label = "blurDrift")
@@ -147,6 +166,64 @@ fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modi
             Modifier
                 .fillMaxSize()
                 .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.35f), 0.45f to Color.Black.copy(alpha = 0.45f), 1f to Color.Black.copy(alpha = 0.82f))),
+        )
+    }
+}
+
+/**
+ * Фон постера Hairline New: цвета обложки переливаются. Три копии обложки, крупно и сильно
+ * размытые, медленно вращаются вокруг разных точек в разные стороны (24, 31 и 38 с на оборот) —
+ * цветовые пятна обложки текут друг через друга, как жидкость. Пока трек на паузе, течение
+ * замирает; без анимаций — неподвижная смесь. Смена трека — перетекание за 900 мс.
+ */
+@Composable
+private fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifier) {
+    val context = LocalContext.current
+    val moves = hairLook.motion.moves
+    // Свои часы течения: идут, пока трек играет, и стоят на паузе — продолжение без рывка.
+    val clock = remember { androidx.compose.runtime.mutableFloatStateOf(7f) }
+    androidx.compose.runtime.LaunchedEffect(playing, moves) {
+        if (!playing || !moves) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (last != 0L) clock.floatValue += (now - last) / 1_000_000_000f
+                last = now
+            }
+        }
+    }
+    val periods = floatArrayOf(24f, 31f, 38f)
+    Box(modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
+        Crossfade(targetState = url, animationSpec = tween(900), label = "flowBackdrop") { current ->
+            Box(Modifier.fillMaxSize().then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(72.dp) else Modifier)) {
+                val layers = listOf(Triple(0.0f, 0.0f, 1f), Triple(-0.28f, 0.22f, 0.75f), Triple(0.3f, -0.18f, 0.6f))
+                layers.forEachIndexed { i, (dx, dy, a) ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(Thumbnails.sized(current, 96)).crossfade(false).build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val angle = clock.floatValue / periods[i] * 360f * (if (i == 1) -1f else 1f)
+                                    alpha = a
+                                    val k = 1.9f - i * 0.25f
+                                    scaleX = k
+                                    scaleY = k
+                                    rotationZ = angle
+                                    translationX = dx * size.width
+                                    translationY = dy * size.height
+                                },
+                    )
+                }
+            }
+        }
+        // Поле темнее к низу: кнопки и название стоят на спокойном цвете; сверху цвет виден в полную силу.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.18f), 0.5f to Color.Black.copy(alpha = 0.32f), 1f to Color.Black.copy(alpha = 0.66f))),
         )
     }
 }
@@ -268,10 +345,15 @@ internal fun CoverPlayerPage(
     visualizerOn: Boolean = false,
     /** На сцене сейчас обложка (а не визуализатор, текст или видео): только тогда она летит в мини-плеер. */
     coverShown: Boolean = true,
+    /** Hairline New: номер трека в очереди для подписи «№ 11». */
+    number: Int? = null,
+    /** Hairline New: строка звука под линейкой — «1.00× · тон 1.00»; нажатие открывает скорость. */
+    soundLine: String? = null,
+    onSoundLine: () -> Unit = {},
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
     if (poster) {
-        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown)
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine)
         return
     }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -387,6 +469,9 @@ private fun PosterPlayerPage(
     onDragEnd: () -> Unit,
     visualizerOn: Boolean,
     coverShown: Boolean,
+    number: Int?,
+    soundLine: String?,
+    onSoundLine: () -> Unit,
 ) {
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
@@ -407,12 +492,19 @@ private fun PosterPlayerPage(
         val rest by animateFloatAsState(if (isPlaying) 0f else 1f, hairSpec(HairTokens.LONG_MS), label = "posterRest")
         val progressTarget = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
         val progress by animateFloatAsState(progressTarget, tween(480, easing = LinearEasing), label = "posterProgress")
+        // Hairline New: шапка, кнопки и плашка — матовые острова; размывают они то, что под ними, —
+        // обложку и её мягкую копию. Для этого всё, что под островами, пишется в одну запись.
+        val island = com.texfi.w0y.ui.theme.isIsland
+        val posterBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
         BoxWithConstraints(Modifier.fillMaxSize().dragToCollapse()) {
+            val pageWidth = maxWidth
+            val pageHeight = maxHeight
+            Box(Modifier.matchParentSize().then(if (island) Modifier.screenBackdrop(posterBackdrop) else Modifier)) {
             PlayerBlurBackdrop(song.thumbnailUrl, isPlaying)
             // Обложка заходит под управление на величину растворения, но не выше квадрата.
             val fade = 96.dp
             val controls = with(density) { controlsPx.toDp() }
-            val coverH = if (controlsPx == 0) maxWidth else (maxHeight - controls + fade).coerceIn(maxWidth * 0.6f, maxWidth * 1.15f)
+            val coverH = if (controlsPx == 0) pageWidth else (pageHeight - controls + fade).coerceIn(pageWidth * 0.6f, pageWidth * 1.15f)
             val flight = com.texfi.w0y.ui.components.LocalCoverFlight.current
             Box(
                 Modifier
@@ -482,7 +574,8 @@ private fun PosterPlayerPage(
                                 .drawWithContent {
                                     drawContent()
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        val f = (fade.toPx() * 3.2f / size.height).coerceIn(0.15f, 0.85f)
+                                        // Hairline New: обложка держится резкой дольше — как постер, а не как фон.
+                                        val f = (fade.toPx() * (if (island) 1.5f else 3.2f) / size.height).coerceIn(0.15f, 0.85f)
                                         drawRect(Brush.verticalGradient(*smoothFade(1f - f, 1f - f * 0.3f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
                                     }
                                 },
@@ -506,6 +599,35 @@ private fun PosterPlayerPage(
                         .background(Brush.verticalGradient(*smoothFade(0f, 1f, from = 0.55f))),
                 )
             }
+            // Зерно поверх всего постера — матовая фактура, как у островов.
+            if (island) Box(Modifier.matchParentSize().drawBehind { drawGrain(0.7f) })
+            }
+            // Метки обреза у верхних углов обложки, как на печатном постере. На паузе сходятся к ней.
+            if (island && !visualizerOn) {
+                val markColor = colors.text.copy(alpha = 0.7f)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 70.dp)
+                        .height(14.dp)
+                        .hairEnter(1)
+                        .drawBehind {
+                            val inset = 14.dp.toPx() + 4.dp.toPx() * rest
+                            val arm = 13.dp.toPx()
+                            val w = 1.dp.toPx()
+                            drawLine(markColor, Offset(inset, 0f), Offset(inset + arm, 0f), w)
+                            drawLine(markColor, Offset(inset, 0f), Offset(inset, arm), w)
+                            drawLine(markColor, Offset(size.width - inset, 0f), Offset(size.width - inset - arm, 0f), w)
+                            drawLine(markColor, Offset(size.width - inset, 0f), Offset(size.width - inset, arm), w)
+                        },
+                )
+            }
+            if (island) {
+                CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalIslandBackdrop provides posterBackdrop) {
+                    IslandPosterControls(song, number, positionMs, durationMs, soundLine, onSoundLine, header, titleBlock, actions, transport, plate, onDrag, onDragEnd, posterBackdrop, { controlsPx = it })
+                }
+            } else {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 Box(Modifier.padding(horizontal = 20.dp).hairEnter(1)) { header() }
                 Spacer(Modifier.weight(1f))
@@ -533,6 +655,83 @@ private fun PosterPlayerPage(
                     Box(Modifier.padding(top = 4.dp, bottom = 8.dp).hairEnter(6)) { plate() }
                 }
             }
+            }
+        }
+    }
+}
+
+/**
+ * Низ постера Hairline New, по макету: шапка из трёх островов; подпись «№ 11 —— альбом»,
+ * которая прочерчивается у каждого трека; название с лайком; линейка, время и строка звука;
+ * тихий ряд действий; кнопки в матовом острове; «Текст · Очередь · Похожее».
+ */
+@Composable
+private fun IslandPosterControls(
+    song: SongItem,
+    number: Int?,
+    positionMs: Long,
+    durationMs: Long,
+    soundLine: String?,
+    onSoundLine: () -> Unit,
+    header: @Composable () -> Unit,
+    titleBlock: @Composable (Modifier) -> Unit,
+    actions: @Composable () -> Unit,
+    transport: @Composable () -> Unit,
+    plate: @Composable () -> Unit,
+    onDrag: (Long) -> Unit,
+    onDragEnd: () -> Unit,
+    backdrop: com.kyant.backdrop.Backdrop,
+    onControlsHeight: (Int) -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Box(Modifier.hairEnter(1)) { header() }
+        Spacer(Modifier.weight(1f))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .onSizeChanged { onControlsHeight(it.height) }
+                .padding(horizontal = 20.dp),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).hairEnter(2), verticalAlignment = Alignment.CenterVertically) {
+                if (number != null) {
+                    Text("№ $number", style = HairLabelStyle, color = colors.text, maxLines = 1)
+                    Spacer(Modifier.width(12.dp))
+                }
+                // Линия прочерчивается заново у каждого трека — слева направо, за 360 мс.
+                val draw = remember(song.id) { androidx.compose.animation.core.Animatable(if (look.motion.draws) 0f else 1f) }
+                androidx.compose.runtime.LaunchedEffect(song.id) { if (draw.value < 1f) draw.animateTo(1f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut)) }
+                val lineInk = colors.text.copy(alpha = 0.22f)
+                Box(Modifier.weight(1f).height(1.dp).drawBehind { drawLine(lineInk, Offset(0f, size.height / 2f), Offset(size.width * draw.value, size.height / 2f), size.height) })
+                val album = song.album?.takeIf { al -> al.any(Char::isLetterOrDigit) }
+                if (album != null) {
+                    Spacer(Modifier.width(12.dp))
+                    Text(album.asLabel(), style = HairLabelStyle, color = colors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
+                }
+            }
+            Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
+            Column(Modifier.padding(top = 10.dp).hairEnter(3)) {
+                HairSeekLine(positionMs = positionMs, durationMs = durationMs, onDrag = onDrag, onDragEnd = onDragEnd)
+                Row(Modifier.fillMaxWidth().offset(y = (-6).dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(HairMath.formatTime(positionMs), style = HairLabelStyle, color = colors.text.copy(alpha = 0.8f))
+                    Spacer(Modifier.weight(1f))
+                    if (soundLine != null) {
+                        Text(soundLine.asLabel(), style = HairLabelStyle, color = colors.textMuted, maxLines = 1, modifier = Modifier.clickable(onClick = onSoundLine).padding(horizontal = 8.dp, vertical = 4.dp))
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Text(HairMath.formatTime(durationMs), style = HairLabelStyle, color = colors.text.copy(alpha = 0.8f))
+                }
+            }
+            Box(Modifier.fillMaxWidth().hairEnter(4)) { actions() }
+            Box(
+                Modifier
+                    .padding(top = 4.dp, bottom = 6.dp)
+                    .hairEnter(5)
+                    .matte(androidx.compose.foundation.shape.RoundedCornerShape(50), backdrop)
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+            ) { transport() }
+            Box(Modifier.hairEnter(6)) { plate() }
         }
     }
 }

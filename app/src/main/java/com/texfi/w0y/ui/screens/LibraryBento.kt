@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.screens
 
+import com.texfi.w0y.ui.theme.matte
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
@@ -47,7 +49,7 @@ import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.HairLabelStyle
 import com.texfi.w0y.ui.theme.HairTokens
 import com.texfi.w0y.ui.theme.LocalW0yColors
-import com.texfi.w0y.ui.theme.UnboundedFamily
+import com.texfi.w0y.ui.theme.hairDisplayFamily
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
 
@@ -76,7 +78,8 @@ internal fun BentoCard(
 ) {
     val colors = LocalW0yColors.current
     val look = hairLook
-    val shape = RoundedCornerShape(look.cardRadius.coerceAtMost(16.dp))
+    val island = com.texfi.w0y.ui.theme.isIsland
+    val shape = if (island) RoundedCornerShape(16.dp) else RoundedCornerShape(look.cardRadius.coerceAtMost(16.dp))
     val source = remember { MutableInteractionSource() }
     val press = rememberPress(source)
     val tone = Contrast.ensure(colors.accent, colors.surface)
@@ -92,9 +95,16 @@ internal fun BentoCard(
                 scaleY = k
             }
             .height(if (tall) 132.dp else 104.dp)
-            .clip(shape)
-            .background(lerp(colors.surface, colors.surfaceHigh, press))
-            .border(look.line, lerp(colors.border, tone, press), shape)
+            .then(
+                // Hairline New: плитка — матовый остров; под пальцем подложка плотнее.
+                if (island) {
+                    Modifier.matte(shape, alpha = 0.6f + 0.25f * press)
+                } else {
+                    Modifier.clip(shape)
+                        .background(lerp(colors.surface, colors.surfaceHigh, press))
+                        .border(look.line, lerp(colors.border, tone, press), shape)
+                },
+            )
             .drawBehind {
                 val w = size.width * press
                 drawLine(tone, Offset(0f, size.height - 1.5.dp.toPx()), Offset(w, size.height - 1.5.dp.toPx()), 3.dp.toPx())
@@ -112,7 +122,7 @@ internal fun BentoCard(
             if (count != null) {
                 Text(
                     "$shown",
-                    style = TextStyle(fontFamily = UnboundedFamily, fontWeight = FontWeight.ExtraBold, fontSize = if (tall) 40.sp else 30.sp, letterSpacing = (-1).sp),
+                    style = TextStyle(fontFamily = hairDisplayFamily, fontWeight = FontWeight.ExtraBold, fontSize = if (tall) 40.sp else 30.sp, letterSpacing = (-1).sp),
                     color = colors.text,
                     maxLines = 1,
                 )
@@ -135,9 +145,13 @@ internal fun PanelRow(glyph: HairGlyph, label: String, value: String?, modifier:
             .fillMaxWidth()
             .hairStagger(index)
             .padding(bottom = 8.dp)
-            .clip(shape)
-            .background(colors.surface)
-            .border(look.line, colors.border, shape)
+            .then(
+                if (com.texfi.w0y.ui.theme.isIsland) {
+                    Modifier.matte(shape, alpha = 0.6f)
+                } else {
+                    Modifier.clip(shape).background(colors.surface).border(look.line, colors.border, shape)
+                },
+            )
             .height(58.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

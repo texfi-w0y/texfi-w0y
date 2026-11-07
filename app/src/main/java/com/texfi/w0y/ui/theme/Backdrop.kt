@@ -92,7 +92,7 @@ fun ProvideBackdrop(mode: BackdropMode, coverUrl: String?, imagePath: String?, c
  * Рисует фон на всю высоту [size] + [extraTop]: оверлеи лежат под строкой
  * состояния, и без этого сверху оставался отдельный тёмный прямоугольник.
  */
-fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Float) {
+fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Float, island: Boolean = false) {
     val mode = spec?.mode ?: BackdropMode.GRID
     val w = size.width
     val h = size.height + extraTop
@@ -122,7 +122,11 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
                     grid(w, h, colors.text.copy(alpha = 0.04f))
                 }
             }
-            BackdropMode.GRID -> {
+            // Hairline New: «сетка» — точки в узлах, как на сайте, без отсвета и пятна обложки.
+            BackdropMode.GRID ->
+                if (island) {
+                    drawDotGrid(colors.text.copy(alpha = if (colors.background.luminance() > 0.5f) 0.16f else 0.11f))
+                } else {
                 drawRect(
                     Brush.verticalGradient(0f to colors.progress.copy(alpha = 0.10f), 0.5f to Color.Transparent, startY = 0f, endY = h),
                     Offset.Zero, Size(w, h),
@@ -135,7 +139,7 @@ fun DrawScope.drawBackdrop(spec: BackdropSpec?, colors: W0yColors, extraTop: Flo
                     )
                 }
                 grid(w, h, colors.text.copy(alpha = 0.04f))
-            }
+                }
             BackdropMode.COVER -> {
                 val c = spec?.tint?.value ?: colors.accent
                 val a = if ((spec?.coverOn ?: 0f) > 0f) 0.55f else 0.25f

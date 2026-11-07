@@ -589,6 +589,8 @@
     <string name="stand_low_battery">Мало заряда</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Тонкие линии, чистая геометрия, диск-обложка с кольцом прогресса. Быстро и спокойно.</string>
+    <string name="style_island">Hairline New</string>
+    <string name="style_island_hint">Hairline с матовыми островами, фоном в точку, шрифтом Geologica и плеером-постером.</string>
     <string name="accent_light_blue">СВЕТЛО-СИНИЙ</string>
     <string name="accent_warm">ТЁПЛЫЙ</string>
     <string name="hl_weight_thin">Тонкая 1 dp</string>
@@ -1030,4 +1032,27 @@
     <string name="welcome_albums">Альбомы</string>
     <string name="welcome_go">Слушать</string>
     <string name="welcome_later">Дальше</string>
+    <string name="island_kind_song">Трек</string>
+    <string name="island_kind_album">Альбом</string>
+    <string name="island_kind_playlist">Плейлист</string>
+    <string name="island_kind_artist">Артист</string>
+    <string name="island_seek">Позиция в треке</string>
+    <string name="island_text">Текст</string>
+    <string name="island_tone">тон %1$s</string>
+    <string name="island_best">Лучший результат</string>
+    <string name="island_yours">У тебя</string>
+    <string name="island_all">Все</string>
+    <string name="island_stat_likes">лайков</string>
+    <string name="island_stat_playlists">плейлистов</string>
+    <string name="island_stat_week">за неделю</string>
+    <string name="island_unit_hours">ч</string>
+    <string name="island_unit_minutes">мин</string>
+    <string name="island_week">неделя</string>
+    <string name="island_saved">Сохранённый</string>
+    <string name="common_back">Назад</string>
+    <string name="island_offer_label">Новый дизайн · бета</string>
+    <string name="island_offer_title">Попробовать Hairline New?</string>
+    <string name="island_offer_text">Матовые острова, новые шрифты, плеер-постер и текст песни на весь экран. Это бета: вернуть старый вид можно в любой момент — Настройки → Вид → Стиль.</string>
+    <string name="island_offer_try">Попробовать новый</string>
+    <string name="island_offer_stay">Остаться на старом</string>
 </resources>

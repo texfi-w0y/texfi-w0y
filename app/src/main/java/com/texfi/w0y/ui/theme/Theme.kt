@@ -242,7 +242,7 @@ fun W0yTheme(
  * сочетаний тестом.
  */
 fun resolveColors(mode: ThemeMode, accent: Accent, customAccent: Int, style: UiStyle = UiStyle.PIXEL): W0yColors {
-    val hair = style == UiStyle.HAIRLINE
+    val hair = style.hairBased
     val base =
         when (mode) {
             ThemeMode.DARK, ThemeMode.SYSTEM -> if (hair) HairDark else DarkColors

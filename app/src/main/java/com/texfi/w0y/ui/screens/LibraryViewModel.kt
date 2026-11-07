@@ -78,8 +78,16 @@ class LibraryViewModel @Inject constructor(
 
     /** Пересчитать недельные прослушивания: плитка не должна отставать от «Итогов» на трек. */
     fun refreshWeek() {
-        viewModelScope.launch { _weekPlays.value = runCatching { stats.stats(com.texfi.w0y.data.StatsPeriod.WEEK).plays }.getOrNull() }
+        viewModelScope.launch {
+            val week = runCatching { stats.stats(com.texfi.w0y.data.StatsPeriod.WEEK) }.getOrNull()
+            _weekPlays.value = week?.plays
+            _week.value = week
+        }
     }
+
+    /** Неделя целиком — для Hairline New: часы за неделю и столбики по дням на плитке «Итоги». */
+    private val _week = MutableStateFlow<com.texfi.w0y.data.ListeningStats?>(null)
+    val week: StateFlow<com.texfi.w0y.data.ListeningStats?> = _week.asStateFlow()
 
     init {
         refreshWeek()

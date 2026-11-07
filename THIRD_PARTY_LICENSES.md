@@ -15,7 +15,7 @@ w0y is licensed under **GNU AGPL-3.0** (`LICENSE`). Below is what the builds con
 | **innertubex** (YouTube Music API) | запросы к YouTube Music | GPL-3.0 (`licenses/GPL-3.0-innertubex.txt`) |
 | **Material Icons** | значки | Apache-2.0 (`licenses/Apache-2.0-material-icons.txt`) |
 | **dbus-java** | MPRIS на Linux | MIT |
-| **Unbounded**, **JetBrains Mono**, **Press Start 2P** | шрифты | SIL OFL-1.1 (`licenses/OFL-*.txt`) |
+| **Unbounded**, **JetBrains Mono**, **Press Start 2P**, **Geologica**, **IBM Plex Mono** | шрифты | SIL OFL-1.1 (`licenses/OFL-*.txt`) |
 | **OpenJDK (JetBrains Runtime / Temurin)** | среда выполнения внутри установщика | GPL-2.0 с Classpath Exception |
 
 Приложение не содержит телеметрии и не отправляет данные никуда, кроме запросов к YouTube и (если не выключено)

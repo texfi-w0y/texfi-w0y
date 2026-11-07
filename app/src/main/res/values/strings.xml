@@ -589,6 +589,8 @@
     <string name="stand_low_battery">Battery is low</string>
     <string name="style_hairline">Hairline</string>
     <string name="style_hairline_hint">Thin lines, clean geometry, a cover disc with a progress ring. Fast and calm.</string>
+    <string name="style_island">Hairline New</string>
+    <string name="style_island_hint">Hairline with frosted islands, a dotted backdrop, the Geologica typeface and a poster player.</string>
     <string name="accent_light_blue">LIGHT BLUE</string>
     <string name="accent_warm">WARM</string>
     <string name="hl_weight_thin">Thin 1 dp</string>
@@ -1030,4 +1032,27 @@
     <string name="welcome_albums">Albums</string>
     <string name="welcome_go">Start listening</string>
     <string name="welcome_later">Continue</string>
+    <string name="island_kind_song">Track</string>
+    <string name="island_kind_album">Album</string>
+    <string name="island_kind_playlist">Playlist</string>
+    <string name="island_kind_artist">Artist</string>
+    <string name="island_seek">Track position</string>
+    <string name="island_text">Text</string>
+    <string name="island_tone">pitch %1$s</string>
+    <string name="island_best">Top result</string>
+    <string name="island_yours">In library</string>
+    <string name="island_all">All</string>
+    <string name="island_stat_likes">likes</string>
+    <string name="island_stat_playlists">playlists</string>
+    <string name="island_stat_week">this week</string>
+    <string name="island_unit_hours">h</string>
+    <string name="island_unit_minutes">min</string>
+    <string name="island_week">week</string>
+    <string name="island_saved">Saved</string>
+    <string name="common_back">Back</string>
+    <string name="island_offer_label">New look · beta</string>
+    <string name="island_offer_title">Try Hairline New?</string>
+    <string name="island_offer_text">Matte islands, new fonts, a poster player and full-screen lyrics. It is a beta: switch back any time in Settings → Look → Style.</string>
+    <string name="island_offer_try">Try the new look</string>
+    <string name="island_offer_stay">Keep the current one</string>
 </resources>

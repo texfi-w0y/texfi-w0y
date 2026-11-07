@@ -117,6 +117,14 @@ val hairLook: HairlineLook
     @Composable @ReadOnlyComposable
     get() = LocalHairLook.current
 
+/**
+ * Включён ли Hairline New. Это всё ещё Hairline ([isHair] истинно, все его настройки действуют),
+ * поверх меняются только поверхности, фон, шрифты и плеер.
+ */
+val isIsland: Boolean
+    @Composable @ReadOnlyComposable
+    get() = LocalStyleTokens.current.island
+
 /** Включён ли Hairline. Компоненты проверяют это раньше, чем «плавный/пиксельный». */
 val isHair: Boolean
     @Composable @ReadOnlyComposable
@@ -134,7 +142,26 @@ val UnboundedFamily =
 /** Моно — мелкие метки заглавными с разрядкой, всегда от 11 sp и весом не меньше Medium. */
 val MonoFamily = FontFamily(Font(R.font.jetbrains_mono_medium, FontWeight.Medium))
 
-internal val HairScreenTitleStyle =
+/**
+ * Hairline New: Geologica — гротеск с кириллицей, один переменный файл на все веса; набирает
+ * и заголовки, и текст. Подписи — IBM Plex Mono. Оба под OFL-1.1.
+ */
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+val GeologicaFamily =
+    FontFamily(
+        listOf(400, 500, 600, 700, 800).map { w ->
+            Font(R.font.geologica, FontWeight(w), variationSettings = androidx.compose.ui.text.font.FontVariation.Settings(androidx.compose.ui.text.font.FontVariation.weight(w)))
+        },
+    )
+
+val PlexMonoFamily = FontFamily(Font(R.font.ibm_plex_mono_medium, FontWeight.Medium))
+
+/** Шрифт заголовков и крупных чисел текущего Hairline. */
+val hairDisplayFamily: FontFamily
+    @Composable @ReadOnlyComposable
+    get() = if (LocalStyleTokens.current.island) GeologicaFamily else UnboundedFamily
+
+private val HairScreenTitleBase =
     TextStyle(
         fontFamily = UnboundedFamily,
         fontWeight = FontWeight.ExtraBold,
@@ -143,7 +170,7 @@ internal val HairScreenTitleStyle =
         letterSpacing = (-0.6).sp,
     )
 
-internal val HairTitleStyle =
+internal val HairTitleBase =
     TextStyle(
         fontFamily = UnboundedFamily,
         fontWeight = FontWeight.SemiBold,
@@ -152,7 +179,7 @@ internal val HairTitleStyle =
         letterSpacing = (-0.2).sp,
     )
 
-internal val HairLabelStyle =
+internal val HairLabelBase =
     TextStyle(
         fontFamily = MonoFamily,
         fontWeight = FontWeight.Medium,
@@ -161,7 +188,7 @@ internal val HairLabelStyle =
         letterSpacing = 1.4.sp,
     )
 
-internal val HairBigNumberStyle =
+private val HairBigNumberBase =
     TextStyle(
         fontFamily = UnboundedFamily,
         fontWeight = FontWeight.ExtraBold,
@@ -170,8 +197,31 @@ internal val HairBigNumberStyle =
         letterSpacing = (-0.8).sp,
     )
 
+private val IslandScreenTitle = TextStyle(fontFamily = GeologicaFamily, fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-0.9).sp)
+internal val IslandTitle = TextStyle(fontFamily = GeologicaFamily, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = (-0.4).sp)
+internal val IslandLabel = TextStyle(fontFamily = PlexMonoFamily, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 1.3.sp)
+private val IslandBigNumber = TextStyle(fontFamily = GeologicaFamily, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-1).sp)
+
+internal val HairScreenTitleStyle: TextStyle
+    @Composable @ReadOnlyComposable
+    get() = if (LocalStyleTokens.current.island) IslandScreenTitle else HairScreenTitleBase
+
+internal val HairTitleStyle: TextStyle
+    @Composable @ReadOnlyComposable
+    get() = if (LocalStyleTokens.current.island) IslandTitle else HairTitleBase
+
+internal val HairLabelStyle: TextStyle
+    @Composable @ReadOnlyComposable
+    get() = if (LocalStyleTokens.current.island) IslandLabel else HairLabelBase
+
+internal val HairBigNumberStyle: TextStyle
+    @Composable @ReadOnlyComposable
+    get() = if (LocalStyleTokens.current.island) IslandBigNumber else HairBigNumberBase
+
 /** Крупное число героя блока (счётчики «Моё»). */
-val hairBigNumber: TextStyle get() = HairBigNumberStyle
+val hairBigNumber: TextStyle
+    @Composable @ReadOnlyComposable
+    get() = HairBigNumberStyle
 
 // ── Регистр ──────────────────────────────────────────────────────────────
 

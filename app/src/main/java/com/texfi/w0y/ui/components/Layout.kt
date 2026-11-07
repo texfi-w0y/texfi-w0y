@@ -1,8 +1,16 @@
 package com.texfi.w0y.ui.components
 
+import androidx.compose.ui.draw.drawBehind
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import com.texfi.w0y.ui.theme.matte
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.isSmooth
 import com.texfi.w0y.ui.theme.PixelScreenTitle
@@ -56,15 +65,34 @@ fun ScreenTitle(
             .padding(horizontal = horizontalPadding)
             .padding(top = if (com.texfi.w0y.ui.theme.isHair) 28.dp else 18.dp, bottom = 14.dp),
     ) {
+        val island = com.texfi.w0y.ui.theme.isIsland
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
-                SpriteButton(Sprites.chevronLeft, onClick = onBack, size = 22)
-                Spacer(Modifier.width(12.dp))
+                if (island) {
+                    // Hairline New: «назад» — матовый кружок, как кнопки плеера.
+                    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    val backLabel = androidx.compose.ui.res.stringResource(com.texfi.w0y.R.string.common_back)
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .pressScale(interaction, pressed = 0.9f)
+                            .matte(androidx.compose.foundation.shape.CircleShape)
+                            .semantics { contentDescription = backLabel; role = androidx.compose.ui.semantics.Role.Button }
+                            .clickable(interactionSource = interaction, indication = null, onClick = onBack),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_LEFT, colors.text, Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                } else {
+                    SpriteButton(Sprites.chevronLeft, onClick = onBack, size = 22)
+                    Spacer(Modifier.width(12.dp))
+                }
             }
             Text(title.asTitle(), style = PixelScreenTitle, color = colors.text, modifier = Modifier.weight(1f))
             actions()
         }
-        if (!isSmooth) {
+        if (!isSmooth && !island) {
             Spacer(Modifier.height(10.dp))
             Box(
                 Modifier
@@ -97,6 +125,10 @@ fun SectionHeader(
     val colors = LocalW0yColors.current
     val smooth = isSmooth
     val hair = com.texfi.w0y.ui.theme.isHair
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        IslandSectionHeader(label, modifier, hint, index, action)
+        return
+    }
     Column(modifier.fillMaxWidth()) {
         // Подписи отдаётся столько, сколько ей нужно, но не больше 80%:
         // иначе линия и действие делили бы ширину с ней поровну, и
@@ -141,6 +173,59 @@ fun SectionHeader(
 }
 
 /**
+ * Раздел Hairline New, как на сайте: номер «01» моно, название гротеском обычным регистром,
+ * линия до края и действие справа.
+ */
+@Composable
+private fun IslandSectionHeader(
+    label: String,
+    modifier: Modifier,
+    hint: String?,
+    index: Int?,
+    action: @Composable () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val bare = label.removePrefix("❯").trimStart()
+    // Строки разделов в словаре записаны заглавными; здесь они звучат как фраза.
+    val title = if (bare.any { it.isLetter() } && bare == bare.uppercase()) bare.lowercase().replaceFirstChar { it.uppercase() } else bare
+    Column(modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val maxTitle = maxWidth * 0.8f
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (index != null) {
+                Text(index.toString().padStart(2, '0'), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted)
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(
+                title,
+                style = com.texfi.w0y.ui.theme.HairTitleStyle.copy(fontSize = 20.sp, lineHeight = 24.sp),
+                color = colors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // Название берёт сколько нужно (до 80% ширины), линия — остаток.
+                modifier = Modifier.widthIn(max = maxTitle),
+            )
+            Spacer(Modifier.width(12.dp))
+            // Линия раздела дорисовывается до края при первом показе — как на сайте.
+            val drawsOn = com.texfi.w0y.ui.theme.hairLook.motion.draws
+            val draw = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (drawsOn) 0f else 1f) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (draw.value < 1f) draw.animateTo(1f, androidx.compose.animation.core.tween(com.texfi.w0y.ui.theme.HairTokens.LONG_MS, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut))
+            }
+            val ink = colors.border
+            Box(Modifier.weight(1f).height(1.dp).drawBehind { drawLine(ink, androidx.compose.ui.geometry.Offset(0f, size.height / 2f), androidx.compose.ui.geometry.Offset(size.width * draw.value, size.height / 2f), size.height) })
+            Spacer(Modifier.width(10.dp))
+            action()
+        }
+        }
+        hint?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+        }
+    }
+}
+
+/**
  * Заголовок ленты, пришедшей от YouTube, — второй уровень под разделом.
  *
  * Раньше у лент был свой вид — жёлтый квадрат и обычный текст, — и на
@@ -152,6 +237,11 @@ fun SectionHeader(
 fun ShelfTitle(text: String, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        if (com.texfi.w0y.ui.theme.isIsland) {
+            // Hairline New: лента — моно-подпись, без квадрата и без второго заголовка.
+            Text(text.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            return@Row
+        }
         if (!isSmooth) {
             Box(
                 Modifier
@@ -233,3 +323,4 @@ fun Modifier.fadeEdges(edge: androidx.compose.ui.unit.Dp = 16.dp): Modifier =
                 blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
             )
         }
+

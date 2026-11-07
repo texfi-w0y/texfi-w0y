@@ -1,5 +1,7 @@
 package com.texfi.w0y.ui.screens
 
+import com.texfi.w0y.ui.theme.matte
+
 import com.texfi.w0y.ui.theme.styledSurface
 import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
@@ -10,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,6 +102,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
     var pickPlaylistFor by remember { mutableStateOf<SongItem?>(null) }
     var newPlaylistName by remember { mutableStateOf<String?>(null) }
     var focused by remember { mutableStateOf(false) }
+    val island = com.texfi.w0y.ui.theme.isIsland
 
     Column(
         Modifier
@@ -155,7 +159,13 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
         }
 
         Spacer(Modifier.height(12.dp))
-        PixelSegmented(
+        if (island) {
+            IslandChips(
+                labels = SearchFilter.entries.map { stringResource(it.label) },
+                selected = SearchFilter.entries.indexOf(filter),
+                onSelect = { viewModel.onFilterChange(SearchFilter.entries[it]) },
+            )
+        } else PixelSegmented(
             options = SearchFilter.entries.map { stringResource(it.label) },
             selectedIndex = SearchFilter.entries.indexOf(filter),
             onSelect = { viewModel.onFilterChange(SearchFilter.entries[it]) },
@@ -289,10 +299,27 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                         }
                         // В смешанной выдаче артист стоит выше треков: по
                         // имени исполнителя ищут его самого, а не одну песню.
-                        if (current.artists.isNotEmpty() && current.songs.isNotEmpty()) {
+                        // Hairline New: первый артист — «лучший результат», крупной матовой карточкой.
+                        val best = if (island) current.artists.firstOrNull() else null
+                        var section = 0
+                        if (best != null) {
+                            section++
+                            item(key = "best-${best.browseId}") {
+                                Column(Modifier.animateItem()) {
+                                    SectionHeader(label = stringResource(R.string.island_best), index = section, modifier = Modifier.padding(bottom = 10.dp))
+                                    IslandBestResult(
+                                        name = best.name,
+                                        subtitle = best.subtitle,
+                                        thumbnailUrl = best.thumbnailUrl,
+                                        onClick = { navigator.open(BrowseRoute.Artist(best.browseId, best.name, best.thumbnailUrl)) },
+                                    )
+                                    Spacer(Modifier.height(14.dp))
+                                }
+                            }
+                        } else if (current.artists.isNotEmpty() && current.songs.isNotEmpty()) {
                             item { SectionLabel(stringResource(R.string.search_filter_artists)) }
                         }
-                        items(current.artists.take(ARTISTS_IN_MIX), key = { "artist-${it.browseId}" }) { card ->
+                        items(current.artists.drop(if (best != null) 1 else 0).take(ARTISTS_IN_MIX - (if (best != null) 1 else 0)), key = { "artist-${it.browseId}" }) { card ->
                             CardRow(
                                 title = card.name,
                                 subtitle = card.subtitle ?: stringResource(R.string.card_artist),
@@ -306,11 +333,30 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                             )
                         }
                         if (songs.isNotEmpty() && current.artists.isNotEmpty()) {
+                            if (island) section++
+                            val number = section
                             item {
                                 Spacer(Modifier.height(10.dp))
-                                SectionLabel(stringResource(R.string.search_filter_songs))
+                                if (island) {
+                                    SectionHeader(
+                                        label = stringResource(R.string.search_filter_songs),
+                                        index = number,
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        action = {
+                                            if (filter == SearchFilter.ALL) {
+                                                Text(
+                                                    stringResource(R.string.island_all).asLabel(),
+                                                    style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                                                    color = colors.textMuted,
+                                                    modifier = Modifier.clickable { viewModel.onFilterChange(SearchFilter.SONGS) }.padding(start = 10.dp, top = 6.dp, bottom = 6.dp),
+                                                )
+                                            }
+                                        },
+                                    )
+                                } else SectionLabel(stringResource(R.string.search_filter_songs))
                             }
                         }
+                        val ownIds = if (island) localResults.mapTo(HashSet()) { it.id } else emptySet()
                         // Ключ по id: без него Compose пересобирает строки
                         // при каждом обновлении списка, и прокрутка дёргается.
                         items(songs, key = { it.id }) { song ->
@@ -318,6 +364,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                                 song = song,
                                 onClick = { viewModel.playFrom(songs, songs.indexOf(song)) },
                                 wideCover = current.videos,
+                                badge = if (song.id in ownIds) ({ IslandOwnBadge() }) else null,
                                 actions = {
                                     DownloadButton(song.id, onDownload = { viewModel.download(song) })
                                     Spacer(Modifier.width(12.dp))
@@ -329,9 +376,13 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                             )
                         }
                         if (current.albums.isNotEmpty() && songs.isNotEmpty()) {
+                            if (island) section++
+                            val number = section
                             item {
                                 Spacer(Modifier.height(10.dp))
-                                SectionLabel(stringResource(R.string.search_filter_albums))
+                                if (island) {
+                                    SectionHeader(label = stringResource(R.string.search_filter_albums), index = number, modifier = Modifier.padding(bottom = 8.dp))
+                                } else SectionLabel(stringResource(R.string.search_filter_albums))
                             }
                         }
                         items(current.albums, key = { "album-${it.browseId}" }) { card ->
@@ -483,7 +534,12 @@ private fun SearchField(
         Modifier
             .width(widthNow)
             .then(
-                if (hair) {
+                if (com.texfi.w0y.ui.theme.isIsland) {
+                    // Hairline New: поле — матовая капсула, как остров навигации.
+                    Modifier
+                        .matte(RoundedCornerShape(50), alpha = 0.6f)
+                        .padding(horizontal = 18.dp, vertical = 15.dp)
+                } else if (hair) {
                     Modifier
                         .clip(RoundedCornerShape(com.texfi.w0y.ui.theme.hairLook.pillRadius.coerceAtMost(28.dp)))
                         .border(com.texfi.w0y.ui.theme.hairLook.line, colors.outline, RoundedCornerShape(com.texfi.w0y.ui.theme.hairLook.pillRadius.coerceAtMost(28.dp)))

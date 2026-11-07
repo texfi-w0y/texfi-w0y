@@ -183,6 +183,27 @@ private fun WhatsNewDialog(whatsNew: WhatsNew, onClose: () -> Unit) {
     }
 }
 
+/**
+ * Предложение после обновления: попробовать Hairline New (бета) или остаться на своём стиле.
+ * Спрашиваем один раз; вернуть любой стиль можно в Настройки → Вид → Стиль.
+ */
+@Composable
+fun IslandOfferDialog(onTry: () -> Unit, onStay: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    DialogFrame("island-offer", onStay) {
+        Text(stringResource(R.string.island_offer_label).asLabel(), style = HairLabelStyle, color = tone)
+        Spacer(Modifier.height(10.dp))
+        Text(stringResource(R.string.island_offer_title), style = HairTitleStyle, color = colors.text)
+        Spacer(Modifier.height(10.dp))
+        Text(stringResource(R.string.island_offer_text), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
+        Spacer(Modifier.height(20.dp))
+        PixelButton(stringResource(R.string.island_offer_try), onTry, Modifier.fillMaxWidth().testTag("island-offer-try"))
+        Spacer(Modifier.height(10.dp))
+        PixelButton(stringResource(R.string.island_offer_stay), onStay, Modifier.fillMaxWidth().testTag("island-offer-stay"), fill = colors.surfaceHigh)
+    }
+}
+
 /** Причина сбоя простыми словами — и в окне, и в настройках. */
 @Composable
 fun updateReasonText(reason: UpdateState.Reason): String =

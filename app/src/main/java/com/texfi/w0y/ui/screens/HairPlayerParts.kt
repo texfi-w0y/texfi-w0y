@@ -1,5 +1,9 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxHeight
+
+import com.texfi.w0y.ui.theme.matte
+
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -121,6 +126,108 @@ internal fun HairPlayerHeader(
     }
 }
 
+/**
+ * Шапка постера Hairline New — три острова, как на макете: слева «свернуть», по центру
+ * капсула «Очередь | 11 / 44» (открывает очередь), справа «···». Видео — ещё один кружок,
+ * только у треков с клипом. Визуализатор включается касанием обложки.
+ */
+@Composable
+internal fun IslandPlayerHeader(
+    onCollapse: () -> Unit,
+    position: String?,
+    onQueue: () -> Unit,
+    onMenu: () -> Unit,
+    videoAvailable: Boolean,
+    videoOn: Boolean,
+    onToggleVideo: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val backdrop = com.texfi.w0y.ui.theme.LocalIslandBackdrop.current
+    val circle = androidx.compose.foundation.shape.CircleShape
+    val on = Contrast.ensure(colors.accent, colors.background)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
+            HairIconButton(HairGlyph.COLLAPSE, stringResource(R.string.player_collapse), onCollapse, tint = colors.text, size = 20.dp)
+        }
+        Spacer(Modifier.weight(1f))
+        val queueLabel = stringResource(R.string.sheet_queue)
+        Row(
+            Modifier
+                .height(44.dp)
+                .matte(androidx.compose.foundation.shape.RoundedCornerShape(50), backdrop)
+                .clickable(onClick = onQueue)
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(queueLabel.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted, maxLines = 1)
+            if (position != null) {
+                Box(Modifier.padding(horizontal = 12.dp).width(1.dp).height(12.dp).background(colors.text.copy(alpha = 0.2f)))
+                Text(position.replace("/", " / ").replace("  ", " "), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.text, maxLines = 1)
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        if (videoAvailable) {
+            Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
+                HairIconButton(HairGlyph.VIDEO, stringResource(R.string.hl_cd_video), onToggleVideo, tint = if (videoOn) on else colors.text, size = 20.dp)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+        Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
+            HairIconButton(HairGlyph.DOTS, stringResource(R.string.player_menu), onMenu, tint = colors.text, size = 20.dp)
+        }
+    }
+}
+
+/** Название постера и лайк справа от него, на одной линии. */
+@Composable
+internal fun IslandTitleRow(
+    liked: Boolean,
+    onLike: () -> Unit,
+    modifier: Modifier = Modifier,
+    title: @Composable (Modifier) -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    val likeFill by animateFloatAsState(if (liked) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "islandLike")
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        title(Modifier.weight(1f))
+        Box(Modifier.padding(top = 2.dp)) {
+            HairIconButton(HairGlyph.HEART, stringResource(R.string.player_cd_like), onLike, tint = if (liked) tone else colors.text, size = 24.dp, fill = { likeFill })
+        }
+    }
+}
+
+/**
+ * Низ постера: «Текст · Очередь · Похожее» — подписи моно через тонкие черты, без коробки.
+ * «Текст» включает текст песни на месте обложки (точка акцента — включён), остальные
+ * открывают панель очереди на своей вкладке.
+ */
+@Composable
+internal fun IslandPlayerTabs(lyricsOn: Boolean, onLyrics: () -> Unit, onQueue: () -> Unit, onSimilar: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    val labels = listOf(stringResource(R.string.island_text), stringResource(R.string.sheet_queue), stringResource(R.string.sheet_similar))
+    val actions = listOf(onLyrics, onQueue, onSimilar)
+    val dot by animateFloatAsState(if (lyricsOn) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "islandTabDot")
+    Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+        labels.forEachIndexed { i, label ->
+            if (i > 0) Box(Modifier.width(1.dp).height(14.dp).background(colors.text.copy(alpha = 0.16f)))
+            val active = i == 0 && lyricsOn
+            Row(
+                Modifier.weight(1f).fillMaxHeight().clickable(onClick = actions[i]),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (i == 0) {
+                    Box(Modifier.size(4.dp * dot).background(tone, androidx.compose.foundation.shape.CircleShape))
+                    Spacer(Modifier.width(8.dp * dot))
+                }
+                Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = if (active) colors.text else colors.textMuted, maxLines = 1)
+            }
+        }
+    }
+}
+
 /** Иконка с короткой подписью под ней: новичку видно, что она делает, без долгого нажатия. */
 @Composable
 private fun LabelledIcon(glyph: HairGlyph, description: Int, label: Int, onClick: () -> Unit, tint: androidx.compose.ui.graphics.Color) {
@@ -183,7 +290,8 @@ internal fun HairTitleBlock(
     onAlbum: (() -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
-    val centered = layout == PlayerLayout.RING
+    // Hairline New: постер выровнен влево — подпись, название и линейка по одному краю.
+    val centered = layout == PlayerLayout.RING && !com.texfi.w0y.ui.theme.isIsland
     val align = if (centered) Alignment.CenterHorizontally else Alignment.Start
     // Название ведёт в альбом, имя — к исполнителю; долгое нажатие по-прежнему копирует.
     val toAlbum = onAlbum?.takeIf { song.albumId != null }
@@ -203,15 +311,22 @@ internal fun HairTitleBlock(
                 modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title"),
             )
         } else {
+            // Края гаснут только у названия, которое правда едет: короткому они съедали буквы.
+            var overflows by remember(song.title) { mutableStateOf(false) }
+            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
+            val roomPx = constraints.maxWidth
             Text(
                 text = song.title,
-                style = HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
+                // Hairline New: название — заголовок постера, крупно и в одну строку; длинное едет.
+                style = if (com.texfi.w0y.ui.theme.isIsland) HairTitleStyle.copy(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp) else HairTitleStyle.copy(fontSize = 21.sp, lineHeight = 28.sp),
                 // Долгое нажатие копирует название — чтобы найти трек где-то ещё.
-                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title").fadeEdges().basicMarquee(),
+                modifier = Modifier.copyOnLongPress(song.title, toAlbum).testTag("player-title").then(if (overflows) Modifier.fadeEdges() else Modifier).basicMarquee(),
+                onTextLayout = { overflows = it.size.width > roomPx },
                 color = colors.text,
                 maxLines = 1,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,
             )
+            }
         }
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -265,13 +380,15 @@ internal fun HairActionsRow(
     onShare: () -> Unit,
     onSleep: () -> Unit,
     onCopyLink: (() -> Unit)? = null,
+    /** Hairline New ставит лайк рядом с названием — здесь его тогда нет. */
+    showLike: Boolean = true,
 ) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
     val likeFill by animateFloatAsState(if (liked) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "likeFill")
     val pinFill by animateFloatAsState(if (pinned) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "pinFill")
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        HairIconButton(HairGlyph.HEART, stringResource(R.string.player_cd_like), onLike, tint = if (liked) tone else colors.textMuted, fill = { likeFill })
+        if (showLike) HairIconButton(HairGlyph.HEART, stringResource(R.string.player_cd_like), onLike, tint = if (liked) tone else colors.textMuted, fill = { likeFill })
         HairIconButton(HairGlyph.PIN, stringResource(R.string.player_cd_pin), onPin, tint = if (pinned) tone else colors.textMuted, fill = { pinFill })
         HairIconButton(HairGlyph.PLUS, stringResource(R.string.player_cd_playlist), onAdd)
         Box(Modifier.size(HairTokens.TOUCH), contentAlignment = Alignment.Center) { DownloadButton(song.id, onDownload = onDownload) }
@@ -317,6 +434,10 @@ internal fun HairSleepButton(leftMs: Long?, onClick: () -> Unit) {
  */
 @Composable
 internal fun HairSeekLine(positionMs: Long, durationMs: Long, onDrag: (Long) -> Unit, onDragEnd: () -> Unit) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        IslandRuler(positionMs, durationMs, onDrag, onDragEnd)
+        return
+    }
     val colors = LocalW0yColors.current
     val look = hairLook
     var dragging by remember { mutableStateOf(false) }
@@ -357,6 +478,87 @@ internal fun HairSeekLine(positionMs: Long, durationMs: Long, onDrag: (Long) -> 
         val r = (6.dp.toPx() + 3.dp.toPx() * grow)
         drawCircle(colors.background, r, Offset(x, y))
         drawCircle(colors.progress, r, Offset(x, y), style = Stroke(look.line.toPx() * (1f + grow)))
+    }
+}
+
+/**
+ * Перемотка Hairline New — линейка. Штрих через каждые 6 dp, каждый восьмой длиннее;
+ * сыгранное светлее, текущее место — черта акцента с квадратиком сверху. Пока тянут,
+ * штрихи у пальца вытягиваются, как под лупой, а квадратик растёт — видно, куда попадёшь.
+ */
+@Composable
+internal fun IslandRuler(positionMs: Long, durationMs: Long, onDrag: (Long) -> Unit, onDragEnd: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    var dragging by remember { mutableStateOf(false) }
+    val grow by animateFloatAsState(if (dragging) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "rulerGrow")
+    val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+    val seekLabel = stringResource(R.string.island_seek)
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(HairTokens.TOUCH)
+            .semantics {
+                contentDescription = seekLabel
+                progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(progress, 0f..1f)
+                setProgress { target ->
+                    if (durationMs <= 0) return@setProgress false
+                    onDrag((target.coerceIn(0f, 1f) * durationMs).toLong())
+                    onDragEnd()
+                    true
+                }
+            }
+            .pointerInput(durationMs) {
+                detectHorizontalDragGestures(
+                    onDragStart = { at ->
+                        dragging = true
+                        if (durationMs > 0) onDrag(((at.x / size.width).coerceIn(0f, 1f) * durationMs).toLong())
+                    },
+                    onDragEnd = { dragging = false; onDragEnd() },
+                    onDragCancel = { dragging = false; onDragEnd() },
+                ) { change, _ ->
+                    change.consume()
+                    if (durationMs > 0) onDrag(((change.position.x / size.width).coerceIn(0f, 1f) * durationMs).toLong())
+                }
+            }
+            .pointerInput(durationMs) {
+                detectTapGestures { at ->
+                    if (durationMs > 0) {
+                        onDrag(((at.x / size.width).coerceIn(0f, 1f) * durationMs).toLong())
+                        onDragEnd()
+                    }
+                }
+            },
+    ) {
+        val base = size.height / 2f + 9.dp.toPx()
+        val step = 6.dp.toPx()
+        val n = (size.width / step).toInt().coerceAtLeast(8)
+        val gap = (size.width - 1f) / n
+        val head = 0.5f + (size.width - 1f) * progress
+        val lens = 40.dp.toPx()
+        val line = 1.dp.toPx()
+        for (i in 0..n) {
+            val x = 0.5f + i * gap
+            val major = i % 8 == 0
+            val played = x <= head
+            // Лупа: ближе к пальцу — длиннее, по плавной кривой, на краю лупы — как было.
+            val near = (1f - kotlin.math.abs(x - head) / lens).coerceIn(0f, 1f)
+            val k = 1f + 0.8f * grow * near * near * (3f - 2f * near)
+            val h = (if (major) 9.dp.toPx() else 4.5.dp.toPx()) * k
+            val ink =
+                when {
+                    played -> colors.text.copy(alpha = 0.78f)
+                    major -> colors.text.copy(alpha = 0.3f)
+                    else -> colors.text.copy(alpha = 0.16f)
+                }
+            drawLine(ink, Offset(x, base - h), Offset(x, base), line)
+        }
+        drawLine(colors.text.copy(alpha = 0.14f), Offset(0f, base + line / 2f), Offset(size.width, base + line / 2f), line)
+        drawLine(colors.text, Offset(0f, base + line / 2f), Offset(head, base + line / 2f), line)
+        val top = base - 18.dp.toPx() - 4.dp.toPx() * grow
+        drawLine(tone, Offset(head, top), Offset(head, base + 4.dp.toPx()), 1.5.dp.toPx())
+        val sq = 5.dp.toPx() + 2.dp.toPx() * grow
+        drawRect(tone, Offset(head - sq / 2f, top - sq / 2f), androidx.compose.ui.geometry.Size(sq, sq))
     }
 }
 

@@ -59,7 +59,7 @@ import com.texfi.w0y.ui.screens.PlayerViewModel
 import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.HairLabelStyle
 import com.texfi.w0y.ui.theme.LocalW0yColors
-import com.texfi.w0y.ui.theme.UnboundedFamily
+import com.texfi.w0y.ui.theme.hairDisplayFamily
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
 import java.time.LocalDateTime
@@ -124,7 +124,7 @@ internal fun HairStandLayer(
                     Text(
                         clock,
                         style = androidx.compose.ui.text.TextStyle(
-                            fontFamily = UnboundedFamily,
+                            fontFamily = hairDisplayFamily,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = clockSize,
                             letterSpacing = (-2).sp,
@@ -142,7 +142,7 @@ internal fun HairStandLayer(
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = h) {
                     Text(
                         song?.title.orEmpty(),
-                        style = androidx.compose.ui.text.TextStyle(fontFamily = UnboundedFamily, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 30.sp, letterSpacing = (-0.3).sp),
+                        style = androidx.compose.ui.text.TextStyle(fontFamily = hairDisplayFamily, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 30.sp, letterSpacing = (-0.3).sp),
                         color = text,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

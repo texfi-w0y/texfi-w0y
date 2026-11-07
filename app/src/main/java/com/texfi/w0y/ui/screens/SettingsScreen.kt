@@ -1,5 +1,13 @@
 package com.texfi.w0y.ui.screens
 
+import androidx.compose.foundation.lazy.itemsIndexed
+
+import androidx.compose.ui.draw.drawBehind
+
+import com.texfi.w0y.ui.theme.drawGrain
+
+import com.texfi.w0y.ui.theme.matte
+
 import com.texfi.w0y.ui.theme.styledSurface
 import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
@@ -262,6 +270,7 @@ fun SettingsScreen(
         onDetails = { detailsId = it },
     )
 
+    val island = com.texfi.w0y.ui.theme.isIsland
     Box(Modifier.fillMaxSize()) {
     // Фон листа продолжается за островком до самого низа; список кончается над островком.
     Box(Modifier.fillMaxSize().extendUnderIsland().screenBackground())
@@ -274,6 +283,7 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_title),
             onBack = onClose,
             actions = {
+                if (island) return@ScreenTitle
                 val searchCd = stringResource(R.string.settings_search_placeholder)
                 Box(
                     Modifier
@@ -302,7 +312,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
-        if (searchOpen) {
+        if (searchOpen || island) {
             SettingsSearchField(value = query, onValueChange = { query = it })
             Spacer(Modifier.height(8.dp))
         }
@@ -366,6 +376,8 @@ private sealed interface SettingControl {
         val selected: T,
         val label: @Composable (T) -> String,
         val onSelect: (T) -> Unit,
+        /** Hairline New: выбор линейкой под строкой (скорость, тон), а не панелью. */
+        val ruler: Boolean = false,
     ) : SettingControl
 
     data class Action(val button: String, val onClick: () -> Unit) : SettingControl
@@ -445,6 +457,7 @@ private fun CategoryList(
     onTargetShown: () -> Unit,
 ) {
     val colors = LocalW0yColors.current
+    val island = com.texfi.w0y.ui.theme.isIsland
     val unordered = rows.filter { it.category == category }
     // Группа идёт одним куском, в порядке первого появления в каталоге.
     val groupOrder = unordered.map { it.group }.distinct()
@@ -485,10 +498,36 @@ private fun CategoryList(
         if (category == SettingsCategory.LOOK) {
             item(key = "look-preview") { HairLookPreview(settings) }
         }
-        items(entries, key = { it.first }) { (key, row) ->
+        itemsIndexed(entries, key = { _, it -> it.first }) { i, (key, row) ->
             if (row == null) {
                 val g = SettingsGroup.entries.first { "g-" + it.name == key }
-                MonoHeader(stringResource(g.title))
+                if (island) {
+                    com.texfi.w0y.ui.components.SectionHeader(
+                        label = stringResource(g.title),
+                        index = groups.indexOf(g) + 1,
+                        modifier = Modifier.padding(top = if (i == 0) 10.dp else 26.dp, bottom = 12.dp),
+                    )
+                } else MonoHeader(stringResource(g.title))
+            } else if (island) {
+                // Hairline New: группа — один матовый блок; строки внутри делят тонкие линии.
+                val first = i == 0 || entries[i - 1].second == null
+                val last = i == entries.lastIndex || entries[i + 1].second == null
+                val r = 16.dp
+                val shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                    topStart = if (first) r else 0.dp, topEnd = if (first) r else 0.dp,
+                    bottomStart = if (last) r else 0.dp, bottomEnd = if (last) r else 0.dp,
+                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(colors.surface.copy(alpha = 0.62f), shape)
+                        .clip(shape)
+                        .drawBehind { drawGrain(0.9f) }
+                        .padding(horizontal = 14.dp),
+                ) {
+                    SettingRowItem(row, ctx, highlighted = highlighted == row.id)
+                    if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.text.copy(alpha = 0.07f)))
+                }
             } else {
                 SettingRowItem(row, ctx, highlighted = highlighted == row.id)
                 RowDivider()
@@ -581,7 +620,9 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
             .padding(horizontal = 18.dp)
             .fillMaxWidth()
             .then(
-                if (com.texfi.w0y.ui.theme.isHair) {
+                if (com.texfi.w0y.ui.theme.isIsland) {
+                    Modifier.matte(androidx.compose.foundation.shape.RoundedCornerShape(50), alpha = 0.6f).padding(horizontal = 6.dp, vertical = 4.dp)
+                } else if (com.texfi.w0y.ui.theme.isHair) {
                     val look = com.texfi.w0y.ui.theme.hairLook
                     val shape = androidx.compose.foundation.shape.RoundedCornerShape(look.pillRadius.coerceAtMost(12.dp))
                     Modifier.clip(shape).border(look.line, colors.outline, shape)
@@ -679,16 +720,19 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
                 is SettingControl.Toggle -> PixelSwitch(checked = control.checked, onCheckedChange = control.onChange)
 
                 is SettingControl.Choice<*> -> {
+                    val island = com.texfi.w0y.ui.theme.isIsland
                     Text(
                         valueText(row).orEmpty().asLabel(),
                         style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                        color = Contrast.ensure(colors.accent, colors.background),
+                        color = if (island) colors.textMuted else Contrast.ensure(colors.accent, colors.background),
                         maxLines = 2,
                         textAlign = androidx.compose.ui.text.style.TextAlign.End,
                         modifier = Modifier.widthIn(max = 150.dp),
                     )
-                    Spacer(Modifier.width(6.dp))
-                    com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+                    if (!(island && control.ruler)) {
+                        Spacer(Modifier.width(6.dp))
+                        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+                    }
                 }
 
                 is SettingControl.Action -> PixelButton(text = control.button, onClick = control.onClick, fill = colors.surfaceHigh)
@@ -702,6 +746,19 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
         if (control is SettingControl.Custom) {
             Spacer(Modifier.height(10.dp))
             control.content()
+        }
+        if (control is SettingControl.Choice<*> && control.ruler && com.texfi.w0y.ui.theme.isIsland) {
+            @Suppress("UNCHECKED_CAST")
+            val typed = control as SettingControl.Choice<Any?>
+            Spacer(Modifier.height(6.dp))
+            IslandStepRuler(
+                count = typed.options.size,
+                selected = typed.options.indexOf(typed.selected),
+                startLabel = typed.label(typed.options.first()),
+                endLabel = typed.label(typed.options.last()),
+                description = row.title,
+                onSelect = { typed.onSelect(typed.options[it]) },
+            )
         }
     }
 }
@@ -887,6 +944,7 @@ private fun settingsRows(
                         selected = settings.speed,
                         label = { com.texfi.w0y.data.NumberText.speed(it) },
                         onSelect = viewModel::setSpeed,
+                        ruler = true,
                     ),
             ),
         )
@@ -901,6 +959,7 @@ private fun settingsRows(
                         selected = settings.pitch,
                         label = { it.toString().replace("1.0", stringResource(R.string.settings_pitch_normal)) },
                         onSelect = viewModel::setPitch,
+                        ruler = true,
                     ),
             ),
         )
@@ -1020,7 +1079,7 @@ private fun settingsRows(
                 title = stringResource(R.string.viz_style_title),
                 description = stringResource(R.string.viz_style_desc),
                 keywords = "visualizer spectrum",
-                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { if (settings.uiStyle == com.texfi.w0y.data.UiStyle.HAIRLINE) it.hair else (!it.hair && it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL)) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
+                control = SettingControl.Choice(com.texfi.w0y.data.VisualizerStyle.entries.filter { if (settings.uiStyle.hairBased) it.hair else (!it.hair && it.smooth == (settings.uiStyle != com.texfi.w0y.data.UiStyle.PIXEL)) }, settings.visualizerStyle.forUi(settings.uiStyle), { stringResource(it.label) }, viewModel::setVisualizerStyle),
             ),
         )
         add(

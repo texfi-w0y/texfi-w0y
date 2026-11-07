@@ -53,6 +53,8 @@ data class StyleTokens(
     val segmented: Boolean,
     /** Поверхности — жидкое стекло; иначе плотные матовые. Только Smooth. */
     val glass: Boolean = false,
+    /** Hairline New: матовые острова, фон в точку, свои шрифты. [style] при этом — Hairline. */
+    val island: Boolean = false,
 )
 
 val PixelTokens =
@@ -129,6 +131,7 @@ fun hairlineTokens(look: HairlineLook): StyleTokens {
 fun tokensFor(style: UiStyle, glass: Boolean = true, look: HairlineLook = HairlineLook()): StyleTokens =
     when (style) {
         UiStyle.HAIRLINE -> hairlineTokens(look)
+        UiStyle.ISLAND -> hairlineTokens(look).copy(island = true)
         UiStyle.PIXEL -> PixelTokens
         UiStyle.SMOOTH -> if (glass) SmoothGlassTokens else SmoothTokens
     }

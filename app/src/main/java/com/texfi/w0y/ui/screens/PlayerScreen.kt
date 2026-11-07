@@ -66,6 +66,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import com.texfi.w0y.ui.theme.drawGrain
+import com.texfi.w0y.ui.theme.screenBackdrop
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawWithContent
@@ -337,6 +339,7 @@ fun PlayerScreen(
     }
 
     val hair = com.texfi.w0y.ui.theme.isHair
+    val island = com.texfi.w0y.ui.theme.isIsland
     val layout = com.texfi.w0y.ui.theme.hairLook.layout
     val tint by rememberCoverTint(song.thumbnailUrl, colors.accent)
     val glow by animateColorAsState(
@@ -814,7 +817,49 @@ fun PlayerScreen(
             },
             label = "lyricsPage",
         ) { lyricsPage ->
-            if (lyricsPage) {
+            if (lyricsPage && island) {
+                val lyricsBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
+                Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.matchParentSize().then(Modifier.screenBackdrop(lyricsBackdrop))) {
+                        PlayerBlurBackdrop(song.thumbnailUrl, state.isPlaying)
+                        Box(Modifier.matchParentSize().drawBehind { drawGrain(0.7f) })
+                    }
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        LocalW0yColors provides overBlurColors(),
+                        com.texfi.w0y.ui.theme.LocalIslandBackdrop provides lyricsBackdrop,
+                    ) {
+                        IslandLyricsPage(
+                            song = song,
+                            lyrics = lyrics,
+                            translation = translation,
+                            positionProvider = viewModel.player::positionMs,
+                            playing = state.isPlaying,
+                            onSeekLine = seekLine,
+                            loading = lyricsLoading,
+                            onClose = { lyricsOn = false },
+                            onToggle = viewModel.player::togglePlayPause,
+                            size = settings.lyricsSize,
+                            onCycleSize = { viewModel.setLyricsSize(LyricsSize.entries[(settings.lyricsSize.ordinal + 1) % LyricsSize.entries.size]) },
+                            positionMs = dragPosition ?: position,
+                            durationMs = knownDuration,
+                            onDrag = { dragPosition = it },
+                            onDragEnd = {
+                                dragPosition?.let(seekNow)
+                                dragPosition = null
+                            },
+                            translate = {
+                                if (lyrics != null) {
+                                    LyricsLangRow(
+                                        selected = lyricsLang,
+                                        failed = lyricsLang.isNotBlank() && translation == null && !translating,
+                                        onSelect = viewModel::setLyricsLang,
+                                    )
+                                }
+                            },
+                        )
+                    }
+                }
+            } else if (lyricsPage) {
                 Box(Modifier.fillMaxSize()) {
                 PlayerBlurBackdrop(song.thumbnailUrl, state.isPlaying)
                 androidx.compose.runtime.CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -881,8 +926,25 @@ fun PlayerScreen(
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,
                     stage = stageContent,
+                    number = if (state.queue.size > 1) state.currentIndex + 1 else null,
+                    soundLine = if (island) "${com.texfi.w0y.data.NumberText.speed(effectiveSound.speed)} · ${stringResource(R.string.island_tone, com.texfi.w0y.data.NumberText.pitch(effectiveSound.pitch))}" else null,
+                    onSoundLine = {
+                        PlayerPanelMemory.moreTab = MoreTab.SPEED
+                        moreTab = MoreTab.SPEED
+                        panel = PlayerPanel.MORE
+                    },
                     header = {
-                        HairPlayerHeader(
+                        if (island) {
+                            IslandPlayerHeader(
+                                onCollapse = onCollapse,
+                                position = if (state.queue.size > 1) "${state.currentIndex + 1} / ${state.queue.size}" else null,
+                                onQueue = { queueTab = QueueTab.QUEUE; panel = PlayerPanel.QUEUE },
+                                onMenu = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
+                                videoAvailable = isVideoTrack,
+                                videoOn = videoOn,
+                                onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
+                            )
+                        } else HairPlayerHeader(
                             onCollapse = onCollapse,
                             position = if (state.queue.size > 1) stringResource(R.string.player_position, state.currentIndex + 1, state.queue.size) else null,
                             visualizerOn = art == PlayerArt.VISUALIZER && !lyricsOn && !videoOn,
@@ -895,7 +957,15 @@ fun PlayerScreen(
                             onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
                         )
                     },
-                    titleBlock = { m -> HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m, openArtist, openAlbum) },
+                    titleBlock = { m ->
+                        if (island) {
+                            IslandTitleRow(liked, { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) }, m) { tm ->
+                                HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, tm, openArtist, openAlbum)
+                            }
+                        } else {
+                            HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m, openArtist, openAlbum)
+                        }
+                    },
                     actions = {
                         HairActionsRow(
                             song = song,
@@ -910,6 +980,7 @@ fun PlayerScreen(
                             onShare = viewModel::shareCard,
                             onSleep = { panel = PlayerPanel.SLEEP },
                             onCopyLink = copyLinkAction(song),
+                            showLike = !island,
                         )
                     },
                     transport = {
@@ -927,6 +998,15 @@ fun PlayerScreen(
                         )
                     },
                     plate = {
+                        if (island) {
+                            IslandPlayerTabs(
+                                lyricsOn = lyricsOn,
+                                onLyrics = { lyricsOn = !lyricsOn; videoOn = false },
+                                onQueue = { queueTab = QueueTab.QUEUE; PlayerPanelMemory.queueTab = QueueTab.QUEUE; panel = PlayerPanel.QUEUE },
+                                onSimilar = { queueTab = QueueTab.SIMILAR; PlayerPanelMemory.queueTab = QueueTab.SIMILAR; panel = PlayerPanel.QUEUE },
+                            )
+                            return@CoverPlayerPage
+                        }
                         val badge =
                             if (settings.playerStateBadge) {
                                 stateBadge(effectiveSound.speed, effectiveSound.pitch, effectiveSound.reverb != com.texfi.w0y.data.Reverb.OFF, stringResource(R.string.badge_eq))
@@ -1576,6 +1656,14 @@ private fun QueueRow(
             .onSizeChanged { onMeasured(it.height.toFloat()) }
             // Поднятая строка едет за пальцем и заметно светлее соседей.
             .background(if (lifted) colors.surfaceHigh else Color.Transparent)
+            // Hairline New: играющий трек отмечен чертой акцента у левого края строки.
+            .then(
+                if (active && com.texfi.w0y.ui.theme.isIsland) {
+                    Modifier.drawBehind { drawLine(tone, Offset(1.dp.toPx(), 12.dp.toPx()), Offset(1.dp.toPx(), size.height - 12.dp.toPx()), 2.dp.toPx()) }
+                } else {
+                    Modifier
+                },
+            )
             .combinedClickable(onClick = onClick, onLongClick = if (rowActions.isNotEmpty()) ({ menuOpen = true }) else null)
             .padding(vertical = if (hair) com.texfi.w0y.ui.theme.hairLook.rowPad else 7.dp),
         verticalAlignment = Alignment.CenterVertically,
