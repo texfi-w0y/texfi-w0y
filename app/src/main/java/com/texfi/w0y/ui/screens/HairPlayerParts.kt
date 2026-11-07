@@ -36,6 +36,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -127,15 +129,12 @@ internal fun HairPlayerHeader(
 }
 
 /**
- * Шапка постера Hairline New — три острова, как на макете: слева «свернуть», по центру
- * капсула «Очередь | 11 / 44» (открывает очередь), справа «···». Видео — ещё один кружок,
+ * Шапка постера Hairline New: слева «свернуть», справа «···». Видео — ещё один кружок,
  * только у треков с клипом. Визуализатор включается касанием обложки.
  */
 @Composable
 internal fun IslandPlayerHeader(
     onCollapse: () -> Unit,
-    position: String?,
-    onQueue: () -> Unit,
     onMenu: () -> Unit,
     videoAvailable: Boolean,
     videoOn: Boolean,
@@ -149,23 +148,9 @@ internal fun IslandPlayerHeader(
         Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
             HairIconButton(HairGlyph.COLLAPSE, stringResource(R.string.player_collapse), onCollapse, tint = colors.text, size = 20.dp)
         }
+        // Посередине пусто: что заиграет следом, видно в очереди внизу.
         Spacer(Modifier.weight(1f))
-        val queueLabel = stringResource(R.string.sheet_queue)
-        Row(
-            Modifier
-                .height(44.dp)
-                .matte(androidx.compose.foundation.shape.RoundedCornerShape(50), backdrop)
-                .clickable(onClick = onQueue)
-                .padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(queueLabel.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.textMuted, maxLines = 1)
-            if (position != null) {
-                Box(Modifier.padding(horizontal = 12.dp).width(1.dp).height(12.dp).background(colors.text.copy(alpha = 0.2f)))
-                Text(position.replace("/", " / ").replace("  ", " "), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.text, maxLines = 1)
-            }
-        }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(10.dp))
         if (videoAvailable) {
             Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
                 HairIconButton(HairGlyph.VIDEO, stringResource(R.string.hl_cd_video), onToggleVideo, tint = if (videoOn) on else colors.text, size = 20.dp)
@@ -634,14 +619,12 @@ internal fun HairTransport(
             HairIconButton(HairGlyph.PREVIOUS, stringResource(R.string.hl_cd_prev), onPrevious, tint = colors.text, size = 28.dp)
             HairPlayButton(playing = playing, onClick = onToggle, size = playSize)
             HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text, size = 28.dp)
-            HairIconButton(HairGlyph.REPEAT, stringResource(R.string.player_cd_repeat), onRepeat, tint = if (repeatActive) tone else colors.textMuted)
-        }
-        if (repeatOne) {
-            Text(
-                text = stringResource(R.string.player_repeat_one),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 2.dp),
+            // Повтор одного — «1» внутри петли, как принято везде; подпись под кнопкой не нужна.
+            HairIconButton(
+                if (repeatOne) HairGlyph.REPEAT_ONE else HairGlyph.REPEAT,
+                stringResource(if (repeatOne) R.string.player_repeat_one else R.string.player_cd_repeat),
+                onRepeat,
+                tint = if (repeatActive) tone else colors.textMuted,
             )
         }
     }
@@ -767,7 +750,7 @@ internal fun HairDials(
     onReverb: (Reverb) -> Unit,
 ) {
     val speedSteps = 36 // 0.2..2.0 шагом 0.05
-    val pitchSteps = 4 // 0.9..1.1 шагом 0.05
+    val pitchSteps = 12 // 0.7..1.3 шагом 0.05
     val reverbs = Reverb.entries
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         if (dials != DialSet.TONE) HairDial(
@@ -779,10 +762,10 @@ internal fun HairDials(
         )
         if (dials != DialSet.SPEED) HairDial(
             label = stringResource(R.string.hl_dial_pitch),
-            valueText = { NumberText.pitch(0.9f + it * 0.2f) },
-            fraction = ((sound.pitch - 0.9f) / 0.2f).coerceIn(0f, 1f),
+            valueText = { NumberText.pitch(0.7f + it * 0.6f) },
+            fraction = ((sound.pitch - 0.7f) / 0.6f).coerceIn(0f, 1f),
             steps = pitchSteps,
-            onCommit = { onPitch((0.9f + it * 0.2f).let { v -> Math.round(v * 20) / 20f }) },
+            onCommit = { onPitch((0.7f + it * 0.6f).let { v -> Math.round(v * 20) / 20f }) },
         )
         if (dials != DialSet.SPEED) HairDial(
             label = stringResource(R.string.hl_dial_reverb),

@@ -42,6 +42,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.stringResource
+import com.texfi.w0y.R
+import com.texfi.w0y.ui.components.PixelButton
 import com.texfi.w0y.data.ListeningStats
 import com.texfi.w0y.data.Thumbnails
 import com.texfi.w0y.ui.components.CoverImage
@@ -186,16 +195,32 @@ private fun WeekBars(minutes: List<Int>) {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun IslandPlaylistRow(cover: String?, name: String, subtitle: String, tint: Color?, index: Int, onClick: () -> Unit, onLongClick: () -> Unit) {
+internal fun IslandPlaylistRow(
+    cover: String?,
+    name: String,
+    subtitle: String,
+    tint: Color?,
+    index: Int,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Удержание с переносом; без него долгое нажатие — просто [onLongClick]. */
+    hold: Modifier? = null,
+) {
     val colors = LocalW0yColors.current
     val interaction = remember { MutableInteractionSource() }
-    Column(Modifier.fillMaxWidth().hairStagger(index)) {
+    Column(modifier.fillMaxWidth().hairStagger(index)) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .pressScale(interaction, pressed = 0.975f)
-                .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick)
-                .padding(vertical = 10.dp),
+                .then(
+                    if (hold != null) {
+                        Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick).then(hold)
+                    } else {
+                        Modifier.combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick)
+                    },
+                ).padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val shape = RoundedCornerShape(8.dp)
@@ -232,4 +257,211 @@ internal fun IslandPlusCircle(label: String, onClick: () -> Unit) {
     ) {
         HairIcon(HairGlyph.PLUS, colors.text, Modifier.size(16.dp))
     }
+}
+
+/**
+ * «Создать» в «Моё»: панель с выбором — плейлист или папка, имя и куда положить плейлист:
+ * в аккаунт YouTube Music или только в w0y. Папки есть только в w0y.
+ */
+@Composable
+internal fun IslandCreateSheet(
+    visible: Boolean,
+    signedIn: Boolean,
+    toAccountByDefault: Boolean,
+    onDismiss: () -> Unit,
+    onPlaylist: (String, Boolean) -> Unit,
+    onFolder: (String) -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    var kind by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var name by remember { androidx.compose.runtime.mutableStateOf("") }
+    var toAccount by remember(toAccountByDefault) { androidx.compose.runtime.mutableStateOf(toAccountByDefault) }
+    androidx.compose.runtime.LaunchedEffect(visible) { if (visible) name = "" }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = null) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(260)
+            runCatching { focus.requestFocus() }
+        }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+        ) {
+            Text(stringResource(R.string.create_title), style = MaterialTheme.typography.titleLarge, color = colors.text)
+            Spacer(Modifier.height(14.dp))
+            com.texfi.w0y.ui.components.IslandSegmented(
+                listOf(stringResource(R.string.create_kind_playlist), stringResource(R.string.create_kind_folder)),
+                kind,
+                { kind = it },
+            )
+            Spacer(Modifier.height(16.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.text.copy(alpha = 0.06f))
+                    .border(1.dp, colors.text.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                androidx.compose.foundation.text.BasicTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.text),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.accent),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                if (name.isEmpty()) {
+                    Text(
+                        stringResource(if (kind == 0) R.string.library_playlist_name else R.string.folder_name),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.textMuted,
+                    )
+                }
+            }
+            androidx.compose.animation.AnimatedContent(targetState = kind == 0 && signedIn, label = "createWhere") { where ->
+                Column(Modifier.padding(top = 14.dp)) {
+                    if (where) {
+                        WhereOption(stringResource(R.string.create_where_account), stringResource(R.string.create_where_account_desc), toAccount) { toAccount = true }
+                        WhereOption(stringResource(R.string.create_where_local), stringResource(R.string.create_where_local_desc), !toAccount) { toAccount = false }
+                    } else if (kind == 1) {
+                        Text(stringResource(R.string.create_folder_note), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            PixelButton(
+                stringResource(R.string.create_button),
+                onClick = {
+                    val clean = name.trim()
+                    if (clean.isNotEmpty()) {
+                        if (kind == 0) onPlaylist(clean, toAccount && signedIn) else onFolder(clean)
+                        onDismiss()
+                    }
+                },
+                enabled = name.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WhereOption(title: String, text: String, chosen: Boolean, onClick: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.surface)
+    val ring by androidx.compose.animation.animateColorAsState(if (chosen) tone else colors.text.copy(alpha = 0.25f), com.texfi.w0y.ui.components.hairSpec(), label = "whereRing")
+    val dot by androidx.compose.animation.core.animateFloatAsState(if (chosen) 1f else 0f, com.texfi.w0y.ui.components.hairSpec(), label = "whereDot")
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(20.dp)
+                .border(1.5.dp, ring, CircleShape)
+                .padding(5.dp)
+                .graphicsLayer { scaleX = dot; scaleY = dot }
+                .background(tone, CircleShape),
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = colors.text)
+            Text(text, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+        }
+    }
+}
+
+/**
+ * Аккаунт в «Моё»: кто вошёл, сверка сейчас и настройки аккаунта — зеркало плейлистов,
+ * куда по умолчанию идут новые плейлисты, видны ли сохранённые альбомы; внизу — выход.
+ */
+@Composable
+internal fun IslandAccountSheet(
+    visible: Boolean,
+    name: String?,
+    avatar: String?,
+    syncing: Boolean,
+    syncError: String?,
+    mirror: Boolean,
+    newToAccount: Boolean,
+    showAlbums: Boolean,
+    onSync: () -> Unit,
+    onMirror: (Boolean) -> Unit,
+    onNewToAccount: (Boolean) -> Unit,
+    onShowAlbums: (Boolean) -> Unit,
+    onSignOut: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = null) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 18.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CoverImage(url = avatar, px = com.texfi.w0y.data.Thumbnails.ROW, modifier = Modifier.size(56.dp), circle = true)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(name ?: stringResource(R.string.library_signed_in), style = MaterialTheme.typography.titleMedium, color = colors.text, maxLines = 1)
+                    Text("YouTube Music".asLabel(), style = HairLabelStyle, color = colors.textMuted)
+                }
+                PixelButton(
+                    if (syncing) stringResource(R.string.library_syncing) else stringResource(R.string.library_sync),
+                    onClick = onSync,
+                    enabled = !syncing,
+                )
+            }
+            syncError?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.secondary, modifier = Modifier.padding(top = 10.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            AccountToggle(stringResource(R.string.settings_sync_playlists_title), stringResource(R.string.settings_sync_playlists_desc), mirror, onMirror)
+            AccountToggle(stringResource(R.string.account_new_to_account), stringResource(R.string.account_new_to_account_desc), newToAccount, onNewToAccount)
+            AccountToggle(stringResource(R.string.account_show_albums), stringResource(R.string.account_show_albums_desc), showAlbums, onShowAlbums)
+            Text(
+                stringResource(R.string.library_sign_out),
+                style = MaterialTheme.typography.bodyLarge,
+                color = androidx.compose.ui.graphics.Color(0xFFFF6B6B),
+                modifier =
+                    Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onSignOut)
+                        .padding(vertical = 14.dp, horizontal = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountToggle(title: String, text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = LocalW0yColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = colors.text)
+            Text(text, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, modifier = Modifier.padding(top = 2.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        com.texfi.w0y.ui.components.PixelSwitch(checked = checked, onCheckedChange = onChange)
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.text.copy(alpha = 0.07f)))
 }

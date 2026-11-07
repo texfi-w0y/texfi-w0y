@@ -42,6 +42,15 @@ class ShellViewModel @Inject constructor(
     val updateDeferred: StateFlow<String?> = updates.deferredTag
     val whatsNew: StateFlow<com.texfi.w0y.data.WhatsNew?> = updates.whatsNew
 
+    /** Настройки целиком: заставка, магнит панелей, выбор новинок после обновления. Null — ещё не прочитаны. */
+    val prefs: StateFlow<com.texfi.w0y.data.W0ySettings?> =
+        settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Переключатель из окна «что оставить» после обновления — та же настройка, что в Настройках. */
+    fun setReleaseChoice(choice: com.texfi.w0y.data.ReleaseChoice, on: Boolean) {
+        viewModelScope.launch { choice.set(settings, on) }
+    }
+
     /** Один раз за запуск, когда приветствие позади: проверка обновлений и «что нового». */
     fun onUpdatesLaunch() {
         viewModelScope.launch { updates.onLaunch(autoCheck = settings.settings.first().updateCheck) }

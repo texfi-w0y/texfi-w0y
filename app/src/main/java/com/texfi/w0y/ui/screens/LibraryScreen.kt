@@ -523,136 +523,143 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
     }
     if (selecting) BackHandler { selecting = false; selected = emptySet() }
 
+    val hair = com.texfi.w0y.ui.theme.isHair
+    // Шапка (числа, папка, кнопки) прокручивается вместе со списком: раньше она стояла
+    // на месте и съедала половину экрана, а треки ютились внизу.
+    val header: @Composable () -> Unit = {
+        Column {
+            ScreenTitle(title = stringResource(R.string.downloads_title), onBack = viewModel::back, horizontalPadding = 0.dp)
+            val usedMb = remember(songs.size, pending.size) { (viewModel.downloads.usedBytes() / 1024 / 1024).toInt() }
+            if (hair) {
+                // Hairline: вместо абзаца — три числа, строка папки и справка, раскрывающаяся по нажатию.
+                com.texfi.w0y.ui.components.HairStatStrip(
+                    listOf(
+                        com.texfi.w0y.ui.components.HairStat(songs.size, stringResource(R.string.stat_tracks)),
+                        com.texfi.w0y.ui.components.HairStat(usedMb, stringResource(R.string.stat_mb)),
+                        com.texfi.w0y.ui.components.HairStat(pending.size, stringResource(R.string.stat_queue)),
+                    ),
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.downloads_usage, usedMb, pending.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                )
+                // «Где это» — вопрос, который задали первым. Ответ честный: не в
+                // папке «Музыка», а внутри приложения.
+                Text(
+                    text = stringResource(R.string.downloads_where),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            folder?.let { current ->
+                if (hair && current.asked) {
+                    Box(Modifier.clickable { folderLauncher.launch(null) }) {
+                        PanelRow(com.texfi.w0y.ui.icons.HairGlyph.FOLDER, stringResource(R.string.dl_folder_row), folderName(current.tree) ?: stringResource(R.string.dl_folder_default))
+                    }
+                    com.texfi.w0y.ui.components.HairInfoToggle(stringResource(R.string.dl_where_title)) {
+                        Text(stringResource(R.string.downloads_where), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                        Spacer(Modifier.height(6.dp))
+                        Text(stringResource(R.string.export_warning_text), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                    }
+                } else if (!current.asked) {
+                    // Первый заход: куда сохранять на телефон — спрашиваем здесь,
+                    // рядом с кнопкой сохранения, а не в глубине настроек.
+                    PixelCard(label = stringResource(R.string.dl_folder_ask_title), modifier = Modifier.padding(top = 12.dp)) {
+                        Text(
+                            stringResource(R.string.dl_folder_ask_text, stringResource(R.string.dl_folder_default)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.text,
+                        )
+                        Text(
+                            stringResource(R.string.export_warning_text),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
+                            PixelButton(stringResource(R.string.dl_folder_ask_pick), onClick = { folderLauncher.launch(null) })
+                            PixelButton(stringResource(R.string.dl_folder_ask_keep), onClick = { viewModel.answerExportFolder(null) }, fill = colors.surfaceHigh)
+                        }
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.dl_folder_current, folderName(current.tree) ?: stringResource(R.string.dl_folder_default)) +
+                            " · " + stringResource(R.string.dl_folder_change),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.accentText,
+                        modifier = Modifier.clickable { folderLauncher.launch(null) }.padding(vertical = 6.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            if (selecting) {
+                // Панель выбора: сколько отмечено, «все», и что с ними сделать.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.downloads_selected, selected.size),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.text,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        stringResource(if (selected.size == songs.size) R.string.downloads_select_none else R.string.downloads_select_all),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.accentText,
+                        modifier =
+                            Modifier
+                                .clickable { selected = if (selected.size == songs.size) emptySet() else songs.map { it.id }.toSet() }
+                                .padding(12.dp),
+                    )
+                    SpriteButton(Sprites.close, onClick = { selecting = false; selected = emptySet() })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                    PixelButton(
+                        if (exporting) stringResource(R.string.downloads_exporting, exportProgress.first, exportProgress.second) else stringResource(R.string.downloads_export),
+                        onClick = { viewModel.exportDownloads(selectedSongs) },
+                        enabled = selected.isNotEmpty() && !exporting,
+                    )
+                    PixelButton(stringResource(R.string.downloads_redownload), onClick = { viewModel.redownload(selected); selecting = false; selected = emptySet() }, enabled = selected.isNotEmpty(), fill = colors.surfaceHigh)
+                    PixelButton(stringResource(R.string.dl_clear_button), onClick = { viewModel.deleteDownloads(selected); selecting = false; selected = emptySet() }, enabled = selected.isNotEmpty(), fill = colors.surfaceHigh)
+                }
+            } else if (songs.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PixelButton(
+                        text =
+                            if (exporting) {
+                                stringResource(R.string.downloads_exporting, exportProgress.first, exportProgress.second)
+                            } else {
+                                stringResource(R.string.downloads_export)
+                            },
+                        onClick = { viewModel.exportDownloads(songs) },
+                        enabled = !exporting,
+                        fill = if (hair) colors.surfaceHigh else null,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        stringResource(R.string.downloads_select),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.accentText,
+                        modifier = Modifier.clickable { selecting = true }.padding(12.dp),
+                    )
+                }
+            }
+            exportStatus?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, modifier = Modifier.padding(vertical = 4.dp))
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
             .padding(horizontal = 18.dp),
     ) {
-        val hair = com.texfi.w0y.ui.theme.isHair
-        ScreenTitle(title = stringResource(R.string.downloads_title), onBack = viewModel::back, horizontalPadding = 0.dp)
-        val usedMb = remember(songs.size, pending.size) { (viewModel.downloads.usedBytes() / 1024 / 1024).toInt() }
-        if (hair) {
-            // Hairline: вместо абзаца — три числа, строка папки и справка, раскрывающаяся по нажатию.
-            com.texfi.w0y.ui.components.HairStatStrip(
-                listOf(
-                    com.texfi.w0y.ui.components.HairStat(songs.size, stringResource(R.string.stat_tracks)),
-                    com.texfi.w0y.ui.components.HairStat(usedMb, stringResource(R.string.stat_mb)),
-                    com.texfi.w0y.ui.components.HairStat(pending.size, stringResource(R.string.stat_queue)),
-                ),
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.downloads_usage, usedMb, pending.size),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-            )
-            // «Где это» — вопрос, который задали первым. Ответ честный: не в
-            // папке «Музыка», а внутри приложения.
-            Text(
-                text = stringResource(R.string.downloads_where),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-        folder?.let { current ->
-            if (hair && current.asked) {
-                Box(Modifier.clickable { folderLauncher.launch(null) }) {
-                    PanelRow(com.texfi.w0y.ui.icons.HairGlyph.FOLDER, stringResource(R.string.dl_folder_row), folderName(current.tree) ?: stringResource(R.string.dl_folder_default))
-                }
-                com.texfi.w0y.ui.components.HairInfoToggle(stringResource(R.string.dl_where_title)) {
-                    Text(stringResource(R.string.downloads_where), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-                    Spacer(Modifier.height(6.dp))
-                    Text(stringResource(R.string.export_warning_text), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-                }
-            } else if (!current.asked) {
-                // Первый заход: куда сохранять на телефон — спрашиваем здесь,
-                // рядом с кнопкой сохранения, а не в глубине настроек.
-                PixelCard(label = stringResource(R.string.dl_folder_ask_title), modifier = Modifier.padding(top = 12.dp)) {
-                    Text(
-                        stringResource(R.string.dl_folder_ask_text, stringResource(R.string.dl_folder_default)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.text,
-                    )
-                    Text(
-                        stringResource(R.string.export_warning_text),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textMuted,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
-                        PixelButton(stringResource(R.string.dl_folder_ask_pick), onClick = { folderLauncher.launch(null) })
-                        PixelButton(stringResource(R.string.dl_folder_ask_keep), onClick = { viewModel.answerExportFolder(null) }, fill = colors.surfaceHigh)
-                    }
-                }
-            } else {
-                Text(
-                    stringResource(R.string.dl_folder_current, folderName(current.tree) ?: stringResource(R.string.dl_folder_default)) +
-                        " · " + stringResource(R.string.dl_folder_change),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.accentText,
-                    modifier = Modifier.clickable { folderLauncher.launch(null) }.padding(vertical = 6.dp),
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        if (selecting) {
-            // Панель выбора: сколько отмечено, «все», и что с ними сделать.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.downloads_selected, selected.size),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.text,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    stringResource(if (selected.size == songs.size) R.string.downloads_select_none else R.string.downloads_select_all),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.accentText,
-                    modifier =
-                        Modifier
-                            .clickable { selected = if (selected.size == songs.size) emptySet() else songs.map { it.id }.toSet() }
-                            .padding(12.dp),
-                )
-                SpriteButton(Sprites.close, onClick = { selecting = false; selected = emptySet() })
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
-                PixelButton(
-                    if (exporting) stringResource(R.string.downloads_exporting, exportProgress.first, exportProgress.second) else stringResource(R.string.downloads_export),
-                    onClick = { viewModel.exportDownloads(selectedSongs) },
-                    enabled = selected.isNotEmpty() && !exporting,
-                )
-                PixelButton(stringResource(R.string.downloads_redownload), onClick = { viewModel.redownload(selected); selecting = false; selected = emptySet() }, enabled = selected.isNotEmpty(), fill = colors.surfaceHigh)
-                PixelButton(stringResource(R.string.dl_clear_button), onClick = { viewModel.deleteDownloads(selected); selecting = false; selected = emptySet() }, enabled = selected.isNotEmpty(), fill = colors.surfaceHigh)
-            }
-        } else if (songs.isNotEmpty()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PixelButton(
-                    text =
-                        if (exporting) {
-                            stringResource(R.string.downloads_exporting, exportProgress.first, exportProgress.second)
-                        } else {
-                            stringResource(R.string.downloads_export)
-                        },
-                    onClick = { viewModel.exportDownloads(songs) },
-                    enabled = !exporting,
-                    fill = if (hair) colors.surfaceHigh else null,
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.downloads_select),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.accentText,
-                    modifier = Modifier.clickable { selecting = true }.padding(12.dp),
-                )
-            }
-        }
-        exportStatus?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, modifier = Modifier.padding(vertical = 4.dp))
-        }
-        Spacer(Modifier.height(6.dp))
         if (songs.isEmpty() && pending.isEmpty() && failed.isEmpty()) {
+            header()
             EmptyState(
                 sprite = Sprites.download,
                 title = stringResource(R.string.downloads_empty_title),
@@ -661,6 +668,7 @@ private fun DownloadsList(viewModel: LibraryViewModel) {
             return
         }
         LazyColumn {
+            item(key = "dl-header") { header() }
             if (failed.isNotEmpty()) {
                 item(key = "failed-header") {
                     if (hair) com.texfi.w0y.ui.components.HairGroupHeader(stringResource(R.string.downloads_failed), trailing = failed.size.toString())
@@ -795,12 +803,17 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
         )
         return
     }
+    // Hairline New: шапка во всю ширину с цветом обложки, поля — у строк списка. Её можно
+    // выключить в настройках — тогда прежняя шапка.
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val island = com.texfi.w0y.ui.theme.isIsland && prefs.playlistHero
+    val rowGutter = if (island) IslandListGutter else 0.dp
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = if (island) 0.dp else 18.dp),
     ) {
-        ScreenTitle(title = name.lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp) {
+        if (!island) ScreenTitle(title = name.lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp) {
             if (hair) {
                 com.texfi.w0y.ui.components.HairIconButton(
                     com.texfi.w0y.ui.icons.HairGlyph.SLIDERS,
@@ -837,7 +850,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
             }
             Spacer(Modifier.height(12.dp))
         }
-        if (!editable) {
+        if (!editable && !island) {
             Text(
                 stringResource(R.string.playlist_readonly),
                 style = MaterialTheme.typography.bodySmall,
@@ -900,17 +913,34 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
             }
         LazyColumn(state = listState, contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
             item(key = "header") {
-                CollectionHeader(
-                    title = name,
-                    owner = if (entry?.remoteId != null) accountName ?: stringResource(R.string.library_own_playlist) else stringResource(R.string.library_own_playlist),
-                    coverUrl = covers[playlistId] ?: entry?.coverUrl,
-                    songs = order,
-                    onPlay = { viewModel.playCollection(order, 0) },
-                    onShuffle = { viewModel.playCollection(order.shuffled(), 0) },
-                    onDownload = { viewModel.downloadAll(order) },
-                )
+                val owner = if (entry?.remoteId != null) accountName ?: stringResource(R.string.library_own_playlist) else stringResource(R.string.library_own_playlist)
+                if (island) {
+                    IslandCollectionHero(
+                        title = name,
+                        kind = stringResource(R.string.island_kind_playlist),
+                        owner = owner,
+                        note = listOfNotNull(entry?.note?.takeIf { it.isNotBlank() }, if (!editable) stringResource(R.string.playlist_readonly) else null).joinToString("\n").ifBlank { null },
+                        coverUrl = covers[playlistId] ?: entry?.coverUrl,
+                        songs = order,
+                        onBack = viewModel::back,
+                        onPlay = { viewModel.playCollection(order, 0) },
+                        onShuffle = { viewModel.playCollection(order.shuffled(), 0) },
+                        onDownload = { viewModel.downloadAll(order) },
+                        onCustomize = if (entry != null) ({ customizing = true }) else null,
+                    )
+                } else {
+                    CollectionHeader(
+                        title = name,
+                        owner = owner,
+                        coverUrl = covers[playlistId] ?: entry?.coverUrl,
+                        songs = order,
+                        onPlay = { viewModel.playCollection(order, 0) },
+                        onShuffle = { viewModel.playCollection(order.shuffled(), 0) },
+                        onDownload = { viewModel.downloadAll(order) },
+                    )
+                }
             }
-            if (hair && !entry?.note.isNullOrBlank()) {
+            if (hair && !island && !entry?.note.isNullOrBlank()) {
                 item(key = "note") {
                     Text(entry?.note.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(bottom = 12.dp))
                 }
@@ -921,6 +951,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                         stringResource(R.string.playlist_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textMuted,
+                        modifier = Modifier.padding(horizontal = rowGutter, vertical = if (island) 12.dp else 0.dp),
                     )
                 }
             }
@@ -950,7 +981,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                             } else {
                                 // Соседи уступают место ступенями, как всё движение TexFi.
                                 Modifier.animateItem(placementSpec = tween(W0yMotion.MID_MS, easing = SteppedEasing(4)))
-                            },
+                            }.padding(horizontal = rowGutter),
                         rowActions =
                             if (editable) {
                                 val before = order.map { it.id }
@@ -986,27 +1017,64 @@ private fun RemotePlaylist(route: LibraryRoute.Remote, viewModel: LibraryViewMod
     val colors = LocalW0yColors.current
     val songs by viewModel.remoteSongs.collectAsStateWithLifecycle()
     val suggestions by viewModel.remoteSuggestions.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val island = com.texfi.w0y.ui.theme.isIsland && prefs.playlistHero
+    val rowGutter = if (island) IslandListGutter else 0.dp
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = if (island) 0.dp else 18.dp),
     ) {
-        ScreenTitle(title = route.card.title.lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp)
+        if (island) {
+            // Пока треки грузятся, шапка уже стоит — с обложкой и названием.
+            if (songs.isEmpty()) {
+                IslandCollectionHero(
+                    title = route.card.title,
+                    kind = stringResource(R.string.island_kind_playlist),
+                    owner = route.card.subtitle,
+                    note = stringResource(R.string.playlist_loading),
+                    coverUrl = route.card.thumbnailUrl,
+                    songs = songs,
+                    onBack = viewModel::back,
+                    onPlay = {},
+                    onShuffle = {},
+                    onDownload = {},
+                )
+                return
+            }
+        } else {
+            ScreenTitle(title = route.card.title.lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp)
+        }
         if (songs.isEmpty()) {
             Text(stringResource(R.string.playlist_loading), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
             return
         }
-        LazyColumn {
+        LazyColumn(contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
             item(key = "header") {
-                CollectionHeader(
-                    title = route.card.title,
-                    owner = route.card.subtitle,
-                    coverUrl = route.card.thumbnailUrl,
-                    songs = songs,
-                    onPlay = { viewModel.playCollection(songs, 0) },
-                    onShuffle = { viewModel.playCollection(songs.shuffled(), 0) },
-                    onDownload = { viewModel.downloadAll(songs) },
-                )
+                if (island) {
+                    IslandCollectionHero(
+                        title = route.card.title,
+                        kind = stringResource(R.string.island_kind_playlist),
+                        owner = route.card.subtitle,
+                        note = null,
+                        coverUrl = route.card.thumbnailUrl,
+                        songs = songs,
+                        onBack = viewModel::back,
+                        onPlay = { viewModel.playCollection(songs, 0) },
+                        onShuffle = { viewModel.playCollection(songs.shuffled(), 0) },
+                        onDownload = { viewModel.downloadAll(songs) },
+                    )
+                } else {
+                    CollectionHeader(
+                        title = route.card.title,
+                        owner = route.card.subtitle,
+                        coverUrl = route.card.thumbnailUrl,
+                        songs = songs,
+                        onPlay = { viewModel.playCollection(songs, 0) },
+                        onShuffle = { viewModel.playCollection(songs.shuffled(), 0) },
+                        onDownload = { viewModel.downloadAll(songs) },
+                    )
+                }
             }
             items(songs, key = { it.id }) { song ->
                 SongRow(
@@ -1015,7 +1083,7 @@ private fun RemotePlaylist(route: LibraryRoute.Remote, viewModel: LibraryViewMod
                     // Трек уезжает из списка сам: после нажатия «удалить»
                     // должно быть видно, что удалилось именно это, а не
                     // что список перерисовался целиком.
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.animateItem().padding(horizontal = rowGutter),
                     actions = { DownloadButton(song.id, onDownload = { viewModel.download(song) }) },
                 )
             }
@@ -1024,12 +1092,12 @@ private fun RemotePlaylist(route: LibraryRoute.Remote, viewModel: LibraryViewMod
                     SectionHeader(
                         label = stringResource(R.string.playlist_suggestions),
                         hint = stringResource(R.string.playlist_suggestions_hint),
-                        modifier = Modifier.padding(top = 18.dp, bottom = 6.dp),
+                        modifier = Modifier.padding(top = 18.dp, bottom = 6.dp).padding(horizontal = rowGutter),
                     )
                 }
                 // Рекомендация запускается одна, отдельно от плейлиста.
                 items(suggestions, key = { "s-" + it.id }) { song ->
-                    SongRow(song = song, onClick = { viewModel.play(listOf(song), 0) })
+                    SongRow(song = song, onClick = { viewModel.play(listOf(song), 0) }, modifier = Modifier.padding(horizontal = rowGutter))
                 }
             }
         }

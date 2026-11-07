@@ -2,6 +2,7 @@ package com.texfi.w0y.ui.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.togetherWith
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +60,10 @@ fun UpdateDialogs(
     onInstall: (File) -> Unit,
     onDefer: (UpdateInfo) -> Unit,
     onCloseWhatsNew: () -> Unit,
+    /** Новинки этой версии, от которых можно отказаться; пусто — окно в один шаг. */
+    choices: List<com.texfi.w0y.data.ReleaseChoice> = emptyList(),
+    prefs: com.texfi.w0y.data.W0ySettings? = null,
+    onChoice: (com.texfi.w0y.data.ReleaseChoice, Boolean) -> Unit = { _, _ -> },
 ) {
     // Для какой версии окно открыто: найденное обновление открывает его один раз, остальное
     // состояние (скачивание, готово, ошибка) просто меняет содержимое уже открытого окна.
@@ -72,7 +78,7 @@ fun UpdateDialogs(
         }
     if (openTag == null && state is UpdateState.Available && state.info.tag != deferredTag) openTag = state.info.tag
     if (whatsNew != null) {
-        WhatsNewDialog(whatsNew, onCloseWhatsNew)
+        WhatsNewDialog(whatsNew, choices, prefs, onChoice, onCloseWhatsNew)
         return
     }
     if (info == null || openTag != info.tag) return
@@ -110,16 +116,40 @@ private fun DialogFrame(testTag: String, onDismiss: () -> Unit, content: @Compos
 @Composable
 private fun Notes(text: String) {
     val colors = LocalW0yColors.current
-    Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
-        text.lines().forEach { line ->
-            if (line.isBlank()) {
-                Spacer(Modifier.height(8.dp))
-            } else {
-                Text(line, style = MaterialTheme.typography.bodyMedium, color = colors.text, modifier = Modifier.padding(vertical = 2.dp))
+    val blocks = remember(text) { com.texfi.w0y.data.NotesText.blocks(text) }
+    Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+        blocks.forEachIndexed { index, block ->
+            when (block.kind) {
+                com.texfi.w0y.data.NotesText.Kind.HEADING -> {
+                    if (index > 0) Spacer(Modifier.height(14.dp))
+                    Text(block.text.replace("**", "").asLabel(), style = HairLabelStyle, color = colors.textMuted)
+                    Spacer(Modifier.height(6.dp))
+                }
+                com.texfi.w0y.data.NotesText.Kind.BULLET ->
+                    Row(Modifier.padding(vertical = 4.dp)) {
+                        Text("·", style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(end = 8.dp))
+                        Text(bolded(block.text), style = MaterialTheme.typography.bodyMedium, color = colors.text)
+                    }
+                com.texfi.w0y.data.NotesText.Kind.PARAGRAPH ->
+                    Text(bolded(block.text), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(vertical = 4.dp))
             }
         }
     }
 }
+
+/** `**слово**` → жирное; остальное как есть. */
+private fun bolded(text: String): androidx.compose.ui.text.AnnotatedString =
+    androidx.compose.ui.text.buildAnnotatedString {
+        text.split("**").forEachIndexed { i, part ->
+            if (i % 2 == 1) {
+                pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+                append(part)
+                pop()
+            } else {
+                append(part)
+            }
+        }
+    }
 
 @Composable
 private fun UpdateDialog(
@@ -168,19 +198,92 @@ private fun UpdateDialog(
     }
 }
 
+/**
+ * «Что нового» после обновления. Сначала — что изменилось; если в версии есть новинки, от
+ * которых можно отказаться, «Продолжить» ведёт ко второму шагу: переключатели, всё включено.
+ * Выключенное сохраняется сразу, это обычные настройки. Закрыть окно можно на любом шаге.
+ */
 @Composable
-private fun WhatsNewDialog(whatsNew: WhatsNew, onClose: () -> Unit) {
+private fun WhatsNewDialog(
+    whatsNew: WhatsNew,
+    choices: List<com.texfi.w0y.data.ReleaseChoice>,
+    prefs: com.texfi.w0y.data.W0ySettings?,
+    onChoice: (com.texfi.w0y.data.ReleaseChoice, Boolean) -> Unit,
+    onClose: () -> Unit,
+) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
+    var step by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
+    val withChoices = choices.isNotEmpty() && prefs != null
+    val inSpec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+    val outSpec = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.SHORT_MS)
     DialogFrame("whatsnew-dialog", onClose) {
-        Text(stringResource(R.string.whatsnew_dialog_label).asLabel(), style = HairLabelStyle, color = tone)
-        Spacer(Modifier.height(10.dp))
-        Text(whatsNew.label, style = HairTitleStyle, color = colors.text)
-        Spacer(Modifier.height(14.dp))
-        Notes(whatsNew.notes)
-        Spacer(Modifier.height(20.dp))
-        PixelButton(stringResource(R.string.whatsnew_ok), onClose, Modifier.fillMaxWidth().testTag("whatsnew-ok"))
+        androidx.compose.animation.AnimatedContent(
+            targetState = if (withChoices) step else 0,
+            transitionSpec = {
+                (androidx.compose.animation.fadeIn(inSpec) + androidx.compose.animation.scaleIn(inSpec, initialScale = 0.97f))
+                    .togetherWith(androidx.compose.animation.fadeOut(outSpec))
+            },
+            label = "whatsNewStep",
+        ) { current ->
+            Column {
+                if (current == 0) {
+                    Text(stringResource(R.string.whatsnew_dialog_label).asLabel(), style = HairLabelStyle, color = tone)
+                    Spacer(Modifier.height(10.dp))
+                    Text(whatsNew.label, style = HairTitleStyle, color = colors.text)
+                    Spacer(Modifier.height(14.dp))
+                    Notes(whatsNew.notes)
+                    Spacer(Modifier.height(20.dp))
+                    if (withChoices) {
+                        PixelButton(stringResource(R.string.whatsnew_continue), { step = 1 }, Modifier.fillMaxWidth().testTag("whatsnew-continue"))
+                    } else {
+                        PixelButton(stringResource(R.string.whatsnew_ok), onClose, Modifier.fillMaxWidth().testTag("whatsnew-ok"))
+                    }
+                } else {
+                    Text(stringResource(R.string.whatsnew_choices_label).asLabel(), style = HairLabelStyle, color = tone)
+                    Spacer(Modifier.height(10.dp))
+                    Text(stringResource(R.string.whatsnew_choices_title), style = HairTitleStyle, color = colors.text)
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.whatsnew_choices_hint), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                    Spacer(Modifier.height(10.dp))
+                    Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+                        choices.forEach { choice ->
+                            ChoiceRow(choice, prefs?.let(choice.get) ?: true) { onChoice(choice, it) }
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    PixelButton(stringResource(R.string.whatsnew_done), onClose, Modifier.fillMaxWidth().testTag("whatsnew-ok"))
+                }
+            }
+        }
     }
+}
+
+/** Строка выбора: название, пояснение и переключатель; касание по строке — то же, что по переключателю. */
+@Composable
+private fun ChoiceRow(choice: com.texfi.w0y.data.ReleaseChoice, on: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = LocalW0yColors.current
+    val haptic = com.texfi.w0y.ui.components.rememberHaptics()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .testTag("choice-" + choice.id)
+            .clickable { onChange(!on) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(stringResource(choice.title), style = MaterialTheme.typography.bodyLarge, color = colors.text)
+            Spacer(Modifier.height(2.dp))
+            Text(stringResource(choice.description), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+        }
+        if (com.texfi.w0y.ui.theme.isHair) {
+            com.texfi.w0y.ui.components.HairSwitch(on, onChange, haptic)
+        } else {
+            com.texfi.w0y.ui.components.PixelSwitch(on, onChange)
+        }
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.text.copy(alpha = 0.07f)))
 }
 
 /**

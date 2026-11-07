@@ -20,8 +20,22 @@ import javax.inject.Singleton
 @Singleton
 @OptIn(UnstableApi::class)
 class SpectrumBus @Inject constructor() : TeeAudioProcessor.AudioBufferSink {
-    @Volatile
-    var active: Boolean = false
+    /**
+     * Сколько визуализаторов сейчас смотрят. Счётчик, а не флаг: при смене
+     * трека новый визуализатор появляется раньше, чем исчезает старый, и
+     * старый, уходя, гасил звук и новому — анимация стояла до переоткрытия.
+     */
+    private val viewers = java.util.concurrent.atomic.AtomicInteger()
+
+    val active: Boolean get() = viewers.get() > 0
+
+    fun attach() {
+        viewers.incrementAndGet()
+    }
+
+    fun detach() {
+        viewers.updateAndGet { (it - 1).coerceAtLeast(0) }
+    }
 
     private val ring = FloatArray(RING)
     private var write = 0

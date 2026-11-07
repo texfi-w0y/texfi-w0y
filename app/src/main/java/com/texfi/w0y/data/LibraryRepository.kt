@@ -101,10 +101,11 @@ class LibraryRepository @Inject constructor(
      * аккаунте. Сначала запись на телефон: если YouTube откажет, плейлист
      * всё равно останется, просто без отражения.
      */
-    suspend fun createPlaylist(name: String): Long {
+    /** [toAccount] = false — плейлист только в w0y: в аккаунт не уходит ни сейчас, ни при сверке. */
+    suspend fun createPlaylist(name: String, toAccount: Boolean = true): Long {
         val clean = name.trim()
-        val id = dao.createPlaylist(PlaylistEntity(name = clean, createdAt = now()))
-        if (sync.enabled()) dao.setRemoteId(id, sync.create(clean))
+        val id = dao.createPlaylist(PlaylistEntity(name = clean, createdAt = now(), detached = !toAccount))
+        if (toAccount && sync.enabled()) dao.setRemoteId(id, sync.create(clean))
         return id
     }
 
@@ -138,6 +139,11 @@ class LibraryRepository @Inject constructor(
             return
         }
         dao.addSongToPlaylist(playlistId, SongEntity.from(song), now())
+        // Вернули ранее убранный трек — снимаем пометку, иначе сверка сочла бы его убранным в аккаунте.
+        dao.playlistOnce(playlistId)?.syncBase?.let { raw ->
+            val base = raw.lineSequence().filter { it.isNotEmpty() }.toMutableSet()
+            if (base.remove(song.id)) dao.setSyncBase(playlistId, base.joinToString("\n"))
+        }
         remoteId(playlistId)?.let { sync.add(it, song.id) }
     }
 
@@ -147,6 +153,13 @@ class LibraryRepository @Inject constructor(
             return
         }
         dao.removeFromPlaylist(playlistId, songId)
+        // Трек помечается в снимке сверки как «был у обоих». Иначе, если его добавили здесь же
+        // и убрали до ближайшей сверки (или аккаунт не успел/не дал убрать), сверка видела
+        // трек в аккаунте как «добавленный там» и возвращала его в плейлист.
+        dao.playlistOnce(playlistId)?.takeIf { it.remoteId != null }?.let { playlist ->
+            val base = playlist.syncBase?.lineSequence()?.filter { it.isNotEmpty() }?.toMutableSet() ?: mutableSetOf()
+            if (base.add(songId)) dao.setSyncBase(playlistId, base.joinToString("\n"))
+        }
         remoteId(playlistId)?.let { sync.remove(it, songId) }
     }
 

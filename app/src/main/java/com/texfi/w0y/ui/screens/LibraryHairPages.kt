@@ -85,14 +85,13 @@ internal fun HairHistory(viewModel: LibraryViewModel) {
             )
             return
         }
-        HairStatStrip(
-            listOf(
-                HairStat(songs.size, stringResource(R.string.stat_tracks)),
-                HairStat(days.firstOrNull { it.day == today }?.songs?.size ?: 0, labelToday),
-            ),
-        )
-        Spacer(Modifier.height(4.dp))
+        val todayCount = days.firstOrNull { it.day == today }?.songs?.size ?: 0
+        val tracksLabel = stringResource(R.string.stat_tracks)
         LazyColumn {
+            // Числа уезжают вместе со списком — не держат место над ним.
+            item(key = "history-stats") {
+                HairStatStrip(listOf(HairStat(songs.size, tracksLabel), HairStat(todayCount, labelToday)), Modifier.padding(bottom = 4.dp))
+            }
             var row = 0
             days.forEach { group ->
                 val label =

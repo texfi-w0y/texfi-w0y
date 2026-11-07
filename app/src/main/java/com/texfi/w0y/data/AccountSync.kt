@@ -181,8 +181,10 @@ class AccountSync @Inject constructor(
         val plan = SyncMerge.plan(base, localSet, remoteSet, pulled.complete)
 
         val failedAdds = mutableSetOf<String>()
-        val failedRemoves = mutableSetOf<String>()
         val canWrite = writeBack && pulled.editable
+        // Убрать в аккаунте нельзя — убранное здесь остаётся в снимке, чтобы следующая сверка
+        // не приняла его за добавленное в аккаунте и не вернула.
+        val failedRemoves = if (canWrite) mutableSetOf() else plan.pushRemove.toMutableSet()
         if (canWrite) {
             plan.pushAdd.forEach { id ->
                 if (!remote.add(remoteId, id)) failedAdds += id

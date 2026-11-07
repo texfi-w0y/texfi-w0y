@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
-import android.media.audiofx.PresetReverb
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -92,6 +91,8 @@ class W0yPlayerService : MediaSessionService() {
 
     @Inject lateinit var spectrum: SpectrumBus
 
+    @Inject lateinit var sleepClock: SleepClock
+
     @Inject lateinit var readAhead: ReadAhead
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -102,8 +103,11 @@ class W0yPlayerService : MediaSessionService() {
     private var session: MediaSession? = null
     private var playRequestedAt: Long = 0L
     private var headsetReceiver: BroadcastReceiver? = null
-    private var reverbEffect: PresetReverb? = null
-    private var reverbSession: Int? = null
+    /** Эхо считает само приложение: системный эффект создаётся не на всех телефонах. */
+    private val reverb = ReverbProcessor()
+
+    /** Когда сменился трек — звучание, пришедшее сразу после, касается и уже буферизованного начала. */
+    private var transitionAt = 0L
 
     /** Что уже стоит на плеере — чтобы не пересоздавать эффект впустую. */
     private var appliedSound: SoundProfile? = null
@@ -113,6 +117,10 @@ class W0yPlayerService : MediaSessionService() {
 
     /** Громкость трека без учёта заглушения — к ней возвращаемся после строки с матом. */
     private var baseVolume: Float = 1f
+
+    /** Затухание перед сном: 1 — полная громкость, к сроку падает до нуля. */
+    private var sleepFade: Float = 1f
+    private var sleepJob: Job? = null
     private var swearWindows: List<LongRange> = emptyList()
     private var swearJob: Job? = null
     private var lyricsForId: String? = null
@@ -162,7 +170,7 @@ class W0yPlayerService : MediaSessionService() {
                 ): AudioSink =
                     DefaultAudioSink
                         .Builder(context)
-                        .setAudioProcessors(arrayOf(TeeAudioProcessor(spectrum)))
+                        .setAudioProcessors(arrayOf(TeeAudioProcessor(spectrum), reverb))
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                         .build()
@@ -219,6 +227,7 @@ class W0yPlayerService : MediaSessionService() {
                 }
             }.launchIn(scope)
         watchSound(player)
+        watchSleep(player)
 
         audioSession.update(player.audioSessionId)
         player.addAnalyticsListener(
@@ -301,7 +310,6 @@ class W0yPlayerService : MediaSessionService() {
         swearJob?.cancel()
         finishListen()
         readAhead.cancel()
-        releaseReverb()
         headsetReceiver?.let { runCatching { unregisterReceiver(it) } }
         headsetReceiver = null
         scope.cancel()
@@ -345,67 +353,63 @@ class W0yPlayerService : MediaSessionService() {
     }
 
     /**
-     * Реверб пересоздавать на каждом треке нельзя: это освобождение и
-     * создание системного эффекта, то есть щелчок в звуке на ровном месте.
-     * Поэтому применяем только изменившееся.
+     * Применяет только изменившееся. Если звучание сменилось сразу после перехода на
+     * новый трек, его первые секунды уже лежат в буфере со старой скоростью и эхом —
+     * без сброса slowed прошлого трека звучал бы ещё пару секунд. Сброс — перемотка
+     * на ту же точку: короткая, на слух почти незаметная.
      */
     private fun commitSound(player: Player, profile: SoundProfile) {
-        val session = player.audioSessionId()
-        if (profile != appliedSound) {
+        val previous = appliedSound
+        if (profile == previous) return
+        if (profile.speed != previous?.speed || profile.pitch != previous.pitch) {
             player.playbackParameters = PlaybackParameters(profile.speed, profile.pitch)
         }
-        // Эффект переставляем при смене эха и при смене самой аудиосессии:
-        // на части устройств она меняется при переключении вывода, и старый
-        // эффект остаётся висеть на мёртвой — звук тогда просто сухой.
-        val movedSession = profile.reverb != Reverb.OFF && session != reverbSession
-        if (profile.reverb != appliedSound?.reverb || movedSession) {
-            applyReverb(session, profile.reverb)
-        }
+        reverb.reverb = profile.reverb
         appliedSound = profile
+        val fresh = android.os.SystemClock.elapsedRealtime() - transitionAt < CARRY_WINDOW_MS
+        if (previous != null && fresh && player.currentPosition < CARRY_POSITION_MS) {
+            player.seekTo(player.currentPosition)
+        }
     }
-
-    /** Сессия нужна для реверба, а у интерфейса Player её нет. */
-    private fun Player.audioSessionId(): Int =
-        (this as? ExoPlayer)?.audioSessionId ?: C.AUDIO_SESSION_ID_UNSET
 
     /**
-     * Реверб вешается на аудиосессию плеера как вставка.
-     *
-     * Эффект пересоздаётся при смене сессии: сессия меняется на некоторых
-     * устройствах при переключении вывода, и старый эффект остаётся висеть
-     * на мёртвой сессии — звук тогда просто сухой, без всякой ошибки.
+     * Таймер сна: ждёт срока по настоящим часам, последние [SLEEP_FADE_MS] плавно убавляет
+     * звук и ставит паузу. Громкость потом возвращается — следующее включение звучит как обычно.
      */
-    private fun applyReverb(sessionId: Int, reverb: Reverb) {
-        if (sessionId == C.AUDIO_SESSION_ID_UNSET) return
-        if (reverb == Reverb.OFF) {
-            releaseReverb()
-            return
-        }
-        val effect =
-            reverbEffect?.takeIf { reverbSession == sessionId } ?: runCatching {
-                releaseReverb()
-                PresetReverb(REVERB_PRIORITY, sessionId).also {
-                    reverbEffect = it
-                    reverbSession = sessionId
+    private fun watchSleep(player: Player) {
+        sleepClock.deadline
+            .onEach { end ->
+                sleepJob?.cancel()
+                if (sleepFade != 1f) {
+                    sleepFade = 1f
+                    updateVolume(player)
                 }
-            }.onFailure { Timber.w(it, "Реверб недоступен на этом устройстве") }.getOrNull()
-                ?: return
-        runCatching {
-            effect.preset =
-                when (reverb) {
-                    Reverb.ROOM -> PresetReverb.PRESET_MEDIUMROOM
-                    Reverb.HALL -> PresetReverb.PRESET_LARGEHALL
-                    Reverb.CAVE -> PresetReverb.PRESET_PLATE
-                    Reverb.OFF -> PresetReverb.PRESET_NONE
-                }
-            effect.enabled = true
-        }.onFailure { Timber.w(it, "Реверб не применился") }
-    }
-
-    private fun releaseReverb() {
-        runCatching { reverbEffect?.release() }
-        reverbEffect = null
-        reverbSession = null
+                if (end == null) return@onEach
+                sleepJob =
+                    scope.launch {
+                        // Затухание можно выключить в настройках: тогда пауза ровно в срок.
+                        val fadeMs = if (settings.value.sleepFade) SLEEP_FADE_MS else 0L
+                        val fadeFrom = end - fadeMs
+                        // Ожидание кусками и сверка с часами: delay идёт по времени без сна, а
+                        // elapsedRealtime — по настоящему.
+                        while (true) {
+                            val wait = fadeFrom - android.os.SystemClock.elapsedRealtime()
+                            if (wait <= 0) break
+                            delay(minOf(wait, 30_000L))
+                        }
+                        while (true) {
+                            val left = end - android.os.SystemClock.elapsedRealtime()
+                            if (left <= 0) break
+                            sleepFade = (left.toFloat() / fadeMs).coerceIn(0f, 1f)
+                            updateVolume(player)
+                            delay(100)
+                        }
+                        player.pause()
+                        sleepFade = 1f
+                        updateVolume(player)
+                        sleepClock.fired()
+                    }
+            }.launchIn(scope)
     }
 
     /**
@@ -438,7 +442,7 @@ class W0yPlayerService : MediaSessionService() {
         val ducked =
             settings.value.muteSwearLines &&
                 swearWindows.any { player.currentPosition in it }
-        player.volume = if (ducked) 0f else baseVolume
+        player.volume = if (ducked) 0f else baseVolume * sleepFade
     }
 
     /**
@@ -525,6 +529,14 @@ class W0yPlayerService : MediaSessionService() {
         private val player: Player,
     ) : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // «До конца трека»: доиграл — пауза на переходе, очередь остаётся на месте.
+            if (sleepClock.afterTrack.value &&
+                (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT)
+            ) {
+                player.pause()
+                sleepClock.fired()
+            }
+            transitionAt = android.os.SystemClock.elapsedRealtime()
             armStuckWatch()
             prefetchNext()
             // Версия принадлежит треку, а не приложению: на каждом
@@ -796,7 +808,12 @@ class W0yPlayerService : MediaSessionService() {
         const val LISTEN_SAVE_MS = 15_000L
 
         /** Приоритет вставки эффекта: выше нуля, чтобы система не вытеснила его чужим. */
-        const val REVERB_PRIORITY = 1
+        /** Окно после перехода, в котором смена звучания сбрасывает буфер. */
+        const val CARRY_WINDOW_MS = 2_000L
+        const val CARRY_POSITION_MS = 8_000L
+
+        /** Сколько длится затухание перед сном. */
+        const val SLEEP_FADE_MS = 8_000L
 
         /** Сколько держать заглушение на последней строке лирики. */
         const val STUCK_MS = 10_000L

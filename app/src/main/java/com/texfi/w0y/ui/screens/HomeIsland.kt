@@ -101,6 +101,8 @@ internal fun IslandDialGrid(
     columns: Int,
     rows: Int,
     hint: String? = null,
+    /** Под треком и альбомом — исполнитель; выключено в настройках — только тип. */
+    showArtist: Boolean = true,
 ) {
     val colors = LocalW0yColors.current
     val perPage = columns * rows
@@ -126,7 +128,7 @@ internal fun IslandDialGrid(
                             row.forEachIndexed { c, item ->
                                 if (c > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(divider))
                                 Box(Modifier.weight(1f).fillMaxHeight()) {
-                                    if (item != null) IslandDialCell(item, lifted = menuItem == item, onOpen = { onOpen(item) }, onLongPress = { onLongPress(item) })
+                                    if (item != null) IslandDialCell(item, lifted = menuItem == item, showArtist = showArtist, onOpen = { onOpen(item) }, onLongPress = { onLongPress(item) })
                                 }
                             }
                         }
@@ -157,7 +159,7 @@ internal fun IslandDialGrid(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun IslandDialCell(item: DialItem, lifted: Boolean, onOpen: () -> Unit, onLongPress: () -> Unit) {
+private fun IslandDialCell(item: DialItem, lifted: Boolean, showArtist: Boolean, onOpen: () -> Unit, onLongPress: () -> Unit) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.surface)
     val interaction = remember { MutableInteractionSource() }
@@ -202,7 +204,13 @@ private fun IslandDialCell(item: DialItem, lifted: Boolean, onOpen: () -> Unit, 
                 Box(Modifier.size(4.dp).background(tone, CircleShape))
                 Spacer(Modifier.width(6.dp))
             }
-            Text(kind.asLabel(), style = HairLabelStyle.copy(fontSize = 9.5.sp, letterSpacing = 1.1.sp), color = colors.textMuted, maxLines = 1)
+            // У трека и альбома под названием — исполнитель; тип пишем только тем, у кого его нет.
+            val artist = item.subtitle?.takeIf { showArtist && it.isNotBlank() && (item.kind == PinEntity.KIND_SONG || item.kind == PinEntity.KIND_ALBUM) }
+            if (artist != null) {
+                Text(artist, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else {
+                Text(kind.asLabel(), style = HairLabelStyle.copy(fontSize = 9.5.sp, letterSpacing = 1.1.sp), color = colors.textMuted, maxLines = 1)
+            }
         }
     }
 }

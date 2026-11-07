@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -230,6 +231,14 @@ fun PlayerScreen(
     // Что вместо обложки: текст и видео живут только на этом треке, визуализатор — в настройке.
     var lyricsOn by remember { mutableStateOf(false) }
     var videoOn by remember(song.id) { mutableStateOf(false) }
+    // «Назад» с текста или видео возвращает к обложке, а не закрывает плеер целиком.
+    val playerOpen = com.texfi.w0y.ui.shell.LocalPlayerOpen.current
+    if (playerOpen && (lyricsOn || videoOn)) {
+        BackHandler {
+            lyricsOn = false
+            videoOn = false
+        }
+    }
     var video by remember(song.id) { mutableStateOf<com.texfi.w0y.data.VideoSource?>(null) }
     var videoLoading by remember(song.id) { mutableStateOf(false) }
     var isVideoTrack by remember(song.id) { mutableStateOf(false) }
@@ -800,8 +809,21 @@ fun PlayerScreen(
         val lyrOut = com.texfi.w0y.ui.components.hairSpec<androidx.compose.ui.unit.IntOffset>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
         val lyrFadeIn = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.LONG_MS)
         val lyrFadeOut = com.texfi.w0y.ui.components.hairSpec<Float>(com.texfi.w0y.ui.theme.HairTokens.MID_MS)
+        // Пока открыта панель, плеер под ней чуть отступает вглубь — видно, что панель над ним.
+        val recede by androidx.compose.animation.core.animateFloatAsState(
+            if (hair && (panel != null || showPlaylists)) 1f else 0f,
+            com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.LONG_MS),
+            label = "playerRecede",
+        )
         androidx.compose.animation.AnimatedContent(
             targetState = hair && lyricsOn,
+            modifier =
+                Modifier.graphicsLayer {
+                    val sc = 1f - 0.06f * recede
+                    scaleX = sc
+                    scaleY = sc
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.3f)
+                },
             transitionSpec = {
                 if (targetState) {
                     (androidx.compose.animation.slideInVertically(lyrIn) { -it / 4 } + androidx.compose.animation.fadeIn(lyrFadeIn))
@@ -819,7 +841,9 @@ fun PlayerScreen(
         ) { lyricsPage ->
             if (lyricsPage && island) {
                 val lyricsBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
-                Box(Modifier.fillMaxSize()) {
+                // Нажатия по пустому месту текста остаются здесь: раньше они проходили сквозь
+                // страницу к экрану под плеером.
+                Box(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}) {
                     Box(Modifier.matchParentSize().then(Modifier.screenBackdrop(lyricsBackdrop))) {
                         PlayerBlurBackdrop(song.thumbnailUrl, state.isPlaying)
                         Box(Modifier.matchParentSize().drawBehind { drawGrain(0.7f) })
@@ -860,7 +884,7 @@ fun PlayerScreen(
                     }
                 }
             } else if (lyricsPage) {
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}) {
                 PlayerBlurBackdrop(song.thumbnailUrl, state.isPlaying)
                 androidx.compose.runtime.CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
                 HairLyricsPage(
@@ -926,7 +950,7 @@ fun PlayerScreen(
                     positionMs = dragPosition ?: position,
                     durationMs = knownDuration,
                     stage = stageContent,
-                    number = if (state.queue.size > 1) state.currentIndex + 1 else null,
+                    number = if (state.queue.size > 1) "№ ${state.currentIndex + 1} / ${state.queue.size}" else null,
                     soundLine = if (island) "${com.texfi.w0y.data.NumberText.speed(effectiveSound.speed)} · ${stringResource(R.string.island_tone, com.texfi.w0y.data.NumberText.pitch(effectiveSound.pitch))}" else null,
                     onSoundLine = {
                         PlayerPanelMemory.moreTab = MoreTab.SPEED
@@ -937,8 +961,6 @@ fun PlayerScreen(
                         if (island) {
                             IslandPlayerHeader(
                                 onCollapse = onCollapse,
-                                position = if (state.queue.size > 1) "${state.currentIndex + 1} / ${state.queue.size}" else null,
-                                onQueue = { queueTab = QueueTab.QUEUE; panel = PlayerPanel.QUEUE },
                                 onMenu = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
                                 videoAvailable = isVideoTrack,
                                 videoOn = videoOn,
@@ -1938,6 +1960,39 @@ private val LYRICS_LANGS = listOf("en", "ru", "uk", "pl", "es", "de", "fr", "it"
 @Composable
 private fun LyricsLangRow(selected: String, failed: Boolean, onSelect: (String) -> Unit) {
     val colors = LocalW0yColors.current
+    if (com.texfi.w0y.ui.theme.isHair) {
+        // Hairline: тихая строка моно-подписей, выбранный язык — в мягкой капсуле. Языков много —
+        // строка прокручивается вбок, а выбранный сразу виден.
+        val langs = listOf("") + LYRICS_LANGS
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = (langs.indexOf(selected) - 2).coerceAtLeast(0))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(if (failed) R.string.player_lyrics_translate_fail else R.string.player_lyrics_translate).asLabel(),
+                style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                color = if (failed) com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background) else colors.textMuted,
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(10.dp))
+            androidx.compose.foundation.lazy.LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                items(langs) { code ->
+                    val active = code == selected
+                    val bg by animateColorAsState(if (active) colors.text.copy(alpha = 0.14f) else Color.Transparent, com.texfi.w0y.ui.components.hairSpec(), label = "lyrLang")
+                    Text(
+                        text = if (code.isEmpty()) stringResource(R.string.player_lyrics_translate_off).asLabel() else code.substringBefore('-').uppercase(),
+                        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                        color = if (active) colors.text else colors.textMuted,
+                        modifier =
+                            Modifier
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                .background(bg)
+                                .clickable { onSelect(code) }
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                    )
+                }
+            }
+        }
+        return
+    }
     Column(Modifier.padding(bottom = 10.dp)) {
         Text(
             text =

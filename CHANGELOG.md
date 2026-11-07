@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.4 beta-4 — rethink
+
+Fixes and rework for Hairline New after beta-3 feedback: the visualizer keeps moving
+across tracks, removed playlist tracks stay removed, album tracks keep their artist, the
+sleep timer stops music in the background, reverb works on every phone and slowed no
+longer spills into the next track.
+Panels with a magnet pull and a new entrance, a track menu panel, a calmer player top,
+My playlists on Home, a new playlist page, playlists you can drag into your own order,
+back that closes one layer at a time, a Create panel and an Account panel in Yours,
+settings search that grows out of its circle and a new intro. After the update a
+What's new window lets you switch off the new things you don't want. Details in the [release notes](docs/RELEASE_NOTES.md).
+
 ## v0.0.4 beta-3 — hairline-new-beta
 
 A new optional look for Android, Hairline New (beta): matte islands with blur and grain,

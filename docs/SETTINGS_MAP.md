@@ -13,6 +13,7 @@
 | 1. ВОСПРОИЗВЕДЕНИЕ | Swipe mini-player down to stop (`hl_set_swipe`) | `hl_swipe_dismiss` | true | да |
 | 1. ВОСПРОИЗВЕДЕНИЕ | Accidental delete protection (`delete_protection`) | `delete_protection` | true |  |
 | 1. ВОСПРОИЗВЕДЕНИЕ | Sleep timer default, min (`settings_sleep_title`) | `sleep_timer_default` | 30 |  |
+| 1. ВОСПРОИЗВЕДЕНИЕ | Fade out before sleep (`set_sleep_fade`) | `sleep_fade` | true |  |
 | 2. ЗВУК | Stream quality · Wi-Fi (`settings_quality_wifi_title`) | `quality_wifi` | HIGH |  |
 | 2. ЗВУК | Stream quality · mobile data (`settings_quality_mobile_title`) | `quality_mobile` | MEDIUM |  |
 | 2. ЗВУК | Volume normalization (`settings_normalize_title`) | `normalize_volume` | false |  |
@@ -51,6 +52,8 @@
 | 4. ПОИСК И ЛЕНТЫ | Recommendations in playlists (`settings_playlist_recs`) | `playlist_recommendations` | false |  |
 | 4. ПОИСК И ЛЕНТЫ | Speed dial threshold (`settings_dial_min_title`) | `dial_min_plays` | 1 |  |
 | 4. ПОИСК И ЛЕНТЫ | Picks on Home (`home_rec_blocks`) | `home_rec_blocks` | true |  |
+| 4. ПОИСК И ЛЕНТЫ | My playlists on Home (`set_home_my_playlists`) | `home_my_playlists` | true |  |
+| 4. ПОИСК И ЛЕНТЫ | Artist in Speed dial (`set_dial_artist`) | `dial_artist` | true |  |
 | 4. ПОИСК И ЛЕНТЫ | Weekly Discoveries playlist (`weekly_discovery`) | `weekly_discovery` | false |  |
 | 4. ПОИСК И ЛЕНТЫ | Familiar ↔ new, % (`rec_novelty`) | `rec_novelty` | 30 |  |
 | 4. ПОИСК И ЛЕНТЫ | Learn my taste (`taste_learning`) | `taste_learning` | true |  |
@@ -94,6 +97,9 @@
 | 5. ВИД | State badge in player (`player_state_badge`) | `player_state_badge` | true |  |
 | 5. ВИД | Vibration (`settings_haptics_title`) | `haptics` | true |  |
 | 5. ВИД | Vibration strength (`hl_set_haptics`) | `hl_haptic_level` | FULL |  |
+| 5. ВИД | Playlist page with a large cover (`set_playlist_hero`) | `playlist_hero` | true |  |
+| 5. ВИД | Intro on launch (`set_intro`) | `intro_animation` | true |  |
+| 5. ВИД | Magnet on panels (`set_sheet_magnet`) | `sheet_magnet` | true |  |
 | 5. ВИД | Reset look (`hl_set_reset`) | — | — |  |
 | 6. ПОДСТАВКА | Stand view (`stand_view_title`) | `stand_view` | TEXT |  |
 | 6. ПОДСТАВКА | Clock (`stand_clock_title`) | `stand_clock` | true |  |

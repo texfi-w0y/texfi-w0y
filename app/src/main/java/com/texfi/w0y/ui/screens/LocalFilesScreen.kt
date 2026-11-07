@@ -72,7 +72,7 @@ fun LocalFilesList(viewModel: LibraryViewModel) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.importFiles(uris)
     }
-    BackHandler(enabled = editing != null) { editing = null }
+    if (editing != null) BackHandler { editing = null }
 
     AnimatedContent(
         targetState = editing,
@@ -106,16 +106,10 @@ fun LocalFilesList(viewModel: LibraryViewModel) {
                 ScreenTitle(title = stringResource(R.string.lm_card).lowercase(), onBack = viewModel::back, horizontalPadding = 0.dp) {
                     SpriteButton(Sprites.plus, onClick = { if (importing == null) picker.launch(arrayOf("audio/*")) }, active = true, size = 18)
                 }
-                if (isHair && songs.isNotEmpty()) {
-                    val minutes = remember(songs) { songs.sumOf { durationSeconds(it.durationText) } / 60 }
-                    com.texfi.w0y.ui.components.HairStatStrip(
-                        listOf(
-                            com.texfi.w0y.ui.components.HairStat(songs.size, stringResource(R.string.stat_files)),
-                            com.texfi.w0y.ui.components.HairStat(minutes, stringResource(R.string.stat_minutes)),
-                        ),
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                }
+                val minutes = remember(songs) { songs.sumOf { durationSeconds(it.durationText) } / 60 }
+                val filesLabel = stringResource(R.string.stat_files)
+                val minutesLabel = stringResource(R.string.stat_minutes)
+                val showStats = isHair && songs.isNotEmpty()
                 ImportBanner(importing, result)
                 if (songs.isEmpty() && importing == null) {
                     if (isHair) {
@@ -131,6 +125,18 @@ fun LocalFilesList(viewModel: LibraryViewModel) {
                     }
                 } else {
                     LazyColumn {
+                        // Числа уезжают вместе со списком — место отдано трекам.
+                        if (showStats) {
+                            item(key = "files-stats") {
+                                com.texfi.w0y.ui.components.HairStatStrip(
+                                    listOf(
+                                        com.texfi.w0y.ui.components.HairStat(songs.size, filesLabel),
+                                        com.texfi.w0y.ui.components.HairStat(minutes, minutesLabel),
+                                    ),
+                                    modifier = Modifier.padding(bottom = 6.dp),
+                                )
+                            }
+                        }
                         itemsIndexed(songs, key = { _, it -> it.id }) { index, song ->
                             Box(Modifier.animateItem().hairStagger(index)) {
                                 SongRow(

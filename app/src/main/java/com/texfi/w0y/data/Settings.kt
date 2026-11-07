@@ -18,6 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -436,6 +437,23 @@ data class W0ySettings(
     val stylePicked: Boolean = false,
     /** Предложен ли Hairline New (бета) — один раз после обновления, ответ любой. */
     val islandOffered: Boolean = false,
+    /** Новый плейлист из «Моё» по умолчанию уходит и в аккаунт; выключено — только в w0y. */
+    val newPlaylistsToAccount: Boolean = true,
+    /** Альбомы, сохранённые в аккаунте, видны в «Моё». */
+    val showAccountAlbums: Boolean = true,
+    // ── Новинки beta-4, от которых можно отказаться (окно после обновления и Настройки) ──
+    /** Заставка при запуске: «W» пером и котик. Выключено — приложение открывается сразу. */
+    val introAnimation: Boolean = true,
+    /** Страница плейлиста с крупной обложкой на её цветах; выключено — прежняя шапка. */
+    val playlistHero: Boolean = true,
+    /** Исполнитель под треком в быстром наборе; выключено — тип («трек», «альбом»). */
+    val dialArtist: Boolean = true,
+    /** Ряд «Мои плейлисты» на главной. */
+    val homeMyPlaylists: Boolean = true,
+    /** Нижние панели держит «магнит», пока не потянешь достаточно; выключено — едут за пальцем. */
+    val sheetMagnet: Boolean = true,
+    /** Таймер сна последние секунды плавно убавляет звук; выключено — пауза сразу. */
+    val sleepFade: Boolean = true,
     // ── Лирика и визуализатор ────────────────────────────────────────────
     val lyricsSize: LyricsSize = LyricsSize.MEDIUM,
     /** Насколько позже звучащей строки подсвечивать текст, мс (минус — раньше). */
@@ -588,6 +606,14 @@ class SettingsRepository @Inject constructor(
                     smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: d.smoothGlass,
                     stylePicked = prefs[Keys.STYLE_PICKED] ?: d.stylePicked,
                     islandOffered = prefs[Keys.ISLAND_OFFERED] ?: d.islandOffered,
+                    newPlaylistsToAccount = prefs[Keys.NEW_PLAYLISTS_TO_ACCOUNT] ?: d.newPlaylistsToAccount,
+                    showAccountAlbums = prefs[Keys.SHOW_ACCOUNT_ALBUMS] ?: d.showAccountAlbums,
+                    introAnimation = prefs[Keys.INTRO_ANIMATION] ?: d.introAnimation,
+                    playlistHero = prefs[Keys.PLAYLIST_HERO] ?: d.playlistHero,
+                    dialArtist = prefs[Keys.DIAL_ARTIST] ?: d.dialArtist,
+                    homeMyPlaylists = prefs[Keys.HOME_MY_PLAYLISTS] ?: d.homeMyPlaylists,
+                    sheetMagnet = prefs[Keys.SHEET_MAGNET] ?: d.sheetMagnet,
+                    sleepFade = prefs[Keys.SLEEP_FADE] ?: d.sleepFade,
                     lyricsSize = prefs.enum(Keys.LYRICS_SIZE, d.lyricsSize),
                     lyricsDelayMs = prefs[Keys.LYRICS_DELAY] ?: d.lyricsDelayMs,
                     lyricsAllSources = prefs[Keys.LYRICS_ALL] ?: d.lyricsAllSources,
@@ -877,11 +903,13 @@ class SettingsRepository @Inject constructor(
         put(Keys.UI_STYLE, value.name)
         // Hairline New задуман вокруг плеера-постера: при переходе на него раскладка становится
         // постером. Дальше её можно сменить в настройках, как обычно.
-        // Фон — «сетка»: в Hairline New это точки, как на сайте. Заголовки — обычным регистром,
-        // заглавные остаются у моно-подписей.
+        // Фон — «сетка»: в Hairline New это точки, как на сайте. Но только вместо «контуров» по
+        // умолчанию: свою картинку, обложку или аврору человек выбрал сам, и смена стиля их не
+        // трогает — иначе фото приходилось ставить заново после каждого переключения.
+        // Заголовки — обычным регистром, заглавные остаются у моно-подписей.
         if (value == UiStyle.ISLAND) {
             setPlayerLayout(PlayerLayout.POSTER)
-            setBackdropMode(BackdropMode.GRID)
+            if (settings.first().backdropMode == BackdropMode.TOPO) setBackdropMode(BackdropMode.GRID)
             setCaps(CapsMode.LABELS)
         }
     }
@@ -891,6 +919,34 @@ class SettingsRepository @Inject constructor(
     suspend fun setStylePicked(value: Boolean) = put(Keys.STYLE_PICKED, value)
 
     suspend fun setIslandOffered(value: Boolean) = put(Keys.ISLAND_OFFERED, value)
+
+    suspend fun setNewPlaylistsToAccount(value: Boolean) = put(Keys.NEW_PLAYLISTS_TO_ACCOUNT, value)
+
+    suspend fun setShowAccountAlbums(value: Boolean) = put(Keys.SHOW_ACCOUNT_ALBUMS, value)
+
+    suspend fun setIntroAnimation(value: Boolean) = put(Keys.INTRO_ANIMATION, value)
+
+    suspend fun setPlaylistHero(value: Boolean) = put(Keys.PLAYLIST_HERO, value)
+
+    suspend fun setDialArtist(value: Boolean) = put(Keys.DIAL_ARTIST, value)
+
+    suspend fun setHomeMyPlaylists(value: Boolean) = put(Keys.HOME_MY_PLAYLISTS, value)
+
+    suspend fun setSheetMagnet(value: Boolean) = put(Keys.SHEET_MAGNET, value)
+
+    suspend fun setSleepFade(value: Boolean) = put(Keys.SLEEP_FADE, value)
+
+    /**
+     * Свой порядок плейлистов — id через запятую. Только на этом телефоне: в аккаунт не уходит,
+     * общий для «Главной» и «Моё». Плейлистов, которых в нём нет (новые), он не касается.
+     */
+    val playlistOrder: Flow<List<Long>> =
+        context.dataStore.data
+            .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+            .map { prefs -> prefs[Keys.PLAYLIST_ORDER].orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() } }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistOrder(ids: List<Long>) = put(Keys.PLAYLIST_ORDER, ids.joinToString(","))
 
     suspend fun setLyricsSize(value: LyricsSize) = put(Keys.LYRICS_SIZE, value.name)
 
@@ -1155,6 +1211,15 @@ class SettingsRepository @Inject constructor(
         val SMOOTH_GLASS = booleanPreferencesKey("smooth_glass")
         val STYLE_PICKED = booleanPreferencesKey("style_picked")
         val ISLAND_OFFERED = booleanPreferencesKey("island_offered")
+        val NEW_PLAYLISTS_TO_ACCOUNT = booleanPreferencesKey("new_playlists_to_account")
+        val SHOW_ACCOUNT_ALBUMS = booleanPreferencesKey("show_account_albums")
+        val PLAYLIST_ORDER = stringPreferencesKey("playlist_order")
+        val INTRO_ANIMATION = booleanPreferencesKey("intro_animation")
+        val PLAYLIST_HERO = booleanPreferencesKey("playlist_hero")
+        val DIAL_ARTIST = booleanPreferencesKey("dial_artist")
+        val HOME_MY_PLAYLISTS = booleanPreferencesKey("home_my_playlists")
+        val SHEET_MAGNET = booleanPreferencesKey("sheet_magnet")
+        val SLEEP_FADE = booleanPreferencesKey("sleep_fade")
         val LYRICS_SIZE = stringPreferencesKey("lyrics_size")
         val LYRICS_DELAY = intPreferencesKey("lyrics_delay_ms")
         val LYRICS_ALL = booleanPreferencesKey("lyrics_all_sources")

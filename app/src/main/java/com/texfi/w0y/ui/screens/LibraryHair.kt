@@ -56,6 +56,7 @@ import com.texfi.w0y.ui.icons.HairGlyph
 import com.texfi.w0y.ui.icons.HairIcon
 import com.texfi.w0y.ui.nav.BrowseRoute
 import com.texfi.w0y.ui.nav.LocalBrowseNavigator
+import com.texfi.w0y.ui.components.holdToReorder
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
@@ -91,6 +92,10 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     val island = com.texfi.w0y.ui.theme.isIsland
     // Hairline New: данные аккаунта прячутся под аватаром в шапке, открываются по нажатию.
     var accountOpen by remember { mutableStateOf(false) }
+    // Hairline New: «создать» и аккаунт — нижние панели.
+    var createOpen by remember { mutableStateOf(false) }
+    var accountSheet by remember { mutableStateOf(false) }
+    val accountPrefs by viewModel.accountPrefs.collectAsStateWithLifecycle()
 
     var prompt by remember { mutableStateOf<Prompt?>(null) }
     var moving by remember { mutableStateOf<PlaylistEntity?>(null) }
@@ -98,14 +103,27 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val openFolder = folders.firstOrNull { it.id == openFolderId }
     if (openFolderId != null && openFolder == null) openFolderId = null
-    BackHandler(enabled = openFolder != null) { openFolderId = null }
+    if (openFolder != null) BackHandler { openFolderId = null }
 
     LaunchedEffect(signedIn) { if (signedIn) viewModel.sync(force = false) }
 
-    val shown = if (openFolder != null) playlists.filter { it.folderId == openFolder.id } else playlists.filter { it.folderId == null }
+    val shownAll = if (openFolder != null) playlists.filter { it.folderId == openFolder.id } else playlists.filter { it.folderId == null }
+    // Пока плейлист тянут, порядок живёт здесь; в настройки — один раз, когда отпустили.
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var dragOrder by remember { mutableStateOf<List<Long>?>(null) }
+    val shown = dragOrder?.let { order -> order.mapNotNull { id -> shownAll.firstOrNull { it.id == id } } } ?: shownAll
+    val reorder =
+        com.texfi.w0y.ui.components.rememberReorderState(listState) { from, to ->
+            val a = (from as? String)?.removePrefix("ip-")?.toLongOrNull()
+            val b = (to as? String)?.removePrefix("ip-")?.toLongOrNull()
+            if (a != null && b != null) dragOrder = com.texfi.w0y.data.PlaylistOrder.move(dragOrder ?: shownAll.map { it.id }, a, b)
+        }
+    LaunchedEffect(playlists) { if (reorder.dragging == null) dragOrder = null }
 
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        state = listState,
+        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
         contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
     ) {
@@ -121,7 +139,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                         title = stringResource(R.string.library_title),
                         avatar = accountAvatar.takeIf { signedIn },
                         avatarLabel = stringResource(R.string.library_account),
-                        onAvatar = { if (signedIn) accountOpen = !accountOpen else onOpenLogin() },
+                        onAvatar = { if (signedIn) accountSheet = true else onOpenLogin() },
                     )
                 } else ScreenTitle(title = stringResource(R.string.library_title), horizontalPadding = 0.dp)
             }
@@ -269,7 +287,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                 label = stringResource(R.string.library_playlists),
                 index = if (openFolder != null) null else if (island) (if (folders.isNotEmpty()) 2 else 1) else 3,
                 action = {
-                    if (island) IslandPlusCircle(stringResource(R.string.library_create)) { prompt = Prompt.NewPlaylist }
+                    if (island) IslandPlusCircle(stringResource(R.string.library_create)) { createOpen = true }
                     else HairIconButton(HairGlyph.PLUS, stringResource(R.string.library_create), { prompt = Prompt.NewPlaylist }, size = 18.dp)
                 },
             )
@@ -306,9 +324,15 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
                 )
             }
         } else if (island) {
-            items(shown, key = { "ip-" + it.id }) { playlist ->
+            items(shown, key = { "ip-" + it.id }, contentType = { com.texfi.w0y.ui.components.ReorderState.REORDER_TYPE }) { playlist ->
                 val own = stringResource(R.string.library_tile_own)
+                val key = "ip-" + playlist.id
                 IslandPlaylistRow(
+                    modifier = with(reorder) { if (reorder.dragging == key) Modifier.reorderable(key) else Modifier.animateItem() },
+                    hold =
+                        Modifier.holdToReorder(reorder, key, onHold = { moving = playlist }) {
+                            dragOrder?.let(viewModel::reorderPlaylists)
+                        },
                     cover = covers[playlist.id],
                     name = playlist.name,
                     subtitle =
@@ -383,7 +407,7 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
             }
         }
 
-        if (openFolder == null && accountAlbums.isNotEmpty()) {
+        if (openFolder == null && accountAlbums.isNotEmpty() && (!island || accountPrefs.third)) {
             item(key = "albums-header") {
                 Spacer(Modifier.height(10.dp))
                 SectionHeader(stringResource(R.string.library_albums), index = if (island) (if (folders.isNotEmpty()) 3 else 2) else 4)
@@ -400,6 +424,36 @@ internal fun HairLibraryRoot(viewModel: LibraryViewModel, onOpenLogin: () -> Uni
             }
         }
         item(key = "end") { Spacer(Modifier.height(24.dp)) }
+    }
+    if (island) {
+        IslandCreateSheet(
+            visible = createOpen,
+            signedIn = signedIn,
+            toAccountByDefault = accountPrefs.second,
+            onDismiss = { createOpen = false },
+            onPlaylist = { name, toAccount -> viewModel.createPlaylist(name, toAccount) },
+            onFolder = { name -> viewModel.createFolder(name) },
+        )
+        IslandAccountSheet(
+            visible = accountSheet,
+            name = accountName,
+            avatar = accountAvatar,
+            syncing = syncing,
+            syncError = syncError,
+            mirror = accountPrefs.first,
+            newToAccount = accountPrefs.second,
+            showAlbums = accountPrefs.third,
+            onSync = viewModel::sync,
+            onMirror = viewModel::setSyncPlaylists,
+            onNewToAccount = viewModel::setNewPlaylistsToAccount,
+            onShowAlbums = viewModel::setShowAccountAlbums,
+            onSignOut = {
+                accountSheet = false
+                viewModel.signOut()
+            },
+            onDismiss = { accountSheet = false },
+        )
+    }
     }
 
     moving?.let { playlist ->

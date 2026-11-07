@@ -121,7 +121,14 @@ class ShareCardRenderer @Inject constructor(
         // Обложка: чуть скруглённый квадрат и тонкая рамка, без теней.
         val side = WIDTH - MARGIN * 2
         val top = MARGIN + LABEL_SIZE + 36
-        val coverRect = RectF(MARGIN.toFloat(), top.toFloat(), (MARGIN + side).toFloat(), (top + side).toFloat())
+        // Обложка берёт столько, сколько остаётся над текстом и подвалом: во всю ширину она
+        // доходила до подвала, и знак w0y ложился поверх имени исполнителя.
+        val version = sound?.takeIf { !it.isPlain }
+        val textReserve = TITLE_SIZE * 1.25f * TITLE_LINES + LINE_GAP + ARTIST_SIZE * 1.3f * ARTIST_LINES + (if (version != null) CHIP_SIZE + CHIP_PADDING * 2f + LINE_GAP + 10f else 0f)
+        val footLine = (HEIGHT - MARGIN - MARK_SIDE - 28).toFloat()
+        val coverSide = minOf(side.toFloat(), footLine - FOOT_CLEAR - textReserve - BLOCK_GAP - top).toInt()
+        val coverLeft = MARGIN + (side - coverSide) / 2
+        val coverRect = RectF(coverLeft.toFloat(), top.toFloat(), (coverLeft + coverSide).toFloat(), (top + coverSide).toFloat())
         val radius = COVER_RADIUS
         if (cover != null) {
             val layer = canvas.saveLayer(coverRect, null)
@@ -147,14 +154,13 @@ class ShareCardRenderer @Inject constructor(
         var y = coverRect.bottom + BLOCK_GAP
 
         val titlePaint = textPaint(display, TITLE_SIZE, TEXT)
-        y = drawWrapped(canvas, song.title, titlePaint, MARGIN.toFloat(), y, side, TITLE_LINES)
+        y = drawWrapped(canvas, song.title, titlePaint, coverLeft.toFloat(), y, coverSide, TITLE_LINES)
 
         y += LINE_GAP
         val artistPaint = textPaint(null, ARTIST_SIZE, TEXT_MUTED).apply { typeface = Typeface.DEFAULT }
-        y = drawWrapped(canvas, song.artist, artistPaint, MARGIN.toFloat(), y, side, ARTIST_LINES)
+        y = drawWrapped(canvas, song.artist, artistPaint, coverLeft.toFloat(), y, coverSide, ARTIST_LINES)
 
         // Версия звучания — плашка с рамкой и моно-подписью.
-        val version = sound?.takeIf { !it.isPlain }
         if (version != null) {
             y += LINE_GAP + 10f
             val text = buildString {
@@ -168,9 +174,9 @@ class ShareCardRenderer @Inject constructor(
             val bounds = Rect()
             chipPaint.getTextBounds(text, 0, text.length, bounds)
             val chip = RectF(
-                MARGIN.toFloat(),
+                coverLeft.toFloat(),
                 y,
-                MARGIN + bounds.width() + CHIP_PADDING * 2f,
+                coverLeft + bounds.width() + CHIP_PADDING * 2f,
                 y + bounds.height() + CHIP_PADDING * 2f,
             )
             canvas.drawRoundRect(chip, 6f, 6f, Paint().apply {
@@ -357,6 +363,8 @@ class ShareCardRenderer @Inject constructor(
         const val FOOT_SIZE = 32
         const val FOOT_GAP = 22
         const val MARK_SIDE = 84
+        /** Зазор между текстом и линией подвала. */
+        const val FOOT_CLEAR = 36f
         const val GLOW_ALPHA = 0.30f
         const val GLOW_STOP = 0.6f
 

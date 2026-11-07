@@ -90,6 +90,7 @@ object SettingsCatalog {
             e("hl_set_swipe", P, "hl_swipe_dismiss", "Swipe mini-player down to stop", group = SettingsGroup.CONTROL, androidOnly = true) { it.swipeDismiss },
             e("delete_protection", P, "delete_protection", "Accidental delete protection", group = SettingsGroup.CONTROL) { it.deleteProtection },
             e("settings_sleep_title", P, "sleep_timer_default", "Sleep timer default, min", group = SettingsGroup.CONTROL) { it.sleepTimerDefaultMin },
+            e("set_sleep_fade", P, "sleep_fade", "Fade out before sleep", group = SettingsGroup.CONTROL) { it.sleepFade },
             // 02 ЗВУК
             e("settings_quality_wifi_title", S, "quality_wifi", "Stream quality · Wi-Fi", group = SettingsGroup.QUALITY) { it.qualityWifi },
             e("settings_quality_mobile_title", S, "quality_mobile", "Stream quality · mobile data", group = SettingsGroup.QUALITY) { it.qualityMobile },
@@ -152,6 +153,8 @@ object SettingsCatalog {
             e("settings_playlist_recs", F, "playlist_recommendations", "Recommendations in playlists", group = SettingsGroup.RECS) { it.showPlaylistRecommendations },
             e("settings_dial_min_title", F, "dial_min_plays", "Speed dial threshold", group = SettingsGroup.RECS) { it.dialMinPlays },
             e("home_rec_blocks", F, "home_rec_blocks", "Picks on Home", group = SettingsGroup.RECS) { it.homeRecBlocks },
+            e("set_home_my_playlists", F, "home_my_playlists", "My playlists on Home", group = SettingsGroup.RECS) { it.homeMyPlaylists },
+            e("set_dial_artist", F, "dial_artist", "Artist in Speed dial", group = SettingsGroup.RECS) { it.dialArtist },
             e("weekly_discovery", F, "weekly_discovery", "Weekly Discoveries playlist", group = SettingsGroup.RECS) { it.weeklyDiscovery },
             e("rec_novelty", F, "rec_novelty", "Familiar ↔ new, %", group = SettingsGroup.RECS) { it.recNovelty },
             e("taste_learning", F, "taste_learning", "Learn my taste", group = SettingsGroup.RECS) { it.tasteLearning },
@@ -188,6 +191,9 @@ object SettingsCatalog {
             e("player_state_badge", L, "player_state_badge", "State badge in player", group = SettingsGroup.PLAYER_LOOK) { it.playerStateBadge },
             e("settings_haptics_title", L, "haptics", "Vibration", group = SettingsGroup.FEEL) { it.haptics },
             e("hl_set_haptics", L, "hl_haptic_level", "Vibration strength", group = SettingsGroup.FEEL) { it.hapticLevel },
+            e("set_playlist_hero", L, "playlist_hero", "Playlist page with a large cover", group = SettingsGroup.STYLE) { it.playlistHero },
+            e("set_intro", L, "intro_animation", "Intro on launch", group = SettingsGroup.FEEL) { it.introAnimation },
+            e("set_sheet_magnet", L, "sheet_magnet", "Magnet on panels", group = SettingsGroup.FEEL) { it.sheetMagnet },
             e("hl_set_reset", L, null, "Reset look", group = SettingsGroup.STYLE),
             // 09 АККАУНТ
             e("settings_account_title", A, null, "Account"),

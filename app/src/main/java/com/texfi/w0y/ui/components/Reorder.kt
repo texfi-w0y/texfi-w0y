@@ -1,6 +1,11 @@
 package com.texfi.w0y.ui.components
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -36,6 +41,8 @@ class ReorderState(
     private val scope: CoroutineScope,
     private val onMove: (from: Any, to: Any) -> Unit,
     private val onSwap: () -> Unit,
+    /** Ряд вместо столбца: тянется по горизонтали (плейлисты на «Главной»). */
+    val horizontal: Boolean = false,
 ) {
     var dragging by mutableStateOf<Any?>(null)
         private set
@@ -84,9 +91,9 @@ class ReorderState(
     fun Modifier.reorderable(key: Any): Modifier =
         if (dragging == key) {
             zIndex(1f).graphicsLayer {
-                translationY = offset
-                scaleX = 1.02f
-                scaleY = 1.02f
+                if (horizontal) translationX = offset else translationY = offset
+                scaleX = 1.04f
+                scaleY = 1.04f
             }
         } else {
             this
@@ -101,13 +108,13 @@ class ReorderState(
 }
 
 @Composable
-fun rememberReorderState(list: LazyListState, onMove: (Any, Any) -> Unit): ReorderState {
+fun rememberReorderState(list: LazyListState, horizontal: Boolean = false, onMove: (Any, Any) -> Unit): ReorderState {
     val scope = rememberCoroutineScope()
     val tap = rememberTapHaptic()
     // Свежая лямбда на каждой перекомпоновке: она меняет список, который
     // мог пересоздаться, а состояние перетаскивания живёт дольше.
     val move by androidx.compose.runtime.rememberUpdatedState(onMove)
-    return androidx.compose.runtime.remember(list) { ReorderState(list, scope, { a, b -> move(a, b) }, tap) }
+    return androidx.compose.runtime.remember(list) { ReorderState(list, scope, { a, b -> move(a, b) }, tap, horizontal) }
 }
 
 /** Ручка строки: 48 dp касания; перенос — только за неё, прокрутка списка и касание строки его не начинают. */
@@ -151,3 +158,36 @@ fun Modifier.holdToDrag(key: Any, onStart: () -> Unit, onDrag: (Float) -> Unit, 
             onDrag(amount.y)
         }
     }
+
+/**
+ * Перенос без ручки: удержать элемент и вести пальцем. Отпустили, не сдвинув, — это просто
+ * долгое нажатие ([onHold], например меню). Короткое касание не трогается — его ловит
+ * обычный clickable; поэтому модификатор ставится в цепочке после него: так он первым видит
+ * отпускание после переноса и гасит его, и касание не срабатывает следом.
+ */
+@Composable
+fun Modifier.holdToReorder(state: ReorderState, key: Any, onHold: (() -> Unit)? = null, onDrop: () -> Unit): Modifier {
+    val haptic = rememberHaptics()
+    val hold by androidx.compose.runtime.rememberUpdatedState(onHold)
+    val drop by androidx.compose.runtime.rememberUpdatedState(onDrop)
+    return pointerInput(key, state) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val long = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+            haptic(Buzz.ON)
+            state.start(key)
+            var moved = 0f
+            drag(long.id) { change ->
+                val delta = change.positionChange()
+                val along = if (state.horizontal) delta.x else delta.y
+                moved += kotlin.math.abs(along)
+                state.drag(along)
+                change.consume()
+            }
+            currentEvent.changes.forEach { it.consume() }
+            val was = state.end()
+            if (moved < viewConfiguration.touchSlop) hold?.invoke() else if (was) drop()
+        }
+    }
+}
+

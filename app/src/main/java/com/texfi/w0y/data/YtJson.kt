@@ -380,19 +380,42 @@ object YtJson {
                 ?.textRuns()
                 ?.filter { it.isNotBlank() && it.trim() != "•" }
                 ?.joinToString(" · ")
+        val title = header?.get("title")?.firstString("text") ?: ""
+        // Исполнитель альбома стоит отдельной строкой над подписью, а у строк треклиста его
+        // часто нет вовсе: такие треки потом попадали в «Недавно» без исполнителя.
+        val strap = header?.get("straplineTextOne")
+        val albumArtist = strap?.textRuns()?.joinToString("")?.trim()?.takeIf { it.isNotBlank() }
+        val albumArtists = strap?.artistLinks().orEmpty()
+        val fullSubtitle =
+            when {
+                albumArtist == null -> subtitle
+                subtitle == null -> albumArtist
+                subtitle.contains(albumArtist) -> subtitle
+                else -> "$albumArtist · $subtitle"
+            }
         return AlbumPage(
             browseId = browseId,
-            title = header?.get("title")?.firstString("text") ?: "",
-            subtitle = subtitle?.takeIf { it.isNotBlank() },
+            title = title,
+            subtitle = fullSubtitle?.takeIf { it.isNotBlank() },
             thumbnailUrl = cover,
             // На странице альбома у строк нет своих картинок: обложка одна
             // на всех. Подставляем её, иначе треклист выглядит пустым.
             songs =
                 songs(root).map { song ->
-                    if (song.thumbnailUrl == null) {
-                        song.copy(thumbnailUrl = cover, albumId = browseId)
+                    val named =
+                        if (song.artist.isNotBlank()) {
+                            song
+                        } else {
+                            song.copy(
+                                artist = albumArtist.orEmpty(),
+                                artistId = song.artistId ?: albumArtists.firstOrNull()?.id,
+                                artists = song.artists.ifEmpty { albumArtists },
+                            )
+                        }.let { if (it.album.isNullOrBlank() && title.isNotBlank()) it.copy(album = title) else it }
+                    if (named.thumbnailUrl == null) {
+                        named.copy(thumbnailUrl = cover, albumId = browseId)
                     } else {
-                        song.copy(albumId = song.albumId ?: browseId)
+                        named.copy(albumId = named.albumId ?: browseId)
                     }
                 },
         )

@@ -198,6 +198,8 @@ fun ReleaseTile(card: PlaylistCard, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = colors.text,
             maxLines = 2,
+            // Всегда две строки: иначе ряд меняет высоту, когда в него въезжает длинное название, и всё ниже прыгает.
+            minLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
@@ -236,6 +238,8 @@ fun SongTile(song: SongItem, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = colors.text,
             maxLines = 2,
+            // Всегда две строки: иначе ряд меняет высоту, когда в него въезжает длинное название, и всё ниже прыгает.
+            minLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
@@ -276,6 +280,8 @@ fun ArtistTile(card: ArtistCard, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = colors.text,
             maxLines = 2,
+            // Всегда две строки: иначе ряд меняет высоту, когда в него въезжает длинное название, и всё ниже прыгает.
+            minLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

@@ -129,7 +129,21 @@ class LibraryViewModel @Inject constructor(
 
 
     val playlists: StateFlow<List<PlaylistEntity>> =
-        library.playlists.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        kotlinx.coroutines.flow
+            .combine(library.playlists, settings.playlistOrder) { list, order -> com.texfi.w0y.data.PlaylistOrder.apply(list, order) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Настройки вида «Моё» и «Главной»: новая страница плейлиста, исполнитель в наборе, ряд плейлистов. */
+    val prefs: StateFlow<com.texfi.w0y.data.W0ySettings> =
+        settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, com.texfi.w0y.data.W0ySettings())
+
+    /** Порядок, выставленный перетаскиванием на «Главной» или в «Моё»; [ids] — весь видимый список. */
+    fun reorderPlaylists(ids: List<Long>) {
+        // Видна только часть (папка или общий список без папок): переставленные встают на места
+        // друг друга, остальные не сдвигаются.
+        val all = playlists.value.map { it.id }
+        viewModelScope.launch { settings.setPlaylistOrder(com.texfi.w0y.data.PlaylistOrder.merge(all, ids)) }
+    }
     val folders: StateFlow<List<com.texfi.w0y.data.db.FolderEntity>> =
         library.folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -379,7 +393,19 @@ class LibraryViewModel @Inject constructor(
         _remoteSuggestions.value = emptyList()
     }
 
-    fun createPlaylist(name: String) = viewModelScope.launch { library.createPlaylist(name) }
+    fun createPlaylist(name: String, toAccount: Boolean = true) = viewModelScope.launch { library.createPlaylist(name, toAccount) }
+
+    /** Настройки, которые показывает панель аккаунта в «Моё». */
+    val accountPrefs: StateFlow<Triple<Boolean, Boolean, Boolean>> =
+        settings.settings
+            .map { Triple(it.syncPlaylists, it.newPlaylistsToAccount, it.showAccountAlbums) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Triple(true, true, true))
+
+    fun setSyncPlaylists(value: Boolean) = viewModelScope.launch { settings.setSyncPlaylists(value) }
+
+    fun setNewPlaylistsToAccount(value: Boolean) = viewModelScope.launch { settings.setNewPlaylistsToAccount(value) }
+
+    fun setShowAccountAlbums(value: Boolean) = viewModelScope.launch { settings.setShowAccountAlbums(value) }
 
     fun deletePlaylist(id: Long) = viewModelScope.launch {
         library.deletePlaylist(id)

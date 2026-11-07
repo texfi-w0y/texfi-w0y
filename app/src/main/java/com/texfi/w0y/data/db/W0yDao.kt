@@ -225,6 +225,10 @@ interface W0yDao {
     @Query("UPDATE playlists SET name = :name, coverUrl = COALESCE(:cover, coverUrl) WHERE id = :id")
     suspend fun updatePlaylistInfo(id: Long, name: String, cover: String?)
 
+    /** Только снимок сверки — без отметки времени: им помечают «убрано здесь» до следующей сверки. */
+    @Query("UPDATE playlists SET syncBase = :base WHERE id = :id")
+    suspend fun setSyncBase(id: Long, base: String)
+
     @Query("UPDATE playlists SET remoteEditable = :editable, syncBase = :base, syncedAt = :at, coverUrl = COALESCE(:cover, coverUrl) WHERE id = :id")
     suspend fun markSynced(id: Long, editable: Boolean, base: String, at: Long, cover: String?)
 

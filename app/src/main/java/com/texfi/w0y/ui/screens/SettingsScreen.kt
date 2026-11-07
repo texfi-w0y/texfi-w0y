@@ -7,6 +7,7 @@ import androidx.compose.ui.draw.drawBehind
 import com.texfi.w0y.ui.theme.drawGrain
 
 import com.texfi.w0y.ui.theme.matte
+import androidx.compose.ui.focus.focusRequester
 
 import com.texfi.w0y.ui.theme.styledSurface
 import com.texfi.w0y.ui.theme.styledClip
@@ -26,6 +27,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import com.texfi.w0y.ui.theme.asLabel
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.positionInParent
 import com.texfi.w0y.ui.components.hairStagger
 import androidx.compose.animation.togetherWith
@@ -47,6 +52,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -149,6 +155,9 @@ fun SettingsScreen(
     var tabName by rememberSaveable { mutableStateOf(SettingsTabMemory.last) }
     var query by rememberSaveable { mutableStateOf("") }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
+    // Hairline New: кружок поиска перетекает в строку — общий ход анимации и место кружка.
+    val searchMorph = remember { androidx.compose.animation.core.Animatable(if (searchOpen) 1f else 0f) }
+    var searchAnchor by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
     var tasteOpen by rememberSaveable { mutableStateOf(false) }
     // Куда прокрутить и что подсветить после перехода из поиска или избранного.
@@ -254,8 +263,13 @@ fun SettingsScreen(
     val category = SettingsCategory.entries.firstOrNull { it.name == tabName } ?: SettingsCategory.PLAYBACK
 
     // Назад: сначала закрывает поиск, потом настройки целиком.
+    val island = com.texfi.w0y.ui.theme.isIsland
     BackHandler(enabled = searchOpen || query.isNotBlank()) {
-        if (query.isNotBlank()) query = "" else searchOpen = false
+        // Hairline New: поиск — отдельный слой поверх, «назад» закрывает его целиком.
+        if (island) {
+            query = ""
+            searchOpen = false
+        } else if (query.isNotBlank()) query = "" else searchOpen = false
     }
 
     val openRow: (SettingRow) -> Unit = { row ->
@@ -270,7 +284,6 @@ fun SettingsScreen(
         onDetails = { detailsId = it },
     )
 
-    val island = com.texfi.w0y.ui.theme.isIsland
     Box(Modifier.fillMaxSize()) {
     // Фон листа продолжается за островком до самого низа; список кончается над островком.
     Box(Modifier.fillMaxSize().extendUnderIsland().screenBackground())
@@ -283,7 +296,15 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_title),
             onBack = onClose,
             actions = {
-                if (island) return@ScreenTitle
+                if (island) {
+                    // Hairline New: поиск — кружок в углу; нажатие раскрывает поиск на весь экран.
+                    IslandSearchCircle(
+                        label = stringResource(R.string.settings_search_placeholder),
+                        morph = { searchMorph.value },
+                        onPlaced = { searchAnchor = it },
+                    ) { searchOpen = true }
+                    return@ScreenTitle
+                }
                 val searchCd = stringResource(R.string.settings_search_placeholder)
                 Box(
                     Modifier
@@ -312,7 +333,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
-        if (searchOpen || island) {
+        if (searchOpen && !island) {
             SettingsSearchField(value = query, onValueChange = { query = it })
             Spacer(Modifier.height(8.dp))
         }
@@ -326,7 +347,7 @@ fun SettingsScreen(
         )
 
         when {
-            query.isNotBlank() -> SearchResults(rows, query, onOpen = openRow)
+            query.isNotBlank() && !island -> SearchResults(rows, query, onOpen = openRow)
             else -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
         }
     }
@@ -336,6 +357,19 @@ fun SettingsScreen(
     var lastChoice by remember { mutableStateOf<SettingRow?>(null) }
     if (choiceRow != null) lastChoice = choiceRow
     ChoiceSheet(visible = choiceRow != null, row = lastChoice, onDismiss = { choiceId = null })
+    if (island) {
+        IslandSettingsSearch(
+            visible = searchOpen,
+            morph = searchMorph,
+            anchor = searchAnchor,
+            query = query,
+            onQuery = { query = it },
+            onClose = {
+                query = ""
+                searchOpen = false
+            },
+        ) { SearchResults(rows, query, onOpen = openRow) }
+    }
     }
 
     detailsId?.let { id ->
@@ -613,11 +647,15 @@ private fun ChoiceSheet(visible: Boolean, row: SettingRow?, onDismiss: () -> Uni
 }
 
 @Composable
-private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) {
+private fun SettingsSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier.padding(horizontal = 18.dp),
+    focus: androidx.compose.ui.focus.FocusRequester? = null,
+) {
     val colors = LocalW0yColors.current
     Row(
-        Modifier
-            .padding(horizontal = 18.dp)
+        modifier
             .fillMaxWidth()
             .then(
                 if (com.texfi.w0y.ui.theme.isIsland) {
@@ -632,7 +670,11 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
             ).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PixelSprite(rows = Sprites.search, color = colors.textMuted, modifier = Modifier.size(14.dp))
+        if (com.texfi.w0y.ui.theme.isHair) {
+            com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.SEARCH, colors.textMuted, Modifier.size(18.dp))
+        } else {
+            PixelSprite(rows = Sprites.search, color = colors.textMuted, modifier = Modifier.size(14.dp))
+        }
         Spacer(Modifier.width(10.dp))
         Box(Modifier.weight(1f)) {
             BasicTextField(
@@ -642,7 +684,7 @@ private fun SettingsSearchField(value: String, onValueChange: (String) -> Unit) 
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.text),
                 cursorBrush = SolidColor(colors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier),
             )
             if (value.isEmpty()) {
                 Text(
@@ -694,7 +736,7 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
                 onClick = { primary?.invoke() },
                 onLongClick = { ctx.onDetails(row.id) },
             )
-            .padding(horizontal = if (outlineAlpha > 0f) 8.dp else 0.dp, vertical = 10.dp)
+            .padding(horizontal = if (outlineAlpha > 0f) 8.dp else 0.dp, vertical = if (com.texfi.w0y.ui.theme.isIsland) 15.dp else 10.dp)
             .heightIn(min = 48.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -713,7 +755,22 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
                     color = colors.textMuted,
                     maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
+                // Hairline New: выбранное — своей строкой под пояснением, а не сжатой подписью справа:
+                // там длинные значения обрывались («Рекомендации в…») и теснили название.
+                if (com.texfi.w0y.ui.theme.isIsland && control is SettingControl.Choice<*> && !control.ruler) {
+                    // Подписи вариантов в ресурсах часто заглавными (для моно-ярлыков); тут они обычным текстом.
+                    val value = valueText(row).orEmpty().let { v -> if (v == v.uppercase()) v.lowercase().replaceFirstChar { it.titlecase() } else v }
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Contrast.ensure(colors.accent, colors.surface),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
             Spacer(Modifier.width(12.dp))
             when (control) {
@@ -721,7 +778,7 @@ private fun SettingRowItem(row: SettingRow, ctx: RowContext, highlighted: Boolea
 
                 is SettingControl.Choice<*> -> {
                     val island = com.texfi.w0y.ui.theme.isIsland
-                    Text(
+                    if (!island || control.ruler) Text(
                         valueText(row).orEmpty().asLabel(),
                         style = com.texfi.w0y.ui.theme.HairLabelStyle,
                         color = if (island) colors.textMuted else Contrast.ensure(colors.accent, colors.background),
@@ -1839,6 +1896,61 @@ private fun settingsRows(
                 control = SettingControl.Toggle(settings.haptics, viewModel::setHaptics),
             ),
         )
+        // Новинки beta-4, от которых можно отказаться: те же строки, что в окне после обновления.
+        add(
+            SettingRow(
+                id = "set_intro",
+                title = stringResource(R.string.set_intro),
+                description = stringResource(R.string.set_intro_desc),
+                keywords = "intro splash launch",
+                control = SettingControl.Toggle(settings.introAnimation, viewModel::setIntroAnimation),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_playlist_hero",
+                title = stringResource(R.string.set_playlist_hero),
+                description = stringResource(R.string.set_playlist_hero_desc),
+                keywords = "playlist page cover header",
+                control = SettingControl.Toggle(settings.playlistHero, viewModel::setPlaylistHero),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_dial_artist",
+                title = stringResource(R.string.set_dial_artist),
+                description = stringResource(R.string.set_dial_artist_desc),
+                keywords = "speed dial artist",
+                control = SettingControl.Toggle(settings.dialArtist, viewModel::setDialArtist),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_home_my_playlists",
+                title = stringResource(R.string.set_home_my_playlists),
+                description = stringResource(R.string.set_home_my_playlists_desc),
+                keywords = "home playlists",
+                control = SettingControl.Toggle(settings.homeMyPlaylists, viewModel::setHomeMyPlaylists),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_sheet_magnet",
+                title = stringResource(R.string.set_sheet_magnet),
+                description = stringResource(R.string.set_sheet_magnet_desc),
+                keywords = "panel sheet magnet drag",
+                control = SettingControl.Toggle(settings.sheetMagnet, viewModel::setSheetMagnet),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_sleep_fade",
+                title = stringResource(R.string.set_sleep_fade),
+                description = stringResource(R.string.set_sleep_fade_desc),
+                keywords = "sleep timer fade",
+                control = SettingControl.Toggle(settings.sleepFade, viewModel::setSleepFade),
+            ),
+        )
 
         // ДАННЫЕ
         add(
@@ -2359,3 +2471,177 @@ private fun SettingsTabStrip(tabs: List<Pair<String, String>>, selected: String,
     }
     Spacer(Modifier.height(8.dp))
 }
+
+/** Кружок поиска в шапке настроек Hairline New. Пока открыт поиск, его место занимает строка. */
+@Composable
+private fun IslandSearchCircle(
+    label: String,
+    morph: () -> Float,
+    onPlaced: (androidx.compose.ui.geometry.Rect) -> Unit,
+    onClick: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Box(
+        Modifier
+            .size(48.dp)
+            .onGloballyPositioned { onPlaced(it.boundsInWindow()) }
+            .graphicsLayer { alpha = if (morph() > 0f) 0f else 1f }
+            .pressScale(interaction, pressed = 0.9f)
+            .matte(androidx.compose.foundation.shape.CircleShape)
+            .testTag("settings-search")
+            .semantics { contentDescription = label; role = Role.Button }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.SEARCH, colors.text, Modifier.size(20.dp))
+    }
+}
+
+/**
+ * Поиск по настройкам в Hairline New. Кружок в углу вытягивается влево в строку поиска,
+ * лупа едет впереди края; когда строка встала, поле получает фокус и выезжает клавиатура.
+ * Закрытие — наоборот: клавиатура уходит, строка сворачивается обратно в кружок.
+ */
+@Composable
+private fun IslandSettingsSearch(
+    visible: Boolean,
+    morph: androidx.compose.animation.core.Animatable<Float, androidx.compose.animation.core.AnimationVector1D>,
+    anchor: androidx.compose.ui.geometry.Rect?,
+    query: String,
+    onQuery: (String) -> Unit,
+    onClose: () -> Unit,
+    results: @Composable () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val moves = com.texfi.w0y.ui.theme.hairLook.motion.moves
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(visible) {
+        if (visible) {
+            if (moves) morph.animateTo(1f, androidx.compose.animation.core.tween(SEARCH_OPEN_MS, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut)) else morph.snapTo(1f)
+            runCatching { focus.requestFocus() }
+            keyboard?.show()
+        } else {
+            keyboard?.hide()
+            focusManager.clearFocus()
+            if (moves && morph.value > 0f) {
+                morph.animateTo(0f, androidx.compose.animation.core.tween(SEARCH_CLOSE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            } else {
+                morph.snapTo(0f)
+            }
+        }
+    }
+    if (!visible && morph.value <= 0f) return
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var width by remember { mutableStateOf(0) }
+    val p = { morph.value }
+    // Доля «открытости» для содержимого строки: текст проявляется, когда строка почти встала.
+    val inner = { ((morph.value - 0.55f) / 0.45f).coerceIn(0f, 1f) }
+    with(density) {
+        val side = 48.dp.toPx()
+        val startPad = 18.dp.toPx()
+        val circleLeft = anchor?.left?.minus(origin.x) ?: (width - side - 14.dp.toPx())
+        val circleTop = anchor?.top?.minus(origin.y) ?: (androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(density) + 8.dp.toPx())
+        val right = circleLeft + side
+        Box(
+            Modifier
+                .fillMaxSize()
+                .onGloballyPositioned {
+                    origin = it.positionInWindow()
+                    width = it.size.width
+                },
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = p() }
+                    .background(colors.background)
+                    .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {},
+            )
+            // Строка: правый край стоит на месте кружка, левый уезжает к краю экрана.
+            Box(
+                Modifier
+                    .layout { measurable, _ ->
+                        val left = circleLeft + (startPad - circleLeft) * p()
+                        val w = (right - left).toInt().coerceAtLeast(side.toInt())
+                        val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, side.toInt()))
+                        layout(w, side.toInt()) { placeable.place(0, 0) }
+                    }.offset { androidx.compose.ui.unit.IntOffset((circleLeft + (startPad - circleLeft) * p()).toInt(), circleTop.toInt()) }
+                    .matte(androidx.compose.foundation.shape.RoundedCornerShape(50)),
+            ) {
+                // Лупа идёт впереди: из центра кружка к началу строки.
+                com.texfi.w0y.ui.icons.HairIcon(
+                    com.texfi.w0y.ui.icons.HairGlyph.SEARCH,
+                    colors.text,
+                    Modifier
+                        .size(20.dp)
+                        .offset { androidx.compose.ui.unit.IntOffset(((side / 2 - 10.dp.toPx()) + (16.dp.toPx() - (side / 2 - 10.dp.toPx())) * p()).toInt(), (side / 2 - 10.dp.toPx()).toInt()) },
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(start = 46.dp, end = 44.dp)
+                        .graphicsLayer { alpha = inner() },
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQuery,
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.text),
+                        cursorBrush = SolidColor(colors.accent),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                    )
+                    if (query.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.settings_search_placeholder),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.textMuted,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                val closeLabel = stringResource(R.string.sheet_close_cd)
+                Box(
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(44.dp)
+                        .graphicsLayer { alpha = inner() }
+                        .semantics { contentDescription = closeLabel; role = Role.Button }
+                        .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CLOSE, colors.textMuted, Modifier.size(16.dp))
+                }
+            }
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = (circleTop + side).toDp() + 10.dp)
+                    .imePadding()
+                    .graphicsLayer {
+                        alpha = inner()
+                        translationY = (1f - p()) * 24.dp.toPx()
+                    },
+            ) {
+                if (query.isBlank()) {
+                    Text(
+                        stringResource(R.string.settings_search_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
+                    )
+                } else {
+                    results()
+                }
+            }
+        }
+    }
+}
+
+private const val SEARCH_OPEN_MS = 240
+private const val SEARCH_CLOSE_MS = 180

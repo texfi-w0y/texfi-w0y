@@ -22,6 +22,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** Что показывает интерфейс о текущем воспроизведении. */
@@ -48,21 +53,37 @@ data class PlayerUiState(
 class PlayerConnection @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val queueStore: QueueStore,
+    private val sleepClock: SleepClock,
 ) {
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     private var controller: MediaController? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var sleepJob: Job? = null
-
-    private val _sleepRemainingMs = MutableStateFlow<Long?>(null)
-    val sleepRemainingMs: StateFlow<Long?> = _sleepRemainingMs.asStateFlow()
-
-    private val _sleepAfterTrack = MutableStateFlow(false)
+    /** Сколько осталось до сна — для экрана; тикает раз в секунду, пока срок задан. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val sleepRemainingMs: StateFlow<Long?> =
+        sleepClock.deadline
+            .flatMapLatest { end ->
+                if (end == null) {
+                    flowOf<Long?>(null)
+                } else {
+                    flow<Long?> {
+                        while (true) {
+                            val left = end - android.os.SystemClock.elapsedRealtime()
+                            if (left <= 0) {
+                                emit(null)
+                                break
+                            }
+                            emit(left)
+                            delay(1_000)
+                        }
+                    }
+                }
+            }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /** Заведён ли таймер «до конца трека» — у него нет обратного отсчёта. */
-    val sleepAfterTrack: StateFlow<Boolean> = _sleepAfterTrack.asStateFlow()
+    val sleepAfterTrack: StateFlow<Boolean> = sleepClock.afterTrack
 
     private val listener =
         object : Player.Listener {
@@ -75,24 +96,6 @@ class PlayerConnection @Inject constructor(
                     )
                 ) {
                     scheduleSave(player)
-                }
-            }
-
-            /**
-             * «До конца трека» — засыпают именно так, а не по круглым
-             * минутам. Ставим паузу на переходе к следующему: доиграл —
-             * и тишина, очередь остаётся на месте.
-             */
-            override fun onMediaItemTransition(
-                mediaItem: androidx.media3.common.MediaItem?,
-                reason: Int,
-            ) {
-                if (!_sleepAfterTrack.value) return
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
-                ) {
-                    _sleepAfterTrack.value = false
-                    controller?.pause()
                 }
             }
 
@@ -395,38 +398,13 @@ class PlayerConnection @Inject constructor(
 
     fun positionMs(): Long = controller?.currentPosition ?: 0L
 
-    /** Таймер сна: по истечении ставит паузу, а не глушит приложение. */
-    fun startSleepTimer(minutes: Int) {
-        sleepJob?.cancel()
-        _sleepAfterTrack.value = false
-        val totalMs = minutes * 60_000L
-        sleepJob =
-            scope.launch {
-                var left = totalMs
-                while (left > 0) {
-                    _sleepRemainingMs.value = left
-                    delay(1_000)
-                    left -= 1_000
-                }
-                _sleepRemainingMs.value = null
-                controller?.pause()
-            }
-    }
+    /** Таймер сна: срок уходит сервису, он и ставит паузу (см. [SleepClock]). */
+    fun startSleepTimer(minutes: Int) = sleepClock.start(minutes)
 
     /** Пауза после текущего трека — без обратного отсчёта. */
-    fun sleepAfterCurrentTrack() {
-        sleepJob?.cancel()
-        sleepJob = null
-        _sleepRemainingMs.value = null
-        _sleepAfterTrack.value = true
-    }
+    fun sleepAfterCurrentTrack() = sleepClock.startAfterTrack()
 
-    fun cancelSleepTimer() {
-        sleepJob?.cancel()
-        sleepJob = null
-        _sleepRemainingMs.value = null
-        _sleepAfterTrack.value = false
-    }
+    fun cancelSleepTimer() = sleepClock.cancel()
 
     private fun push(player: Player) {
         val queue =

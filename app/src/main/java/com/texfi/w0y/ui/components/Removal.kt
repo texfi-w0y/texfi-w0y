@@ -18,6 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.launch
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.texfi.w0y.ui.theme.LocalW0yColors
@@ -110,6 +114,19 @@ fun RowActionsMenu(
         onDismiss()
     }
 
+    if (com.texfi.w0y.ui.theme.isHair) {
+        // Hairline: то же меню нижней панелью — с магнитом и анимацией, как все панели. Окно
+        // нужно, потому что меню зовут из строки списка; своё затемнение окна выключено.
+        Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            androidx.compose.runtime.SideEffect { window?.setDimAmount(0f) }
+            // Окно меню лежит поверх острова — отступ под остров тут не нужен.
+            androidx.compose.runtime.CompositionLocalProvider(LocalBottomInset provides 0.dp) {
+                HairRowActionsSheet(title, actions, cancel, protection, onPerform = ::perform, onDismiss = onDismiss)
+            }
+        }
+        return
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val confirm = pending
         if (confirm != null) {
@@ -157,5 +174,84 @@ fun ConfirmDialog(
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ConfirmPanel(title = title, text = text, confirm = confirm, dismiss = dismiss, onConfirm = onConfirm, onDismiss = onDismiss)
+    }
+}
+
+/**
+ * Меню строки в Hairline: заголовок, действия строками, опасное — с подтверждением прямо
+ * в панели, без второго окна.
+ */
+@Composable
+private fun HairRowActionsSheet(
+    title: String,
+    actions: List<RowAction>,
+    cancel: String,
+    protection: Boolean,
+    onPerform: (RowAction) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    var shown by remember { mutableStateOf(false) }
+    var pending by remember { mutableStateOf<RowAction?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { shown = true }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    fun close(then: () -> Unit) {
+        shown = false
+        scope.launch {
+            kotlinx.coroutines.delay(com.texfi.w0y.ui.theme.HairTokens.MID_MS.toLong())
+            then()
+        }
+    }
+    val danger = androidx.compose.ui.graphics.Color(0xFFFF6B6B)
+    com.texfi.w0y.ui.screens.HairSheetFrame(visible = shown, onDismiss = { close(onDismiss) }, heightFraction = null) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = colors.text, maxLines = 2, modifier = Modifier.padding(bottom = 8.dp))
+            androidx.compose.animation.AnimatedContent(targetState = pending, label = "rowMenuConfirm") { confirm ->
+                if (confirm != null) {
+                    Column {
+                        Text(confirm.confirmText ?: confirm.label, style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(vertical = 8.dp))
+                        androidx.compose.foundation.layout.Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PixelButton(confirm.confirmButton ?: confirm.label, onClick = { close { onPerform(confirm) } })
+                            PixelButton(cancel, onClick = { pending = null }, fill = colors.surfaceHigh)
+                        }
+                    }
+                } else {
+                    Column {
+                        actions.forEachIndexed { i, action ->
+                            Text(
+                                action.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (action.danger) danger else colors.text,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .hairStagger(i)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                        .clickable { if (action.needsConfirm(protection)) pending = action else close { onPerform(action) } }
+                                        .semantics { contentDescription = action.label }
+                                        .padding(horizontal = 4.dp, vertical = 14.dp),
+                            )
+                        }
+                        Text(
+                            cancel,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.textMuted,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                    .clickable { close(onDismiss) }
+                                    .padding(horizontal = 4.dp, vertical = 14.dp),
+                        )
+                    }
+                }
+            }
+        }
     }
 }

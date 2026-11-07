@@ -154,10 +154,11 @@ internal fun IslandLyricsPage(
                     )
             }
         }
-        Row(Modifier.fillMaxWidth().hairEnter(2).padding(start = 24.dp, end = 16.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Откуда текст — тихой подписью, под ней строка перевода во всю ширину: вдвоём на одной
+        // строке им было тесно.
+        Column(Modifier.fillMaxWidth().hairEnter(2).padding(start = 24.dp, end = 16.dp, top = 4.dp)) {
             val source = lyrics?.source?.let { "${stringResource(R.string.island_text)} · $it" }
-            if (source != null) Text(source.asLabel(), style = HairLabelStyle, color = colors.textMuted, maxLines = 1)
-            Spacer(Modifier.weight(1f))
+            if (source != null) Text(source.asLabel(), style = HairLabelStyle, color = colors.textMuted.copy(alpha = 0.7f), maxLines = 1, modifier = Modifier.padding(bottom = 4.dp))
             translate()
         }
         Row(

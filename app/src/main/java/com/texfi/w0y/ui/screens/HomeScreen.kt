@@ -6,6 +6,9 @@ import com.texfi.w0y.ui.theme.styledClip
 import com.texfi.w0y.ui.theme.styledBorder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import com.texfi.w0y.ui.components.pressScale
+import com.texfi.w0y.ui.components.holdToReorder
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
@@ -97,6 +100,9 @@ fun HomeScreen(
     val dial by viewModel.speedDial.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val liked by viewModel.liked.collectAsStateWithLifecycle()
+    val myPlaylists by viewModel.playlists.collectAsStateWithLifecycle()
+    val homePrefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val playlistCovers by viewModel.playlistCovers.collectAsStateWithLifecycle()
     val shelves by home.shelves.collectAsStateWithLifecycle()
     val recBlocks by home.blocks.collectAsStateWithLifecycle()
     val loadingShelves by home.loading.collectAsStateWithLifecycle()
@@ -188,7 +194,7 @@ fun HomeScreen(
             }
         } else {
             item {
-                if (island) IslandDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem, columns = HAIR_COLUMNS, rows = HAIR_ROWS, hint = stringResource(R.string.home_dial_hint)) else if (hair) HairDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem) else SpeedDialPager(
+                if (island) IslandDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem, columns = HAIR_COLUMNS, rows = HAIR_ROWS, hint = stringResource(R.string.home_dial_hint), showArtist = homePrefs.dialArtist) else if (hair) HairDialGrid(dial, onOpen = { item -> openDial(item) }, onLongPress = { menuItem = it }, menuItem = menuItem) else SpeedDialPager(
                     items = dial,
                     onOpen = { item -> openDial(item) },
                     onLongPress = { menuItem = it },
@@ -224,6 +230,11 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 18.dp),
                     )
                 }
+            }
+        }
+        if (hair && homePrefs.homeMyPlaylists && myPlaylists.isNotEmpty()) {
+            item(key = "my-playlists") {
+                MyPlaylistsRow(myPlaylists, playlistCovers, onOpen = onOpenLocalPlaylist, onReorder = viewModel::reorderPlaylists, modifier = Modifier.padding(top = 22.dp))
             }
         }
         recBlockRow(R.string.home_block_discoveries, recBlocks.discoveries, home)
@@ -309,40 +320,67 @@ fun HomeScreen(
             }
         }
 
-        if (recent.isNotEmpty()) {
-            val n = ++section
-            item {
-                Column(Modifier.padding(horizontal = Gutter)) {
-                    Spacer(Modifier.height(26.dp))
-                    SectionHeader(stringResource(R.string.home_recent), index = n)
-                    Spacer(Modifier.height(6.dp))
+        if (hair) {
+            // Hairline: «Недавно» и «Лайки» — такими же лентами, как остальная главная (по четыре
+            // строки в колонке, листаются вбок), а не длинным списком в самом низу.
+            if (recent.isNotEmpty()) {
+                item(key = "recent-shelf") {
+                    val top = recent.take(20)
+                    com.texfi.w0y.ui.components.QuickPicksShelf(
+                        title = stringResource(R.string.home_recent).asLabel(),
+                        songs = top,
+                        onPlay = { index -> viewModel.play(recent, index) },
+                        modifier = Modifier.padding(top = 22.dp),
+                    )
                 }
             }
-            items(recent.take(20), key = { "recent-${it.id}" }) { song ->
-                SongRow(
-                    song = song,
-                    modifier = Modifier.padding(horizontal = Gutter),
-                    onClick = { viewModel.play(recent, recent.indexOf(song)) },
-                    actions = { DownloadButton(song.id, onDownload = { viewModel.download(song) }) },
-                )
+            if (liked.isNotEmpty()) {
+                item(key = "liked-shelf") {
+                    val top = liked.take(20)
+                    com.texfi.w0y.ui.components.QuickPicksShelf(
+                        title = stringResource(R.string.library_likes).asLabel(),
+                        songs = top,
+                        onPlay = { index -> viewModel.play(liked, index) },
+                        modifier = Modifier.padding(top = 22.dp),
+                    )
+                }
             }
-        }
+        } else {
+            if (recent.isNotEmpty()) {
+                val n = ++section
+                item {
+                    Column(Modifier.padding(horizontal = Gutter)) {
+                        Spacer(Modifier.height(26.dp))
+                        SectionHeader(stringResource(R.string.home_recent), index = n)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+                items(recent.take(20), key = { "recent-${it.id}" }) { song ->
+                    SongRow(
+                        song = song,
+                        modifier = Modifier.padding(horizontal = Gutter),
+                        onClick = { viewModel.play(recent, recent.indexOf(song)) },
+                        actions = { DownloadButton(song.id, onDownload = { viewModel.download(song) }) },
+                    )
+                }
+            }
 
-        if (liked.isNotEmpty()) {
-            val n = ++section
-            item {
-                Column(Modifier.padding(horizontal = Gutter)) {
-                    Spacer(Modifier.height(26.dp))
-                    SectionHeader(stringResource(R.string.library_likes), index = n)
-                    Spacer(Modifier.height(6.dp))
+            if (liked.isNotEmpty()) {
+                val n = ++section
+                item {
+                    Column(Modifier.padding(horizontal = Gutter)) {
+                        Spacer(Modifier.height(26.dp))
+                        SectionHeader(stringResource(R.string.library_likes), index = n)
+                        Spacer(Modifier.height(6.dp))
+                    }
                 }
-            }
-            items(liked.take(10), key = { "liked-${it.id}" }) { song ->
-                SongRow(
-                    song = song,
-                    modifier = Modifier.padding(horizontal = Gutter),
-                    onClick = { viewModel.play(liked, liked.indexOf(song)) },
-                )
+                items(liked.take(10), key = { "liked-${it.id}" }) { song ->
+                    SongRow(
+                        song = song,
+                        modifier = Modifier.padding(horizontal = Gutter),
+                        onClick = { viewModel.play(liked, liked.indexOf(song)) },
+                    )
+                }
             }
         }
 
@@ -688,17 +726,96 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recBlockRow(
                     Column(Modifier.width(132.dp)) {
                         SongTile(rec.song) { home.playRecs(items, items.indexOf(rec)) }
                         // Причина, совпадающая с названием ряда, ничего не добавляет — её не повторяем.
+                        // Место под причину есть всегда — пустое тоже: плитки одной высоты, ряд не прыгает.
                         val why = whyLabel(rec.why)
-                        if (!why.equals(shelfName, ignoreCase = true)) {
+                        Text(
+                            if (why.equals(shelfName, ignoreCase = true)) "" else why.asLabel(),
+                            style = com.texfi.w0y.ui.theme.HairLabelStyle,
+                            color = LocalW0yColors.current.textMuted,
+                            maxLines = 2,
+                            minLines = 2,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * «Мои плейлисты» на главной: обложки рядом, листаются вбок. Без своей обложки — плитка
+ * цвета плейлиста с первой буквой названия. Нажатие открывает плейлист в «Моём».
+ */
+@Composable
+private fun MyPlaylistsRow(
+    playlists: List<com.texfi.w0y.data.db.PlaylistEntity>,
+    covers: Map<Long, String>,
+    onOpen: (Long) -> Unit,
+    onReorder: (List<Long>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalW0yColors.current
+    // Удержать плитку и вести — плейлисты меняются местами; порядок общий с «Моё».
+    val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var dragOrder by remember { mutableStateOf<List<Long>?>(null) }
+    val shown = dragOrder?.let { order -> order.mapNotNull { id -> playlists.firstOrNull { it.id == id } } } ?: playlists
+    val reorder =
+        com.texfi.w0y.ui.components.rememberReorderState(rowState, horizontal = true) { from, to ->
+            val a = (from as? String)?.removePrefix("mp-")?.toLongOrNull()
+            val b = (to as? String)?.removePrefix("mp-")?.toLongOrNull()
+            if (a != null && b != null) dragOrder = com.texfi.w0y.data.PlaylistOrder.move(dragOrder ?: playlists.map { it.id }, a, b)
+        }
+    LaunchedEffect(playlists) { if (reorder.dragging == null) dragOrder = null }
+    Column(modifier) {
+        ShelfTitle(stringResource(R.string.home_my_playlists).asLabel(), Modifier.padding(horizontal = Gutter))
+        Spacer(Modifier.height(12.dp))
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(shown, key = { "mp-${it.id}" }, contentType = { com.texfi.w0y.ui.components.ReorderState.REORDER_TYPE }) { playlist ->
+                val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val key = "mp-${playlist.id}"
+                Column(
+                    with(reorder) { if (reorder.dragging == key) Modifier.reorderable(key) else Modifier.animateItem() }
+                        .width(132.dp)
+                        .pressScale(interaction, 0.96f)
+                        .clickable(interactionSource = interaction, indication = null) { onOpen(playlist.id) }
+                        .holdToReorder(reorder, key) { dragOrder?.let(onReorder) },
+                ) {
+                    val cover = playlist.customCover ?: covers[playlist.id]
+                    val shape = com.texfi.w0y.ui.theme.styleTokens.cover
+                    if (cover != null) {
+                        com.texfi.w0y.ui.components.CoverImage(url = cover, px = com.texfi.w0y.data.Thumbnails.TILE, modifier = Modifier.size(132.dp))
+                    } else {
+                        val tint = playlist.accent?.let { androidx.compose.ui.graphics.Color(it) } ?: colors.accent
+                        Box(
+                            Modifier
+                                .size(132.dp)
+                                .clip(shape)
+                                .background(tint.copy(alpha = 0.22f))
+                                .border(1.dp, tint.copy(alpha = 0.4f), shape),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
-                                why.asLabel(),
-                                style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                                color = LocalW0yColors.current.textMuted,
-                                maxLines = 2,
-                                modifier = Modifier.padding(top = 4.dp),
+                                playlist.name.trim().take(1).uppercase(),
+                                style = MaterialTheme.typography.displaySmall,
+                                color = colors.text,
                             )
                         }
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        playlist.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.text,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        stringResource(if (playlist.remoteId != null) R.string.library_tile_mirrored else R.string.library_tile_own),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textMuted,
+                        maxLines = 1,
+                    )
                 }
             }
         }

@@ -113,8 +113,8 @@ fun Visualizer(
     val gain by rememberUpdatedState(sensitivity)
 
     DisposableEffect(visible) {
-        bus.active = visible
-        onDispose { bus.active = false }
+        if (visible) bus.attach()
+        onDispose { if (visible) bus.detach() }
     }
     LaunchedEffect(visible, fps, reduceMotion) {
         if (!visible) return@LaunchedEffect

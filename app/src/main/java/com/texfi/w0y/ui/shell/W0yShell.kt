@@ -167,6 +167,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val hapticLevel by viewModel.hapticLevel.collectAsStateWithLifecycle()
     // Заставка играет один раз за запуск, а не при каждом повороте экрана.
     var introDone by rememberSaveable { mutableStateOf(false) }
+    val shellPrefs by viewModel.prefs.collectAsStateWithLifecycle()
     val libraryRoute by libraryViewModel.route.collectAsStateWithLifecycle()
     val browseStack = remember { mutableStateListOf<BrowseRoute>() }
     val navigator = remember { BrowseNavigator { route -> browseStack.add(route) } }
@@ -175,26 +176,23 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     var lastBrowse by remember { mutableStateOf<BrowseRoute?>(null) }
     browseStack.lastOrNull()?.let { lastBrowse = it }
 
-    // Одна точка на весь «назад».
+    // «Назад» по слоям: закрывается то, что открыто последним.
     //
-    // Раньше обработчик стоял только на полноэкранных слоях, и на любом
-    // другом экране системный жест уходил мимо приложения — прямо на рабочий
-    // стол, вместе со всей навигацией. Порядок здесь — это порядок закрытия:
-    // от самого верхнего слоя к вкладкам.
-    BackHandler(
-        enabled =
-            playerExpanded || settingsOpen || loginOpen ||
-                browseStack.isNotEmpty() || libraryRoute != LibraryRoute.Root || tab != Tab.HOME,
-    ) {
-        when {
-            loginOpen -> loginOpen = false
-            settingsOpen -> settingsOpen = false
-            playerExpanded -> playerExpanded = false
-            browseStack.isNotEmpty() -> browseStack.removeAt(browseStack.lastIndex)
-            libraryRoute != LibraryRoute.Root -> libraryViewModel.back()
-            else -> tab = Tab.HOME
-        }
+    // Система отдаёт жест самому новому из включённых обработчиков. Один общий
+    // обработчик, заведённый при старте, оказывался старше всего, что открывали
+    // потом, — и любой слой, заведённый позже (папка, панель, экран внутри),
+    // перехватывал жест не в свою очередь. Поэтому у каждого слоя свой
+    // обработчик, и заводится он в момент открытия слоя: порядок регистрации
+    // совпадает с порядком на экране. Плеер заводит свой в PlayerSheet.
+    //
+    // Нижний уровень — вкладки и разделы «Моё»: он самый старый и срабатывает,
+    // когда сверху ничего не открыто.
+    BackHandler(enabled = libraryRoute != LibraryRoute.Root || tab != Tab.HOME) {
+        if (libraryRoute != LibraryRoute.Root) libraryViewModel.back() else tab = Tab.HOME
     }
+    if (browseStack.isNotEmpty()) BackHandler { browseStack.removeAt(browseStack.lastIndex) }
+    if (settingsOpen) BackHandler { settingsOpen = false }
+    if (loginOpen) BackHandler { loginOpen = false }
 
     val downloadProgress by viewModel.downloads.progress.collectAsStateWithLifecycle()
     val menuViewModel: SongMenuViewModel = hiltViewModel()
@@ -223,6 +221,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     CompositionLocalProvider(
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
+        com.texfi.w0y.ui.screens.LocalSheetMagnet provides (shellPrefs?.sheetMagnet ?: true),
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
         LocalCompactRows provides (compactRows || com.texfi.w0y.ui.theme.hairLook.compact),
@@ -575,6 +574,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
                 onInstall = viewModel::installUpdate,
                 onDefer = viewModel::deferUpdate,
                 onCloseWhatsNew = viewModel::dismissWhatsNew,
+                choices = com.texfi.w0y.data.ReleaseChoices.of(com.texfi.w0y.BuildConfig.VERSION_CODE),
+                prefs = shellPrefs,
+                onChoice = viewModel::setReleaseChoice,
             )
         }
 
@@ -637,6 +639,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         }
 
         // Пиксельное перо — заставка Pixel/Smooth; в Hairline экран открывается сразу.
+        // Заставку можно выключить (Настройки → Вид или окно после обновления). Пока настройки
+        // не прочитаны, она идёт: выключенная оборвётся через кадр-другой, а не мигнёт позже.
+        if (!introDone && shellPrefs?.introAnimation == false) introDone = true
         if (!introDone && hair) {
             com.texfi.w0y.ui.components.HairIntro(onFinished = { introDone = true })
         } else if (!introDone) {

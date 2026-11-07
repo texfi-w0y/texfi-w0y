@@ -324,6 +324,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setUiStyle(value: com.texfi.w0y.data.UiStyle) = update { repository.setUiStyle(value) }
 
+    fun setIntroAnimation(value: Boolean) = update { repository.setIntroAnimation(value) }
+
+    fun setPlaylistHero(value: Boolean) = update { repository.setPlaylistHero(value) }
+
+    fun setDialArtist(value: Boolean) = update { repository.setDialArtist(value) }
+
+    fun setHomeMyPlaylists(value: Boolean) = update { repository.setHomeMyPlaylists(value) }
+
+    fun setSheetMagnet(value: Boolean) = update { repository.setSheetMagnet(value) }
+
+    fun setSleepFade(value: Boolean) = update { repository.setSleepFade(value) }
+
     fun setSmoothGlass(value: Boolean) = update { repository.setSmoothGlass(value) }
 
     fun setStylePicked(value: Boolean) = update { repository.setStylePicked(value) }

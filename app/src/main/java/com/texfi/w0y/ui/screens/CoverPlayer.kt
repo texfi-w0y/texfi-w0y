@@ -177,7 +177,7 @@ fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modi
  * замирает; без анимаций — неподвижная смесь. Смена трека — перетекание за 900 мс.
  */
 @Composable
-private fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifier) {
+internal fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifier) {
     val context = LocalContext.current
     val moves = hairLook.motion.moves
     // Свои часы течения: идут, пока трек играет, и стоят на паузе — продолжение без рывка.
@@ -346,7 +346,7 @@ internal fun CoverPlayerPage(
     /** На сцене сейчас обложка (а не визуализатор, текст или видео): только тогда она летит в мини-плеер. */
     coverShown: Boolean = true,
     /** Hairline New: номер трека в очереди для подписи «№ 11». */
-    number: Int? = null,
+    number: String? = null,
     /** Hairline New: строка звука под линейкой — «1.00× · тон 1.00»; нажатие открывает скорость. */
     soundLine: String? = null,
     onSoundLine: () -> Unit = {},
@@ -469,7 +469,7 @@ private fun PosterPlayerPage(
     onDragEnd: () -> Unit,
     visualizerOn: Boolean,
     coverShown: Boolean,
-    number: Int?,
+    number: String?,
     soundLine: String?,
     onSoundLine: () -> Unit,
 ) {
@@ -602,27 +602,6 @@ private fun PosterPlayerPage(
             // Зерно поверх всего постера — матовая фактура, как у островов.
             if (island) Box(Modifier.matchParentSize().drawBehind { drawGrain(0.7f) })
             }
-            // Метки обреза у верхних углов обложки, как на печатном постере. На паузе сходятся к ней.
-            if (island && !visualizerOn) {
-                val markColor = colors.text.copy(alpha = 0.7f)
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(top = 70.dp)
-                        .height(14.dp)
-                        .hairEnter(1)
-                        .drawBehind {
-                            val inset = 14.dp.toPx() + 4.dp.toPx() * rest
-                            val arm = 13.dp.toPx()
-                            val w = 1.dp.toPx()
-                            drawLine(markColor, Offset(inset, 0f), Offset(inset + arm, 0f), w)
-                            drawLine(markColor, Offset(inset, 0f), Offset(inset, arm), w)
-                            drawLine(markColor, Offset(size.width - inset, 0f), Offset(size.width - inset - arm, 0f), w)
-                            drawLine(markColor, Offset(size.width - inset, 0f), Offset(size.width - inset, arm), w)
-                        },
-                )
-            }
             if (island) {
                 CompositionLocalProvider(com.texfi.w0y.ui.theme.LocalIslandBackdrop provides posterBackdrop) {
                     IslandPosterControls(song, number, positionMs, durationMs, soundLine, onSoundLine, header, titleBlock, actions, transport, plate, onDrag, onDragEnd, posterBackdrop, { controlsPx = it })
@@ -668,7 +647,7 @@ private fun PosterPlayerPage(
 @Composable
 private fun IslandPosterControls(
     song: SongItem,
-    number: Int?,
+    number: String?,
     positionMs: Long,
     durationMs: Long,
     soundLine: String?,
@@ -696,7 +675,7 @@ private fun IslandPosterControls(
         ) {
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).hairEnter(2), verticalAlignment = Alignment.CenterVertically) {
                 if (number != null) {
-                    Text("№ $number", style = HairLabelStyle, color = colors.text, maxLines = 1)
+                    Text(number, style = HairLabelStyle, color = colors.text, maxLines = 1)
                     Spacer(Modifier.width(12.dp))
                 }
                 // Линия прочерчивается заново у каждого трека — слева направо, за 360 мс.
@@ -710,7 +689,26 @@ private fun IslandPosterControls(
                     Text(album.asLabel(), style = HairLabelStyle, color = colors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
                 }
             }
-            Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
+            // Смена трека: название въезжает справа и проявляется — видно, что сменилось, а не мигнуло.
+            val swap = remember { androidx.compose.animation.core.Animatable(1f) }
+            var shownId by remember { androidx.compose.runtime.mutableStateOf(song.id) }
+            androidx.compose.runtime.LaunchedEffect(song.id) {
+                if (song.id != shownId) {
+                    shownId = song.id
+                    if (look.motion.moves) {
+                        swap.snapTo(0f)
+                        swap.animateTo(1f, tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut))
+                    }
+                }
+            }
+            Box(
+                Modifier
+                    .hairEnter(2)
+                    .graphicsLayer {
+                        alpha = 0.2f + 0.8f * swap.value
+                        translationX = (1f - swap.value) * 18.dp.toPx()
+                    },
+            ) { titleBlock(Modifier.fillMaxWidth()) }
             Column(Modifier.padding(top = 10.dp).hairEnter(3)) {
                 HairSeekLine(positionMs = positionMs, durationMs = durationMs, onDrag = onDrag, onDragEnd = onDragEnd)
                 Row(Modifier.fillMaxWidth().offset(y = (-6).dp), verticalAlignment = Alignment.CenterVertically) {

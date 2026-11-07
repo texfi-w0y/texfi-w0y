@@ -97,7 +97,7 @@ private fun Cover(url: String?, songs: List<SongItem>) {
     }
 }
 
-private fun formatLength(seconds: Int): String {
+internal fun formatLength(seconds: Int): String {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
     val s = seconds % 60

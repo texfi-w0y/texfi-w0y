@@ -29,6 +29,12 @@ import com.texfi.w0y.ui.components.rememberHaptics
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+/**
+ * Раскрыт ли плеер. Внутренние слои плеера (текст, видео) ловят «назад» только пока он
+ * открыт: во время закрытия содержимое ещё на экране, но жест уже не к нему.
+ */
+val LocalPlayerOpen = androidx.compose.runtime.compositionLocalOf { false }
+
 private val OpenSpring = tween<Float>(W0yMotion.SLOW_MS, easing = W0yMotion.StepWideBack)
 private val CloseSpring = tween<Float>(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)
 
@@ -162,6 +168,12 @@ fun PlayerSheet(
                 shape = RoundedCornerShape(closed.coerceIn(0f, 1f) * (if (hair) 36.dp else 20.dp).toPx())
             },
     ) {
-        content()
+        // «Назад» закрывает плеер. Обработчик заводится в момент открытия — значит, он
+        // новее всего, что открыто под плеером (артист, папка, настройки), и срабатывает
+        // первым. Внутренние слои плеера заводятся ещё позже и перехватывают его сами.
+        if (expanded) androidx.activity.compose.BackHandler(onBack = onCollapse)
+        androidx.compose.runtime.CompositionLocalProvider(LocalPlayerOpen provides expanded) {
+            content()
+        }
     }
 }

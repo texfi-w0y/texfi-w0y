@@ -81,6 +81,8 @@ import com.texfi.w0y.ui.icons.HairGlyph
 import com.texfi.w0y.ui.icons.HairIcon
 import com.texfi.w0y.ui.theme.Contrast
 import com.texfi.w0y.ui.theme.HairLabelStyle
+import com.texfi.w0y.ui.theme.HairTokens
+import androidx.compose.animation.core.VisibilityThreshold
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
@@ -207,9 +209,22 @@ fun HairSheetFrame(
     val close = stringResource(R.string.sheet_close_cd)
     val density = androidx.compose.ui.platform.LocalDensity.current
     val dismissAt = with(density) { 96.dp.toPx() }
+    // dragPx — сколько протянул палец; панель едет не за ним, а через «магнит» [magnetPx]:
+    // до порога её держит (идёт втрое медленнее пальца), за порогом отпускает с щелчком.
     var dragPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var heightPx by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    val haptic = com.texfi.w0y.ui.components.rememberHaptics()
+    var pastMagnet by remember { mutableStateOf(false) }
+    val magnet = LocalSheetMagnet.current
+    val sheetPx = if (magnet) magnetPx(dragPx, dismissAt) else dragPx
+    androidx.compose.runtime.SideEffect {
+        val past = dragPx > dismissAt
+        if (magnet && past != pastMagnet) {
+            pastMagnet = past
+            haptic(if (past) com.texfi.w0y.ui.components.Buzz.TAP else com.texfi.w0y.ui.components.Buzz.OFF)
+        }
+    }
     // Сброс смещения — только когда панель уже уехала: иначе она на миг «прыгала» обратно вверх перед закрытием.
     androidx.compose.runtime.LaunchedEffect(visible) {
         if (visible) {
@@ -223,7 +238,7 @@ fun HairSheetFrame(
     val shown by androidx.compose.animation.core.animateFloatAsState(if (visible) 1f else 0f, hairSpec(), label = "sheetDim")
     val dim = LocalModalDim.current
     val dimKey = remember { Any() }
-    val dimAlpha = 0.55f * shown * (1f - (dragPx / heightPx).coerceIn(0f, 1f))
+    val dimAlpha = 0.55f * shown * (1f - (sheetPx / heightPx).coerceIn(0f, 1f))
     androidx.compose.runtime.SideEffect {
         if (dim != null) {
             if (dimAlpha > 0.001f) {
@@ -248,13 +263,22 @@ fun HairSheetFrame(
     }
     fun settle(velocityY: Float = 0f) {
         if (dragPx > dismissAt || velocityY > 1600f) {
-            // Смахнули: панель доезжает вниз той же рукой, а не пропадает рывком.
+            // Сорвали с магнита: панель доезжает вниз той же рукой, а не пропадает рывком.
             scope.launch {
-                androidx.compose.animation.core.animate(dragPx, heightPx, initialVelocity = velocityY.coerceAtLeast(0f), animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { v, _ -> dragPx = v }
+                val target = heightPx + dismissAt
+                androidx.compose.animation.core.animate(dragPx.coerceAtLeast(dismissAt), target, initialVelocity = velocityY.coerceAtLeast(0f), animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { v, _ -> dragPx = v }
                 currentDismiss()
             }
         } else {
-            scope.launch { androidx.compose.animation.core.animate(dragPx, 0f) { v, _ -> dragPx = v } }
+            // Не дотянули: магнит возвращает панель на место с лёгкой отдачей.
+            scope.launch {
+                androidx.compose.animation.core.animate(
+                    dragPx,
+                    0f,
+                    initialVelocity = velocityY,
+                    animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 700f),
+                ) { v, _ -> dragPx = v }
+            }
         }
     }
     val connection =
@@ -276,7 +300,8 @@ fun HairSheetFrame(
                     source: androidx.compose.ui.input.nestedscroll.NestedScrollSource,
                 ): androidx.compose.ui.geometry.Offset {
                     // Список уже наверху: оставшаяся тяга вниз двигает панель и дальше не уходит.
-                    if (available.y > 0f) {
+                    // Бросок списка (не палец) панель не тянет — иначе она дёргалась бы в конце прокрутки.
+                    if (available.y > 0f && source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) {
                         dragPx += available.y
                         return androidx.compose.ui.geometry.Offset(0f, available.y)
                     }
@@ -294,12 +319,14 @@ fun HairSheetFrame(
                     available
             }
         }
+    val moves = look.motion.moves
+    val bottomInset = com.texfi.w0y.ui.components.LocalBottomInset.current
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible = visible, enter = fadeIn(hairSpec()), exit = fadeOut(hairSpec())) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f * (1f - (dragPx / heightPx).coerceIn(0f, 1f))))
+                    .background(Color.Black.copy(alpha = 0.55f * (1f - (sheetPx / heightPx).coerceIn(0f, 1f))))
                     .testTag("panel-scrim")
                     .pointerInput(Unit) {
                         var drag = 0f
@@ -312,17 +339,43 @@ fun HairSheetFrame(
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
             )
         }
+        // Появление: панель поднимается на пружине и одновременно «раскрывается» из чуть меньшей
+        // карточки; содержимое догоняет её на полшага позже. Уход — быстрее и без пружины.
         AnimatedVisibility(
             visible = visible,
             modifier = Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(hairSpec<IntOffset>()) { it },
-            exit = slideOutVertically(hairSpec<IntOffset>()) { it },
+            enter =
+                if (moves) {
+                    slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.86f, stiffness = 420f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it / 2 } +
+                        androidx.compose.animation.scaleIn(
+                            androidx.compose.animation.core.spring(dampingRatio = 0.86f, stiffness = 420f),
+                            initialScale = 0.9f,
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f),
+                        ) +
+                        fadeIn(hairSpec(HairTokens.SHORT_MS))
+                } else {
+                    fadeIn(hairSpec())
+                },
+            exit =
+                if (moves) {
+                    slideOutVertically(hairSpec<IntOffset>(HairTokens.MID_MS)) { it } + fadeOut(hairSpec(HairTokens.MID_MS))
+                } else {
+                    fadeOut(hairSpec())
+                },
         ) {
             val island = com.texfi.w0y.ui.theme.isIsland
             val shape = RoundedCornerShape(topStart = if (island) 26.dp else 18.dp, topEnd = if (island) 26.dp else 18.dp)
+            // Содержимое въезжает следом за листом: снизу на 18 dp и из прозрачности.
+            val inner = remember { androidx.compose.animation.core.Animatable(if (moves) 0f else 1f) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (inner.value < 1f) {
+                    kotlinx.coroutines.delay(70)
+                    inner.animateTo(1f, androidx.compose.animation.core.tween(HairTokens.MID_MS, easing = HairTokens.EaseOut))
+                }
+            }
             Column(
                 Modifier
-                    .offset { IntOffset(0, dragPx.toInt()) }
+                    .offset { IntOffset(0, sheetPx.toInt()) }
                     .onSizeChanged { heightPx = it.height.toFloat().coerceAtLeast(1f) }
                     .nestedScroll(connection)
                     .fillMaxWidth()
@@ -336,7 +389,9 @@ fun HairSheetFrame(
                         },
                     )
                     .testTag("panel")
-                    .navigationBarsPadding(),
+                    // Во вкладках низ экрана занят островом: содержимое панели кончается над ним,
+                    // а сама панель уходит под затемнённый остров. В плеере острова нет — только жестовая полоса.
+                    .then(if (bottomInset > 0.dp) Modifier.padding(bottom = bottomInset) else Modifier.navigationBarsPadding()),
             ) {
                 Box(
                     Modifier
@@ -354,12 +409,37 @@ fun HairSheetFrame(
                         .clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.width(36.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.outline))
+                    // Ручка тянется вслед за пальцем, пока панель держит магнит, — видно, что её держат.
+                    val stretch = (dragPx / dismissAt).coerceIn(0f, 1f)
+                    Box(Modifier.width(36.dp + 20.dp * stretch).height(4.dp).clip(RoundedCornerShape(2.dp)).background(if (pastMagnet) colors.text.copy(alpha = 0.6f) else colors.outline))
                 }
-                content()
+                Column(
+                    Modifier.graphicsLayer {
+                        alpha = inner.value
+                        translationY = (1f - inner.value) * 18.dp.toPx()
+                    },
+                ) { content() }
             }
         }
     }
+}
+
+/** Магнит нижних панелей включён (Настройки → Вид); выключен — панель едет за пальцем. */
+val LocalSheetMagnet = androidx.compose.runtime.compositionLocalOf { true }
+
+/**
+ * «Магнит» нижних панелей: до [threshold] панель идёт за пальцем втрое медленнее — её держит;
+ * за порогом отрывается и дальше едет вровень с пальцем, догнав его плавно, без скачка.
+ */
+internal fun magnetPx(drag: Float, threshold: Float): Float {
+    if (drag <= 0f) return 0f
+    val held = threshold * 0.32f
+    if (drag <= threshold) {
+        // Сопротивление растёт к порогу: мягкая кривая, а не постоянный коэффициент.
+        val t = drag / threshold
+        return held * (1f - (1f - t) * (1f - t))
+    }
+    return held + (drag - threshold) * 1.35f
 }
 
 /**

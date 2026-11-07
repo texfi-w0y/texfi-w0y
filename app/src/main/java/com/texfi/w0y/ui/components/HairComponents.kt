@@ -302,9 +302,11 @@ internal fun HairSegmented(
 fun IslandSegmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalW0yColors.current
     val look = hairLook
-    val pos = remember { androidx.compose.animation.core.Animatable(selected.toFloat()) }
+    val pos = remember { androidx.compose.animation.core.Animatable(selected.coerceAtLeast(0).toFloat()) }
     androidx.compose.runtime.LaunchedEffect(selected) {
-        if (look.motion.moves) pos.animateTo(selected.toFloat(), androidx.compose.animation.core.tween(140, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut)) else pos.snapTo(selected.toFloat())
+        if (selected < 0) return@LaunchedEffect
+        // Из «ничего не выбрано» капсула встаёт сразу на место, не выезжая из-за края.
+        if (look.motion.moves && pos.value >= 0f) pos.animateTo(selected.toFloat(), androidx.compose.animation.core.tween(140, easing = com.texfi.w0y.ui.theme.HairTokens.EaseOut)) else pos.snapTo(selected.toFloat())
     }
     val pill = colors.text.copy(alpha = 0.1f)
     val tap = rememberTapHaptic()
@@ -315,6 +317,8 @@ fun IslandSegmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit
             .border(1.dp, colors.text.copy(alpha = 0.12f), RoundedCornerShape(50))
             .padding(3.dp)
             .drawBehind {
+                // Ничего не выбрано (−1: звук подкручен руками) — капсулы нет, а не капсула за краем.
+                if (selected < 0) return@drawBehind
                 val slot = size.width / labels.size.coerceAtLeast(1)
                 drawRoundRect(
                     pill,
