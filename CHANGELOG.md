@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.4 beta-3 — hairline-new-beta
+
+A new optional look for Android, Hairline New (beta): matte islands with blur and grain,
+Geologica and IBM Plex Mono, a poster player whose background flows with the cover,
+full-screen lyrics, and reworked Home, Search, Yours and Settings. After the update the app
+asks once whether to try it or keep the current style. Details in the
+[release notes](docs/RELEASE_NOTES.md).
+
 ## v0.0.4 beta-2 — Bug fixed
 
 Android clean-up after beta-1: stray "&" in track subtitles, feeds switching to

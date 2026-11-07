@@ -1,58 +1,43 @@
-# Bug fixed — v0.0.4 beta-2
+# hairline-new-beta — v0.0.4 beta-3
 
-A clean-up release for Android: the rough spots from beta-1 are fixed, the Hairline
-look is calmer (no glow anywhere), and a few screens that felt unfinished are redone.
-The computer version is the same as in beta-1.
+A new look for Android, as a beta: **Hairline New**. It sits next to Hairline, Pixel and
+Smooth and does not replace anything. After the update the app asks once whether you want
+to try it or keep your current style. You can switch either way at any time in
+Settings → Look → Style; all other settings stay as they are.
+The computer version is the same as in beta-2.
 
-## Fixed
+## Hairline New (beta)
 
-- **Stray `&` and `,` in track subtitles.** With several artists, the separator ended
-  up where the album should be ("Aarne & BUSHIDO ZHO · &"). Old entries in History and
-  Likes no longer show it either.
-- **Home feeds in English.** One failed request used to switch every YouTube feed to
-  English until the app was restarted ("Listen again" in a Russian interface). The app
-  language now stays.
-- **Dates in Stats** follow the app language instead of the phone's.
-- **Search** shows one arrow before "Recent", not two.
-- **Playlist tiles** get a short subtitle (Own / On YouTube / Read-only) instead of a cut-off one.
-- **The Stats tile** on Yours counts plays together with History, so it no longer lags by one.
-- **Queue and Similar:** the panel outline no longer breaks off at the bottom, the list fades
-  out at the edge, and the tab underline stretches as it moves.
-- **The cover flies into the mini player** also when the visualizer is on.
-- **Poster layout:** the cover fades into a soft blur instead of a hard edge.
-- **Player title** fades out at both edges while it scrolls instead of being cut.
-- **Visualizers:** Terrain no longer draws a dark box over the cover, Lines keeps margins.
-- **Settings:** descriptions take two lines and can be read in full, the active tab is
-  centred and the tab strip fades at its edges, Stand rows no longer repeat "Stand:".
-- **Home:** sections are numbered in order, a "For you" section holds your own picks, and
-  cards no longer repeat the row title under every track; the two pumpkins in the header are gone.
+- **Matte islands.** Panels, buttons and the bottom island are semi-transparent with a
+  soft blur of what is underneath, a fine grain and a thin edge — no glow.
+- **New type.** Geologica for titles and text, IBM Plex Mono for small labels.
+  A dotted background instead of the line grid.
+- **Home:** "w0y" header with a settings gear, Quick dial as one matte panel with cells
+  split by thin lines, page counter under it.
+- **Poster player:** the background flows slowly with the colours of the cover while
+  the track plays and stops on pause. Track number and album above the title, a tick
+  ruler for seeking (it magnifies under the finger), speed and pitch under it, Lyrics /
+  Queue / Similar tabs at the bottom. The title stays on one line and only scrolls when
+  it does not fit.
+- **Lyrics:** full screen over the blurred cover, big lines on the left, the current one
+  white with an accent bar, "Aa" switches the text size, the source is shown above a
+  matte bar with play/pause, the ruler and the time.
+- **Search:** filters as pills, the top artist as a "Top result" card, numbered sections,
+  and an "In library" mark on tracks you already have.
+- **Yours:** likes, playlists and listening time for the week at the top, the library as
+  one matte grid, Stats with bars for each day of the week, playlists as rows. The
+  account opens from the avatar.
+- **Settings:** a search field that is always there, numbered groups in matte blocks,
+  speed and pitch picked with a ruler.
 
-## New
+This is a beta: some screens may still look rough. Reports and screenshots are welcome
+in [issues](https://github.com/texfi-w0y/texfi-w0y/issues).
 
-- **Only the new launch screen.** The old system splash with the pixel feather is gone.
-- **Seasonal effects:** small, slow snow in winter and a quiet Halloween (embers, a bat,
-  a pair of eyes) behind the screens. Off / Light / Full in Settings → View. Light draws
-  fewer particles and every other frame; the effect pauses while the player is open.
-- **Three visualizers:** Pulse, Horizon and Dots — lines and dots only.
-- **Lyrics without the player:** hide the player and read the whole text; a thin bar keeps
-  progress, time and play/pause.
-- **Welcome after signing in:** a ring draws around your avatar, then your playlists, likes
-  and albums count up as they arrive. "Continue" works right away.
-- **Downloads:** tracks, megabytes and queue as three numbers, the folder as one row,
-  "Where downloads live" opens on tap, groups for failed and downloaded.
-- **My files:** count and minutes on top, a progress line while adding, an empty state you
-  tap to add files. The file editor has a large cover, underlined fields and Delete kept apart.
-- **History** is grouped by day — Today, Yesterday, then the date — with the time each track played.
+## Also
 
-## Changed
+- Lyrics remember where they came from (LRCLIB, NetEase, lyrics.ovh, Genius).
 
-- **Bottom bar:** no glow and no breathing; the track progress is a thin accent line along
-  the top edge instead of a white outline. The "Bottom bar glow" setting is removed.
-- **Cover glow in the player** is now off by default (Settings → View).
+## Install
 
-## Files
-
-- `TexFi-w0y-android.apk` — Android 8.0 and newer.
-- `w0y-windows-x64-setup.exe`, a portable zip, `w0y-linux-x86_64.AppImage` and `.tar.gz` —
-  the computer version, unchanged since beta-1.
-- `SHA256SUMS.txt` — checksums.
+**Android 8.0 or newer.** Download `TexFi-w0y-android.apk` below, or update from the app
+(Settings → App). Checksums are in `SHA256SUMS.txt`.
