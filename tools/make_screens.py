@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "docs/screenshots/raw"
 OUT = ROOT / "docs/screenshots"
-LABEL = "W0Y  ·  V0.0.3 BETA-1  ·  HAIRLINE"
+LABEL = "w0y v0.0.4 beta-4, Hairline New"
 
 BG = (10, 9, 12)
 BLUE = (74, 124, 251)

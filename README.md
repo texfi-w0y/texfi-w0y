@@ -1,24 +1,24 @@
 <p align="center">
   <img alt="version" src="https://img.shields.io/badge/version-v0.0.4%20beta--4-4a7cfb?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-e0a860?style=flat-square">
-  <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%20%C2%B7%20Windows%20%C2%B7%20Linux-4a7cfb?style=flat-square">
+  <img alt="platform" src="https://img.shields.io/badge/platform-Android%208%2B%2C%20Windows%2C%20Linux-4a7cfb?style=flat-square">
 </p>
 
 # w0y
 
-**Fast, adjustable, and yours.** An open client for YouTube Music: it starts
-tracks quickly, has a lot of settings, shows no ads of its own and sends no
-telemetry anywhere. You can sign in to your own account to get your library,
-playlists and likes.
+An open client for YouTube Music. It starts tracks quickly, has a lot of
+settings, shows no ads of its own and sends no telemetry anywhere. You can sign
+in to your own account to get your library, playlists and likes.
 
-Part of the [TexFi](https://texfi-hub.vercel.app) family. The default look
-is **Hairline**: thin lines, sharp corners, one hero per screen, a floating
-bottom dock. The older Pixel and Smooth looks are still in Settings → Look.
+Part of the [TexFi](https://texfi-hub.vercel.app) family. The newest look is
+**Hairline New**: frosted islands over a dotted backdrop, and a poster player
+whose background flows with the colours of the cover. Hairline, Pixel and
+Smooth are still in Settings → Look.
 
 ## Screenshots
 
 <!-- screenshots:start -->
-[![w0y screenshots: home, search, library, player, sound, look, about](docs/screenshots/w0y-screens-small.webp)](docs/screenshots/w0y-screens.png)
+[![w0y screenshots: home, player, sound, search, track menu, yours, settings](docs/screenshots/w0y-screens-small.webp)](docs/screenshots/w0y-screens.png)
 <!-- screenshots:end -->
 
 ## Features
@@ -112,9 +112,9 @@ Russian, English, Ukrainian and Polish.
 
 ### Desktop hotkeys
 
-`Space` play/pause · `←`/`→` seek · `Ctrl+←`/`Ctrl+→` previous/next · `↑`/`↓` volume ·
-`M` mute · `/` or `Ctrl+K` search · `1`–`5` tabs · `Q` player · `Y` lyrics ·
-`B` Stand mode · `Ctrl+M` mini player · `F11` full screen · `Esc` back · `?` the full
+`Space` play/pause, `←`/`→` seek, `Ctrl+←`/`Ctrl+→` previous/next, `↑`/`↓` volume,
+`M` mute, `/` or `Ctrl+K` search, `1`–`5` tabs, `Q` player, `Y` lyrics,
+`B` Stand mode, `Ctrl+M` mini player, `F11` full screen, `Esc` back, `?` the full
 list (rebind in Settings → App). Right click on a track opens its menu; `Ctrl`/`Shift`
 select several; double click plays. The media keys of the keyboard work too.
 
