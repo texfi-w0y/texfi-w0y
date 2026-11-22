@@ -179,7 +179,9 @@ private fun RollingNumber(value: Int, style: TextStyle, color: androidx.compose.
 @Composable
 private fun megabytes(done: Long, total: Long): String {
     val mb = androidx.compose.ui.res.stringResource(com.texfi.w0y.R.string.update_mb)
-    return "%.1f / %.1f %s".format(java.util.Locale.getDefault(), done / MB, total / MB, mb)
+    // Язык — из конфигурации: сменят язык телефона, и строка перерисуется вместе с ним.
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return "%.1f / %.1f %s".format(locale, done / MB, total / MB, mb)
 }
 
 private const val MB = 1_048_576.0
