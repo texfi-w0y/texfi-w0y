@@ -1,6 +1,8 @@
 package com.texfi.w0y.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,10 +85,14 @@ fun ArtistScreen(
     val isPinned = PinEntity.key(PinEntity.KIND_ARTIST, route.browseId) in pinned
 
     val island = com.texfi.w0y.ui.theme.isIsland
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .screenBackground(),
+        state = listState,
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .screenBackground()
+                .statusScrim(listState, island),
         contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(),
     ) {
         item {
@@ -330,7 +336,7 @@ private fun Hero(
  * над портретом: под ней видно размытое фото, а не плотный кружок.
  */
 @Composable
-private fun IslandArtistHero(
+internal fun IslandArtistHero(
     thumbnailUrl: String?,
     title: String,
     subtitle: String?,
@@ -339,13 +345,15 @@ private fun IslandArtistHero(
     val colors = LocalW0yColors.current
     val blurs = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
     val backdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
+    // Портрет идёт под строку состояния до самого верха экрана; высоту под неё добавляем.
+    val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Box(
         Modifier
             .fillMaxWidth()
-            .height(ISLAND_HERO),
+            .height(ISLAND_HERO + statusTop),
     ) {
-        // Края тают в прозрачное, а не в цвет фона: под шапкой может быть фото или точки.
-        Box(Modifier.matchParentSize().softEdges(top = 0.05f, bottom = 0.3f).screenBackdrop(backdrop)) {
+        // Низ тает в прозрачное, а не в цвет фона: под шапкой может быть фото или точки. Верх не тает.
+        Box(Modifier.matchParentSize().softEdges(top = 0f, bottom = 0.3f).screenBackdrop(backdrop)) {
             if (blurs) {
                 CoverImage(url = thumbnailUrl, px = Thumbnails.HERO, corner = 0, modifier = Modifier.fillMaxSize().blur(28.dp))
             }
@@ -362,10 +370,10 @@ private fun IslandArtistHero(
                             if (blurs) drawRect(Brush.verticalGradient(*smoothFade(0.4f, 0.8f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
                         },
             )
-            // Лёгкая тень под строкой состояния: часы и значки читаются на светлом портрете.
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.28f), 0.2f to Color.Transparent)))
+            // Лёгкая тень только под самой строкой состояния: часы читаются на светлом портрете.
+            Box(Modifier.fillMaxWidth().height(statusTop + 24.dp).background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.22f), 1f to Color.Transparent)))
         }
-        Box(Modifier.padding(start = 18.dp, top = 8.dp)) {
+        Box(Modifier.padding(start = 18.dp, top = statusTop + 8.dp)) {
             HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, backdrop)
         }
         Column(

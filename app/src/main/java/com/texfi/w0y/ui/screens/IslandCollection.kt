@@ -3,6 +3,8 @@ package com.texfi.w0y.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -90,7 +94,9 @@ internal fun IslandCollectionHero(
     Box(Modifier.fillMaxWidth()) {
         // Цвет обложки только за верхней частью. Края тают в прозрачное, а не в цвет фона: под
         // шапкой может лежать фото или точки, и полоса цвета фона легла бы на них прямоугольником.
-        Box(Modifier.fillMaxWidth().height(HERO_FLOW).softEdges(top = 0.06f, bottom = 0.4f)) {
+        // До самого верха экрана, под строку состояния: сверху не тает, иначе там снова тёмная полоса.
+        val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        Box(Modifier.fillMaxWidth().height(HERO_FLOW + statusTop).softEdges(top = 0f, bottom = 0.4f)) {
             IslandFlowBackdrop(flowUrl, playing = true, modifier = Modifier.fillMaxSize())
         }
         Column(
@@ -238,3 +244,32 @@ private val HERO_FLOW = 300.dp
 
 /** Отступ строк списка под шапкой Hairline New: шапка во всю ширину, строки — с полями. */
 internal val IslandListGutter = 18.dp
+
+/**
+ * Страница с шапкой до самого верха (артист, плейлист): пока шапка видна, строка состояния
+ * лежит прямо на обложке. Шапка уехала — под часами проявляется фон, и строки списка не лезут
+ * под значки. [enabled] — только там, где страница правда идёт под строку состояния.
+ */
+@Composable
+internal fun Modifier.statusScrim(list: androidx.compose.foundation.lazy.LazyListState, enabled: Boolean): Modifier {
+    if (!enabled) return this
+    val colors = com.texfi.w0y.ui.theme.LocalW0yColors.current
+    val statusTop = WindowInsets.statusBars.getTop(androidx.compose.ui.platform.LocalDensity.current).toFloat()
+    val shown by androidx.compose.runtime.remember(list) { androidx.compose.runtime.derivedStateOf { list.firstVisibleItemIndex > 0 } }
+    val a by androidx.compose.animation.core.animateFloatAsState(if (shown) 1f else 0f, com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "statusScrim")
+    return drawWithContent {
+        drawContent()
+        if (a > 0f && statusTop > 0f) {
+            val h = statusTop + 20.dp.toPx()
+            drawRect(
+                Brush.verticalGradient(
+                    0f to colors.background.copy(alpha = 0.94f * a),
+                    statusTop / h to colors.background.copy(alpha = 0.8f * a),
+                    1f to Color.Transparent,
+                    endY = h,
+                ),
+                size = androidx.compose.ui.geometry.Size(size.width, h),
+            )
+        }
+    }
+}

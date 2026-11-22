@@ -413,13 +413,14 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         Box(
             Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
+                // Строку состояния каждый слой отступает сам: шапки артиста и плейлиста в Hairline New
+                // заходят под неё до самого верха экрана, остальные экраны начинаются ниже, как раньше.
                 .padding(bottom = if (cutBars) barsHeight else 0.dp),
         ) {
             CompositionLocalProvider(com.texfi.w0y.ui.components.LocalBottomInset provides if (cutBars) 0.dp else barsHeight, com.texfi.w0y.ui.components.LocalCutBottom provides if (cutBars) barsHeight else 0.dp) {
                 // Смена вкладки — спокойное ступенчатое проявление: экран стоит
                 // на месте с первого кадра, без ожидания и без цветных блоков.
-                Box(Modifier.fillMaxSize().softEnter(tab)) {
+                Box(Modifier.fillMaxSize().softEnter(tab).then(if (tab == Tab.LIBRARY) Modifier else Modifier.statusBarsPadding())) {
                 when (tab) {
                     Tab.HOME ->
                         HomeScreen(
@@ -706,7 +707,9 @@ private fun BrowseOverlay(visible: Boolean, route: BrowseRoute?, onBack: () -> U
         Box(
             Modifier
                 .fillMaxSize()
-                .screenBackground(),
+                .screenBackground()
+                // Артист в Hairline New — портрет до самого верха; альбом и прочие стили — ниже строки состояния.
+                .then(if (route is BrowseRoute.Artist && com.texfi.w0y.ui.theme.isIsland) Modifier else Modifier.statusBarsPadding()),
         ) {
             when (route) {
                 is BrowseRoute.Artist -> ArtistScreen(route = route, onBack = onBack)
@@ -727,6 +730,9 @@ private fun SettingsLayer(visible: Boolean, onClose: () -> Unit, onOpenLogin: ()
         enter = slideInVertically(tween(W0yMotion.MID_MS, easing = W0yMotion.StepBack)) { it / 3 },
         exit = slideOutVertically(tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)) { it / 3 },
     ) {
-        SettingsScreen(onClose = onClose, onOpenLogin = onOpenLogin)
+        // Фон под строкой состояния тоже свой: иначе там просвечивал бы экран под настройками.
+        Box(Modifier.fillMaxSize().screenBackground()) {
+            Box(Modifier.statusBarsPadding()) { SettingsScreen(onClose = onClose, onOpenLogin = onOpenLogin) }
+        }
     }
 }

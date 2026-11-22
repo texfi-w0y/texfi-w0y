@@ -21,6 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import com.texfi.w0y.ui.components.hairSurface
 import com.texfi.w0y.ui.theme.asLabel
@@ -88,6 +89,16 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val route by viewModel.route.collectAsStateWithLifecycle()
+    val libPrefs by viewModel.prefs.collectAsStateWithLifecycle()
+    // Плейлист в Hairline New: шапка с обложкой идёт под строку состояния до самого верха, отступ у неё свой.
+    val fullBleed = com.texfi.w0y.ui.theme.isIsland && libPrefs.playlistHero && (route is LibraryRoute.Local || route is LibraryRoute.Remote)
+    Box(Modifier.fillMaxSize().then(if (fullBleed) Modifier else Modifier.statusBarsPadding())) {
+    LibraryLayer(route, onOpenLogin, viewModel)
+    }
+}
+
+@Composable
+private fun LibraryLayer(route: LibraryRoute, onOpenLogin: () -> Unit, viewModel: LibraryViewModel) {
     when (val current = route) {
         LibraryRoute.Root -> if (com.texfi.w0y.ui.theme.isHair) HairLibraryRoot(viewModel, onOpenLogin) else LibraryRoot(viewModel, onOpenLogin)
         is LibraryRoute.Local -> LocalPlaylist(current.playlistId, viewModel)
@@ -911,7 +922,7 @@ private fun LocalPlaylist(playlistId: Long, viewModel: LibraryViewModel) {
                 val b = order.indexOfFirst { it.id == to }
                 if (a >= 0 && b >= 0) order = order.toMutableList().apply { add(b, removeAt(a)) }
             }
-        LazyColumn(state = listState, contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
+        LazyColumn(state = listState, modifier = Modifier.statusScrim(listState, island), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
             item(key = "header") {
                 val owner = if (entry?.remoteId != null) accountName ?: stringResource(R.string.library_own_playlist) else stringResource(R.string.library_own_playlist)
                 if (island) {
@@ -1049,7 +1060,8 @@ private fun RemotePlaylist(route: LibraryRoute.Remote, viewModel: LibraryViewMod
             Text(stringResource(R.string.playlist_loading), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
             return
         }
-        LazyColumn(contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
+        val remoteList = rememberLazyListState()
+        LazyColumn(state = remoteList, modifier = Modifier.statusScrim(remoteList, island), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding()) {
             item(key = "header") {
                 if (island) {
                     IslandCollectionHero(
