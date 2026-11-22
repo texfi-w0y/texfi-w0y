@@ -31,9 +31,11 @@ fun Modifier.pressScale(
     pressed: Float = 0.92f,
 ): Modifier {
     val isPressed by interaction.collectIsPressedAsState()
+    // Hairline: отпущенное возвращается пружиной с коротким перелётом — как оторвалось от магнита.
+    val springBack = com.texfi.w0y.ui.theme.isHair && com.texfi.w0y.ui.theme.hairLook.motion.moves
     val scale by animateFloatAsState(
         targetValue = if (isPressed) pressed else 1f,
-        animationSpec = tween(PRESS_MS, easing = W0yMotion.Press),
+        animationSpec = if (!isPressed && springBack) spring(dampingRatio = 0.45f, stiffness = 900f) else tween(PRESS_MS, easing = W0yMotion.Press),
         label = "press",
     )
     return graphicsLayer {

@@ -223,6 +223,8 @@ private fun DockNav(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val head = remember { Animatable(selected.toFloat()) }
     val tail = remember { Animatable(selected.toFloat()) }
+    // Пока палец ведёт по острову, линия идёт за ним сама — пружина выбора её не перебивает.
+    val dragging = remember { booleanArrayOf(false) }
     // Перелёт: пружина с малым демпфированием, передний край упруго проскакивает.
     val headSpec: AnimationSpec<Float> =
         when (look.motion) {
@@ -237,7 +239,7 @@ private fun DockNav(
             MotionLevel.OFF -> snap()
         }
     LaunchedEffect(selected) {
-        scope.launch { head.animateTo(selected.toFloat(), headSpec) }
+        if (!dragging[0]) scope.launch { head.animateTo(selected.toFloat(), headSpec) }
         scope.launch { tail.animateTo(selected.toFloat(), tailSpec) }
     }
     val tick = rememberTapHaptic()
@@ -269,9 +271,34 @@ private fun DockNav(
                         select(index)
                     }
                 }
-                detectHorizontalDragGestures(onDragStart = { last = currentSelected; moveTo(it.x) }) { change, _ ->
+                // Магнит: линия едет за пальцем, но у каждого пункта «прилипает» к его середине и
+                // перескакивает к соседнему только ближе к границе. Отпустил — садится пружиной.
+                val follows = look.motion == MotionLevel.FULL
+                fun follow(x: Float) {
+                    if (!follows) return
+                    val at = (x / (size.width.toFloat() / items.size) - 0.5f).coerceIn(0f, items.lastIndex.toFloat())
+                    val near = kotlin.math.round(at)
+                    val d = at - near
+                    scope.launch { head.snapTo(near + 4f * d * d * d) }
+                }
+                fun release() {
+                    dragging[0] = false
+                    scope.launch { head.animateTo(currentSelected.toFloat(), headSpec) }
+                    scope.launch { tail.animateTo(currentSelected.toFloat(), tailSpec) }
+                }
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        dragging[0] = follows
+                        last = currentSelected
+                        moveTo(it.x)
+                        follow(it.x)
+                    },
+                    onDragEnd = { release() },
+                    onDragCancel = { release() },
+                ) { change, _ ->
                     change.consume()
                     moveTo(change.position.x)
+                    follow(change.position.x)
                 }
             },
         horizontalArrangement = Arrangement.SpaceEvenly,

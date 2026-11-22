@@ -2,6 +2,8 @@ package com.texfi.w0y.ui.screens
 
 import androidx.compose.ui.draw.drawBehind
 
+import com.texfi.w0y.ui.components.LocalSheetMagnet
+import com.texfi.w0y.ui.components.magnetPx
 import com.texfi.w0y.ui.theme.matte
 
 import androidx.activity.compose.BackHandler
@@ -422,24 +424,6 @@ fun HairSheetFrame(
             }
         }
     }
-}
-
-/** Магнит нижних панелей включён (Настройки → Вид); выключен — панель едет за пальцем. */
-val LocalSheetMagnet = androidx.compose.runtime.compositionLocalOf { true }
-
-/**
- * «Магнит» нижних панелей: до [threshold] панель идёт за пальцем втрое медленнее — её держит;
- * за порогом отрывается и дальше едет вровень с пальцем, догнав его плавно, без скачка.
- */
-internal fun magnetPx(drag: Float, threshold: Float): Float {
-    if (drag <= 0f) return 0f
-    val held = threshold * 0.32f
-    if (drag <= threshold) {
-        // Сопротивление растёт к порогу: мягкая кривая, а не постоянный коэффициент.
-        val t = drag / threshold
-        return held * (1f - (1f - t) * (1f - t))
-    }
-    return held + (drag - threshold) * 1.35f
 }
 
 /**

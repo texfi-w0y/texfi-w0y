@@ -221,7 +221,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     CompositionLocalProvider(
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
-        com.texfi.w0y.ui.screens.LocalSheetMagnet provides (shellPrefs?.sheetMagnet ?: true),
+        com.texfi.w0y.ui.components.LocalSheetMagnet provides (shellPrefs?.sheetMagnet ?: true),
         LocalDownloadProgress provides downloadProgress,
         LocalBrowseNavigator provides navigator,
         LocalCompactRows provides (compactRows || com.texfi.w0y.ui.theme.hairLook.compact),

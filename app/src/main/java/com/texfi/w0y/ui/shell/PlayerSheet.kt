@@ -39,6 +39,9 @@ private val OpenSpring = tween<Float>(W0yMotion.SLOW_MS, easing = W0yMotion.Step
 private val CloseSpring = tween<Float>(W0yMotion.FAST_MS, easing = W0yMotion.StepWide)
 
 /** Hairline: плавная пружина вместо ступеней — шторка тянется за пальцем и мягко садится. */
+/** Порог магнита шторки: как у нижних панелей. */
+private val MAGNET_AT = 96.dp
+
 private val HairOpen = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.82f, stiffness = 260f)
 private val HairClose = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.92f, stiffness = 340f)
 
@@ -75,6 +78,28 @@ fun PlayerSheet(
     val expandedNow by androidx.compose.runtime.rememberUpdatedState(expanded)
 
     var settleTarget by remember { mutableFloatStateOf(-1f) }
+    // Магнит, как у нижних панелей: шторку держит, пока не протянешь [MAGNET_AT], там щелчок —
+    // и она отрывается. Тяга считается в «пальце», а на экране шторка стоит через [magnetPx].
+    val magnetOn by androidx.compose.runtime.rememberUpdatedState(com.texfi.w0y.ui.components.LocalSheetMagnet.current)
+    val magnetAt = with(androidx.compose.ui.platform.LocalDensity.current) { MAGNET_AT.toPx() }
+    val magnetHolder = remember { floatArrayOf(1f) }
+    magnetHolder[0] = magnetAt
+    val pastMagnet = remember { booleanArrayOf(false) }
+
+    /** Сколько протянуто пальцем — по тому, где шторка стоит сейчас. */
+    fun dragOf(shown: Float): Float = if (magnetOn) com.texfi.w0y.ui.components.magnetDrag(shown, magnetHolder[0]) else shown
+
+    /** Поставить шторку по протянутому пальцем; на пересечении порога — щелчок. */
+    fun pullTo(drag: Float) {
+        val travel = travelHolder[0]
+        val shown = if (magnetOn) com.texfi.w0y.ui.components.magnetPx(drag, magnetHolder[0]) else drag
+        val past = magnetOn && drag > magnetHolder[0]
+        if (past != pastMagnet[0]) {
+            pastMagnet[0] = past
+            haptic(if (past) com.texfi.w0y.ui.components.Buzz.TAP else com.texfi.w0y.ui.components.Buzz.OFF)
+        }
+        openness = 1f - (shown / travel).coerceIn(0f, 1f)
+    }
 
     fun settle(target: Float, velocityY: Float = 0f) {
         settleTarget = target
@@ -104,12 +129,13 @@ fun PlayerSheet(
             object : NestedScrollConnection {
                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                     if (source != NestedScrollSource.UserInput) return Offset.Zero
-                    val dragged = (1f - openness) * travelHolder[0]
-                    if (dragged > 0f && available.y < 0f) {
-                        val next = (dragged + available.y).coerceAtLeast(0f)
+                    val shown = (1f - openness) * travelHolder[0]
+                    if (shown > 0f && available.y < 0f) {
+                        val drag = dragOf(shown)
+                        val next = (drag + available.y).coerceAtLeast(0f)
                         job?.cancel()
-                        openness = 1f - next / travelHolder[0]
-                        return Offset(0f, next - dragged)
+                        pullTo(next)
+                        return Offset(0f, next - drag)
                     }
                     return Offset.Zero
                 }
@@ -117,15 +143,17 @@ fun PlayerSheet(
                 override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                     if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
                     job?.cancel()
-                    val next = ((1f - openness) * travelHolder[0] + available.y).coerceAtMost(travelHolder[0])
-                    openness = 1f - next / travelHolder[0]
+                    pullTo(dragOf((1f - openness) * travelHolder[0]) + available.y)
                     return Offset(0f, available.y)
                 }
 
                 override suspend fun onPreFling(available: Velocity): Velocity {
                     val dragged = 1f - openness
                     if (dragged <= 0f) return Velocity.Zero
-                    if (dragged > 0.22f || available.y > 1600f) {
+                    // С магнитом закрывает рывок за порог, без него — четверть пути; бросок закрывает всегда.
+                    val far = if (magnetOn) pastMagnet[0] else dragged > 0.22f
+                    pastMagnet[0] = false
+                    if (far || available.y > 1600f) {
                         onCollapse()
                         // Даже если плеер уже «закрыт» по состоянию — шторка садится вниз сама.
                         settle(0f, available.y)

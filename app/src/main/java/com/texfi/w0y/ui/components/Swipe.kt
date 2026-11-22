@@ -1,6 +1,7 @@
 package com.texfi.w0y.ui.components
 
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -55,41 +56,58 @@ fun SwipeRow(
     val thresholdPx = with(LocalDensity.current) { THRESHOLD.toPx() }
     var shift by remember { mutableFloatStateOf(0f) }
     var armed by remember { mutableFloatStateOf(0f) }
+    // Магнит: строка держится до порога и отрывается со щелчком; без него — едет за пальцем.
+    val magnet = LocalSheetMagnet.current
+    var pulled by remember { mutableFloatStateOf(0f) }
+    // Hairline: строка возвращается пружиной с лёгким перелётом, как отпущенная на магните.
+    val springBack = com.texfi.w0y.ui.theme.isHair && com.texfi.w0y.ui.theme.hairLook.motion.moves
+    val backSpec: androidx.compose.animation.core.AnimationSpec<Float> = if (springBack) spring(dampingRatio = 0.55f, stiffness = 700f) else tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)
 
     Box(
-        modifier.pointerInput(onSwipeRight, onSwipeLeft) {
+        modifier.pointerInput(onSwipeRight, onSwipeLeft, magnet) {
             detectHorizontalDragGestures(
-                onDragStart = { armed = 0f },
+                onDragStart = {
+                    armed = 0f
+                    // Подхватили на возврате — продолжаем оттуда, где строка стоит.
+                    pulled = if (magnet) magnetDrag(shift, thresholdPx) else shift / DRAG_RESISTANCE
+                },
                 onHorizontalDrag = { change, delta ->
-                    val next = shift + delta * DRAG_RESISTANCE
+                    val next = pulled + delta
                     val allowed =
                         when {
                             next > 0f && onSwipeRight == null -> 0f
                             next < 0f && onSwipeLeft == null -> 0f
-                            else -> next.coerceIn(-thresholdPx * MAX_PULL, thresholdPx * MAX_PULL)
+                            else -> next
                         }
-                    if (allowed != shift) change.consume()
-                    val crossed = abs(allowed) >= thresholdPx
-                    if (crossed && armed == 0f) haptic(Buzz.SELECT)
+                    val shown =
+                        (if (magnet) magnetPx(allowed, thresholdPx) else allowed * DRAG_RESISTANCE)
+                            .coerceIn(-thresholdPx * MAX_PULL, thresholdPx * MAX_PULL)
+                    if (shown != shift) change.consume()
+                    // С магнитом порог — по пальцу (там щелчок и отрыв), без него — по строке, как раньше.
+                    val crossed = abs(if (magnet) allowed else shown) >= thresholdPx
+                    if (crossed && armed == 0f) haptic(if (magnet) Buzz.TAP else Buzz.SELECT)
                     armed = if (crossed) 1f else 0f
-                    shift = allowed
+                    pulled = allowed
+                    shift = shown
                 },
                 onDragEnd = {
                     val from = shift
-                    val fire = abs(from) >= thresholdPx
+                    val fire = abs(if (magnet) pulled else from) >= thresholdPx
                     if (fire) {
-                        if (from > 0f) onSwipeRight?.invoke() else onSwipeLeft?.invoke()
+                        if (pulled > 0f) onSwipeRight?.invoke() else onSwipeLeft?.invoke()
                     }
+                    pulled = 0f
                     scope.launch {
-                        animate(from, 0f, animationSpec = tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)) { v, _ ->
+                        animate(from, 0f, animationSpec = backSpec) { v, _ ->
                             shift = v
                         }
                     }
                 },
                 onDragCancel = {
                     val from = shift
+                    pulled = 0f
                     scope.launch {
-                        animate(from, 0f, animationSpec = tween(W0yMotion.FAST_MS, easing = W0yMotion.Step)) { v, _ ->
+                        animate(from, 0f, animationSpec = backSpec) { v, _ ->
                             shift = v
                         }
                     }
