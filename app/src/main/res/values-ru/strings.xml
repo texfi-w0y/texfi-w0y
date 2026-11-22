@@ -1173,7 +1173,7 @@
     <string name="tour_flow_title">Поиск — вниз</string>
     <string name="tour_flow_text">Сверху съедет fl0w: выбери настроение и нажми «играть».</string>
     <string name="tour_player_title">Плеер — вниз</string>
-    <string name="tour_player_text">Он свернётся обратно в мини-плеер. На обложке: два касания — лайк, удержание — действия с треком.</string>
+    <string name="tour_player_text">Он свернётся обратно в мини-плеер. Удержание на обложке — действия с треком.</string>
     <string name="track_pin">Закрепить</string>
     <string name="track_pinned">Закреплён</string>
     <string name="track_downloaded">Скачан</string>

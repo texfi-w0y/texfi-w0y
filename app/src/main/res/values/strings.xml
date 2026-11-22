@@ -1174,7 +1174,7 @@
     <string name="tour_flow_title">Pull search down</string>
     <string name="tour_flow_text">fl0w comes down from the top: pick a mood and press play.</string>
     <string name="tour_player_title">Pull the player down</string>
-    <string name="tour_player_text">It folds back into the mini player. On the cover: double tap to like, hold for track actions.</string>
+    <string name="tour_player_text">It folds back into the mini player. Hold the cover for track actions.</string>
     <string name="track_pin">Pin</string>
     <string name="track_pinned">Pinned</string>
     <string name="track_downloaded">Downloaded</string>

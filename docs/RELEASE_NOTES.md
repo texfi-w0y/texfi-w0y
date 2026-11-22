@@ -20,7 +20,7 @@ style for new installs. The computer version is the same as in beta-2.
 - **Fewer things on screen.** The row of six icons under the progress line is gone. Pin,
   Add to playlist, Download, Share, Link, Sleep timer, Sound and Look now live in a Track
   panel: tap ⋯ at the top or hold the cover.
-- **Double tap the cover** to like or unlike a track.
+- **Tap the cover** and the visualizer shows up right away.
 - **Speed and pitch** appear under the progress line only when they are changed. A running
   sleep timer shows there too.
 

@@ -361,13 +361,11 @@ internal fun CoverPlayerPage(
     onSoundLine: () -> Unit = {},
     /** Слой поверх размытого фона, под всем остальным: волна fl0w. */
     underlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
-    /** Два касания по обложке — лайк; возвращает, стоит ли он теперь. null — жеста нет, одиночное касание без задержки. */
-    onCoverDoubleTap: (() -> Boolean)? = null,
-    /** Удержание на обложке — действия с треком. */
+    /** Удержание на обложке — действия с треком. Касание при этом срабатывает сразу, без ожидания. */
     onCoverLongPress: (() -> Unit)? = null,
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
-    val taps = rememberCoverTaps(onCoverDoubleTap, onCoverLongPress)
+    val taps = rememberCoverTaps(onCoverLongPress)
     if (poster) {
         PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine, underlay, taps)
         return
@@ -441,7 +439,6 @@ internal fun CoverPlayerPage(
                             },
                             label = "coverTrack",
                         ) { trackId -> androidx.compose.runtime.key(trackId) { Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } } }
-                        LikePop(taps, Modifier.align(Alignment.Center))
                     }
                 }
                 Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
@@ -500,9 +497,9 @@ private fun PosterPlayerPage(
         val density = androidx.compose.ui.platform.LocalDensity.current
         // Визуализатор крупно, по центру видимой части обложки: сверху почти под шапкой, снизу
         // ровно до зоны растворения, которая лежит под кнопками, — на управление он не заходит.
-        val stageTop by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 40.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageTop")
-        val stageBottom by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 104.dp else 0.dp, hairSpec(HairTokens.MID_MS), label = "posterStageBottom")
-        val coverAlpha by animateFloatAsState(if (visualizerOn) 0.28f else 1f, hairSpec(HairTokens.LONG_MS), label = "posterCoverDim")
+        val stageTop by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 40.dp else 0.dp, hairSpec(HairTokens.SHORT_MS), label = "posterStageTop")
+        val stageBottom by androidx.compose.animation.core.animateDpAsState(if (visualizerOn) 104.dp else 0.dp, hairSpec(HairTokens.SHORT_MS), label = "posterStageBottom")
+        val coverAlpha by animateFloatAsState(if (visualizerOn) 0.28f else 1f, hairSpec(HairTokens.MID_MS), label = "posterCoverDim")
         var lastSwipe by remember { mutableIntStateOf(1) }
         var controlsPx by remember { mutableIntStateOf(0) }
         val inSlide = hairSpec<androidx.compose.ui.unit.IntOffset>(HairTokens.LONG_MS)
@@ -612,8 +609,6 @@ private fun PosterPlayerPage(
                 
                     }
                 }
-                // Сердце от двух касаний — в видимой части постера, над зоной растворения.
-                LikePop(taps, Modifier.align(Alignment.Center).padding(bottom = fade))
                 // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.
                 Box(
                     Modifier
@@ -757,65 +752,23 @@ private fun IslandPosterControls(
     }
 }
 
-/** Жесты обложки помимо касания: два касания (лайк) и удержание (действия). [pop] растёт с каждым лайком. */
-internal class CoverTaps(
-    val double: androidx.compose.runtime.State<(() -> Boolean)?>,
-    val long: androidx.compose.runtime.State<(() -> Unit)?>,
-) {
-    var pop by androidx.compose.runtime.mutableIntStateOf(0)
-    var liked by androidx.compose.runtime.mutableStateOf(true)
-    val hasDouble get() = double.value != null
-}
+/** Удержание на обложке (действия с треком). Двойного касания нет: оно заставляло ждать одиночное. */
+internal class CoverTaps(val long: androidx.compose.runtime.State<(() -> Unit)?>)
 
 @Composable
-internal fun rememberCoverTaps(double: (() -> Boolean)?, long: (() -> Unit)?): CoverTaps {
-    val d = androidx.compose.runtime.rememberUpdatedState(double)
+internal fun rememberCoverTaps(long: (() -> Unit)?): CoverTaps {
     val l = androidx.compose.runtime.rememberUpdatedState(long)
-    return remember { CoverTaps(d, l) }
+    return remember { CoverTaps(l) }
 }
 
-/**
- * Касания обложки. Пока двойного касания нет, одиночное срабатывает сразу; с ним — после
- * короткого ожидания второго, как у любого «два касания — лайк».
- */
+/** Касание обложки срабатывает сразу, удержание — меню трека. */
 private fun Modifier.coverTaps(taps: CoverTaps, onTap: () -> Unit): Modifier =
-    pointerInput(taps.hasDouble) {
+    pointerInput(Unit) {
         detectTapGestures(
-            onDoubleTap = if (taps.hasDouble) ({ taps.double.value?.invoke()?.let { now -> taps.liked = now; taps.pop++ } }) else null,
             onLongPress = { taps.long.value?.invoke() },
             onTap = { onTap() },
         )
     }
-
-/**
- * Сердце после двух касаний: контур проявляется, чуть растёт и тает — 420 мс, без свечения.
- * Поставил лайк — сердце заполнено, снял — только контур.
- */
-@Composable
-private fun LikePop(taps: CoverTaps, modifier: Modifier = Modifier) {
-    val t = remember { Animatable(1f) }
-    LaunchedEffect(taps.pop) {
-        if (taps.pop == 0) return@LaunchedEffect
-        t.snapTo(0f)
-        t.animateTo(1f, tween(420, easing = LinearEasing))
-    }
-    if (t.value >= 1f) return
-    val colors = LocalW0yColors.current
-    val v = t.value
-    // Быстрый вход (первая треть), потом плавный уход.
-    val alpha = if (v < 0.3f) v / 0.3f else 1f - (v - 0.3f) / 0.7f
-    val scale = 0.7f + 0.3f * kotlin.math.min(1f, v / 0.3f) + 0.08f * kotlin.math.max(0f, v - 0.3f)
-    com.texfi.w0y.ui.icons.HairIcon(
-        com.texfi.w0y.ui.icons.HairGlyph.HEART,
-        colors.text,
-        modifier.size(84.dp).graphicsLayer {
-            this.alpha = alpha
-            scaleX = scale
-            scaleY = scale
-        },
-        fill = { if (taps.liked) 1f else 0f },
-    )
-}
 
 private const val SWIPE_PX = 120f
 

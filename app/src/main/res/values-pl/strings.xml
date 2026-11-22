@@ -1173,7 +1173,7 @@
     <string name="tour_flow_title">Wyszukiwanie w dół</string>
     <string name="tour_flow_text">Z góry zjedzie fl0w: wybierz nastrój i naciśnij „graj”.</string>
     <string name="tour_player_title">Odtwarzacz w dół</string>
-    <string name="tour_player_text">Zwinie się z powrotem do mini odtwarzacza. Na okładce: dwa stuknięcia to polubienie, przytrzymanie to akcje utworu.</string>
+    <string name="tour_player_text">Zwinie się z powrotem do mini odtwarzacza. Przytrzymaj okładkę, by zobaczyć akcje utworu.</string>
     <string name="track_pin">Przypnij</string>
     <string name="track_pinned">Przypięty</string>
     <string name="track_downloaded">Pobrany</string>

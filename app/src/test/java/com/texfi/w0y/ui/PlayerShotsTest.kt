@@ -11,7 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -64,7 +64,7 @@ class PlayerShotsTest {
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    private var doubles = 0
+    private var taps = 0
 
     @Test
     fun poster() {
@@ -88,11 +88,10 @@ class PlayerShotsTest {
                         HairTransport(playing = true, shuffle = false, repeatActive = false, repeatOne = false, onShuffle = {}, onPrevious = {}, onToggle = {}, onNext = {}, onRepeat = {}, playSize = 76.dp)
                     },
                     plate = { IslandPlayerTabs(lyricsOn = false, onLyrics = {}, onQueue = {}, onSimilar = {}) },
-                    onCoverTap = {},
+                    onCoverTap = { taps++ },
                     onSwipe = {},
                     onDrag = {},
                     onDragEnd = {},
-                    onCoverDoubleTap = { doubles++; true },
                     onCoverLongPress = { panel = true },
                 )
                 IslandTrackPanel(
@@ -108,10 +107,10 @@ class PlayerShotsTest {
             }
         }
         shot("after")
-        // Два касания по обложке — сердце посередине постера.
-        compose.onRoot().performTouchInput { doubleClick(Offset(centerX, height * 0.3f)) }
-        compose.mainClock.advanceTimeBy(140)
-        org.junit.Assert.assertEquals("два касания засчитаны", 1, doubles)
+        // Касание по обложке (визуализатор) срабатывает сразу: ждать второго касания некому.
+        compose.onRoot().performTouchInput { click(Offset(centerX, height * 0.3f)) }
+        compose.mainClock.advanceTimeBy(16)
+        org.junit.Assert.assertEquals("касание без задержки", 1, taps)
         compose.mainClock.advanceTimeBy(1000)
         // Удержание — панель «Трек».
         compose.onRoot().performTouchInput { longClick(Offset(centerX, height * 0.3f)) }

@@ -754,7 +754,7 @@ fun PlayerScreen(
             else -> 0
         }
         val stageContent: @Composable (String?) -> Unit = { coverUrl ->
-            androidx.compose.animation.Crossfade(targetState = stage, animationSpec = com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS), label = "discStage") { s ->
+            androidx.compose.animation.Crossfade(targetState = stage, animationSpec = com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.SHORT_MS), label = "discStage") { s ->
                 when (s) {
                     1 ->
                         Visualizer(
@@ -1086,7 +1086,6 @@ fun PlayerScreen(
                         }
                     },
                     onCoverTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
-                    onCoverDoubleTap = if (island) ({ haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song); !liked }) else null,
                     onCoverLongPress = if (island) ({ haptic(Buzz.TRACK); panel = PlayerPanel.TRACK }) else null,
                     onSwipe = { dir -> haptic(Buzz.TRACK); if (dir > 0) viewModel.player.skipNext() else viewModel.player.skipPrevious() },
                     onDrag = { dragPosition = it },
