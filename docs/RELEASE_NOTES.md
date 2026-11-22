@@ -1,76 +1,59 @@
-# rethink — v0.0.4 beta-4
+# fl0w — v0.0.4 beta-5
 
-A round of fixes and rework for Hairline New after the first feedback on beta-3.
-The computer version is the same as in beta-2.
+Music by mood, a calmer player and a new first start. Hairline New is now the default
+style for new installs. The computer version is the same as in beta-2.
 
-## Fixes
+## fl0w
 
-- **Visualizer** kept still after switching to the next track until the player was
-  reopened. It now keeps moving across track changes.
-- **Removing a track from a playlist** that is linked to the account no longer brings
-  it back after the next sync.
-- **Album tracks** played from an album page now keep the artist name (it was empty
-  in Recent and in the player). The album page shows the artist too.
-- **Lyrics page:** taps on empty space no longer go through to the screen under the
+- **fl0w** is a new way to start music by mood. In Search, pull the curtain down from the
+  top (or tap fl0w next to the title). Pick a mood, a genre and how much new music you
+  want, then press the big Play. fl0w builds a queue from searches, radios and your likes,
+  and keeps adding to it when it runs out.
+- **While fl0w plays**, the player and the mini player say so, the shuffle and "Similar"
+  options are hidden (fl0w picks the order), and a quiet sound wave moves behind the
   player.
-- **Home:** rows with long titles no longer make everything below jump while you swipe
-  through them.
-- **Sleep timer** now runs inside the playback service, so it stops the music even when
-  the app is in the background or closed. The last 8 seconds fade out; "End of track"
-  pauses right at the start of the next one.
-- **Reverb** works on every phone. The system effect it relied on is missing on some
-  devices (Pixel among them), so the dial did nothing; w0y now makes the echo itself.
-- **Your version of a track** (slowed, pitch, reverb) no longer spills into the first
-  seconds of the next track.
-- **Your own background picture** stays when you switch between styles. Switching to
-  Hairline New used to replace it with the dots, and it had to be picked again.
-- **Sound panel:** the Slowed / Normal / Sped up switch no longer slides off the screen
-  when none of them matches. Pitch goes from 0.70 to 1.30 instead of 0.90 to 1.10.
+- **fl0w settings:** moods and genres you never want to see, the queue length and the
+  wave on or off.
 
-## After the update
+## Player
 
-- **What's new, then your call.** After updating, w0y shows what changed; "Continue" opens
-  a list of this version's new things that you can switch off — the intro, the new
-  playlist page, the artist in Speed dial, My playlists on Home, the magnet on panels and
-  the fade before sleep. They are ordinary settings, so each can be changed later too.
-  The window now reads these notes as text, without Markdown symbols.
+- **Fewer things on screen.** The row of six icons under the progress line is gone. Pin,
+  Add to playlist, Download, Share, Link, Sleep timer, Sound and Look now live in a Track
+  panel: tap ⋯ at the top or hold the cover.
+- **Double tap the cover** to like or unlike a track.
+- **Speed and pitch** appear under the progress line only when they are changed. A running
+  sleep timer shows there too.
 
-## Hairline New
+## Playlists
 
-- **Player.** The second "Queue" pill at the top is gone — the top is just collapse and
-  the menu; the queue stays at the bottom. Crop marks around the poster
-  are gone. The title slides in when the track changes, and the player steps back
-  slightly while a panel is open. Repeat one is shown as the repeat icon with a "1"
-  inside, without a caption.
-- **Panels** (queue, sound, sleep timer, track menu, settings choices) rise on a spring
-  and unfold, their content follows a moment later. Pulling a panel down feels like a
-  magnet: it holds until you pull far enough, then lets go with a tick; let go early and
-  it snaps back.
-- **Track menu** (long press) is now a panel: the track with its cover, three tiles —
-  Play next, Add to queue, Download — then link, artists, album and playlists. Row menus
-  in Downloads and playlists use the same panel.
-- **Lyrics:** the translation picker is a quiet row of labels instead of boxed buttons.
-- **Home:** a new "My playlists" row; Recent and Likes are shelves like the rest of Home
-  instead of a long list at the bottom.
-  Speed dial shows the artist under a track or album instead of the word "Track".
-- **Playlists** open on a new page: the cover large on its own colours, flowing like the
-  poster in the player, then the name, owner, description and an island with Shuffle,
-  a big Play and Download all. Hold a playlist on Home or in Yours and drag it to move it
-  forward or back; the order is shared by both and stays on this phone.
-- **Back** closes one layer at a time: from lyrics or video it returns to the cover, from
-  the player over an artist it closes only the player, and the artist stays.
-- **Yours:** "+" opens a Create panel — a playlist or a folder, and for a playlist where it
-  goes: to the YouTube Music account or only into w0y. The avatar opens an Account panel:
-  sync now, mirror playlists, where new playlists go by default, albums from the account,
-  sign out. Downloads, History and My files scroll as one page, so the list gets the
-  whole screen.
-- **Settings:** search is a circle in the top right corner; tap it and it stretches into the
-  search bar, then the keyboard comes up. Rows have
-  more room and the chosen value sits under the description instead of being squeezed on
-  the right.
-- **Start:** a new intro after the app icon — the "W" is drawn by pen, the cat is put
-  together stroke by stroke and blinks, "w0y" is typed under it, then the sign flies into
-  the bottom island.
+- **Where a track already is.** The playlist menu shows two groups: playlists that already
+  have the track, with a check and "remove", and the rest to add it to.
+- **Moving tracks** in a playlist starts only after you hold the six dots on the right; a
+  quick swipe over them does nothing, so the list no longer jumps by accident.
+- **Playlist and artist pages** reach the very top of the screen, under the clock. When you
+  scroll past the cover, the status bar gets a soft background again.
+
+## First start
+
+- **A new first start:** welcome, sign in with Google or continue without an account, pick
+  a colour, pick a background. No style choice: Hairline New is the default.
+- **A short gesture tour** on Home right after it, which you can skip: swipe the mini player
+  up and sideways, hold a track, pull fl0w down, pull the player down. Each gesture can be
+  tried on a small mock-up.
+
+## Also
+
+- **Updates download with an animation:** a ruler fills up, the percentage rolls, and the
+  new version turns into a check when the file is ready. Settings show the percentage too.
+- **Light mode** (Settings → Look) turns off live blur, the moving player background and
+  seasonal effects. "Auto" enables it on weaker phones. On every phone the blurred player
+  backgrounds now cost much less to draw.
+- **Mini player:** pull it up and the cover grows into the player under your finger.
+- **Magnet everywhere:** the player sheet, swiped rows and the tab line hold a little and
+  let go with a tick, then spring back.
+- **Settings in Hairline New** are a list of sections; a section opens as its own page.
+- **Lighter islands:** the bottom island and the mini player are a bit more transparent,
+  and the colour under them shows through.
 
 Reports and screenshots are welcome in [issues](https://github.com/texfi-w0y/texfi-w0y/issues).
 
