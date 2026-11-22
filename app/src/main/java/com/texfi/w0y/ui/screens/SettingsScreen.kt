@@ -2142,7 +2142,7 @@ private fun settingsRows(
             when (val s = updateState) {
                 is com.texfi.w0y.data.UpdateState.Available -> stringResource(R.string.update_btn_update) to { viewModel.downloadUpdate(s.info) }
                 is com.texfi.w0y.data.UpdateState.Ready -> stringResource(R.string.update_btn_install) to { viewModel.installUpdate(s.file); Unit }
-                is com.texfi.w0y.data.UpdateState.Downloading -> stringResource(R.string.update_btn_wait) to { }
+                is com.texfi.w0y.data.UpdateState.Downloading -> (if (s.total > 0) "${s.done * 100 / s.total}%" else stringResource(R.string.update_btn_wait)) to { }
                 is com.texfi.w0y.data.UpdateState.Checking -> stringResource(R.string.update_btn_wait) to { }
                 is com.texfi.w0y.data.UpdateState.Failed ->
                     if (updateInfo != null) stringResource(R.string.update_btn_retry) to { viewModel.downloadUpdate(updateInfo) }

@@ -1185,4 +1185,5 @@
     <string name="track_in_playlist">W playliście</string>
     <string name="playlist_already_in">Już jest w</string>
     <string name="playlist_add_to_more">Dodaj też do</string>
+    <string name="update_mb">MB</string>
 </resources>

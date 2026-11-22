@@ -1,5 +1,6 @@
 package com.texfi.w0y.ui.shell
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -164,22 +165,25 @@ private fun UpdateDialog(
     DialogFrame("update-dialog", onLater) {
         Text(stringResource(R.string.update_dialog_title).asLabel(), style = HairLabelStyle, color = tone)
         Spacer(Modifier.height(10.dp))
-        Text(stringResource(R.string.update_dialog_versions, appVersionLabel, info.label), style = HairTitleStyle, color = colors.text)
-        Spacer(Modifier.height(14.dp))
-        when (state) {
-            is UpdateState.Downloading -> {
-                val share = if (state.total > 0) (state.done.toFloat() / state.total).coerceIn(0f, 1f) else 0f
-                Text(stringResource(R.string.update_dialog_downloading, (share * 100).toInt()), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
-                Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth().height(2.dp).background(colors.outline)) {
-                    Box(Modifier.fillMaxHeight().fillMaxWidth(share).background(tone))
+        UpdateRoute(state, from = appVersionLabel, to = info.label)
+        // Пока качается, список изменений сворачивается: на виду только линейка и проценты.
+        Column(Modifier.fillMaxWidth().animateContentSize(com.texfi.w0y.ui.components.hairSpec(com.texfi.w0y.ui.theme.HairTokens.MID_MS))) {
+            when (state) {
+                is UpdateState.Downloading -> Unit
+                is UpdateState.Ready -> {
+                    Spacer(Modifier.height(16.dp))
+                    Text(stringResource(R.string.update_dialog_ready), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
                 }
+                is UpdateState.Failed -> {
+                    Spacer(Modifier.height(16.dp))
+                    Text(updateReasonText(state.reason), style = MaterialTheme.typography.bodyMedium, color = colors.text)
+                }
+                else ->
+                    if (info.notes.isNotBlank()) {
+                        Spacer(Modifier.height(16.dp))
+                        Notes(info.notes)
+                    }
             }
-            is UpdateState.Ready ->
-                Text(stringResource(R.string.update_dialog_ready), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
-            is UpdateState.Failed ->
-                Text(updateReasonText(state.reason), style = MaterialTheme.typography.bodyMedium, color = colors.text)
-            else -> if (info.notes.isNotBlank()) Notes(info.notes)
         }
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {

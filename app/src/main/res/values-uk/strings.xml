@@ -1185,4 +1185,5 @@
     <string name="track_in_playlist">У плейлисті</string>
     <string name="playlist_already_in">Вже є в</string>
     <string name="playlist_add_to_more">Додати ще в</string>
+    <string name="update_mb">МБ</string>
 </resources>
