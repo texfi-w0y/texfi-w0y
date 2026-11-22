@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.Backdrop
 import com.texfi.w0y.R
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.StatsRepository
@@ -50,6 +51,8 @@ import com.texfi.w0y.ui.theme.HairLabelStyle
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.matte
+import com.texfi.w0y.ui.theme.rememberScreenBackdrop
+import com.texfi.w0y.ui.theme.screenBackdrop
 
 /**
  * Шапка плейлиста в Hairline New. Сверху — тот же переливающийся фон из цветов обложки,
@@ -82,9 +85,11 @@ internal fun IslandCollectionHero(
             stringResource(R.string.collection_meta_tracks, songs.size),
             seconds.takeIf { it > 0 }?.let(::formatLength),
         ).joinToString("  ·  ")
+    // Круглые кнопки над цветом обложки — стекло: размывают то, что под ними, как в плеере.
+    val heroBackdrop = rememberScreenBackdrop()
     Box(Modifier.fillMaxWidth()) {
         // Цвет обложки только за верхней частью: к низу он уходит в фон экрана.
-        Box(Modifier.fillMaxWidth().height(HERO_FLOW)) {
+        Box(Modifier.fillMaxWidth().height(HERO_FLOW).screenBackdrop(heroBackdrop)) {
             IslandFlowBackdrop(flowUrl, playing = true, modifier = Modifier.fillMaxSize())
             Box(
                 Modifier
@@ -100,9 +105,9 @@ internal fun IslandCollectionHero(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack)
+                HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, heroBackdrop)
                 Spacer(Modifier.weight(1f))
-                if (onCustomize != null) HeroCircle(HairGlyph.SLIDERS, stringResource(R.string.pl_customize), onCustomize)
+                if (onCustomize != null) HeroCircle(HairGlyph.SLIDERS, stringResource(R.string.pl_customize), onCustomize, heroBackdrop)
             }
             Spacer(Modifier.height(10.dp))
             HeroCover(coverUrl, tiles, Modifier.hairEnter(0))
@@ -156,13 +161,14 @@ internal fun IslandCollectionHero(
     }
 }
 
+/** Круглая кнопка шапки. С [backdrop] — стекло над картинкой: под ней видно размытое, а не плотную заливку. */
 @Composable
-private fun HeroCircle(glyph: HairGlyph, label: String, onClick: () -> Unit) {
+internal fun HeroCircle(glyph: HairGlyph, label: String, onClick: () -> Unit, backdrop: Backdrop? = null) {
     val colors = LocalW0yColors.current
     Box(
         Modifier
             .size(44.dp)
-            .matte(CircleShape)
+            .matte(CircleShape, backdrop)
             .semantics {
                 contentDescription = label
                 role = Role.Button

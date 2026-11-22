@@ -23,10 +23,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.texfi.w0y.R
@@ -44,6 +48,7 @@ import com.texfi.w0y.ui.components.Sprites
 import com.texfi.w0y.ui.nav.BrowseRoute
 import com.texfi.w0y.ui.nav.LocalBrowseNavigator
 import com.texfi.w0y.ui.theme.LocalW0yColors
+import com.texfi.w0y.ui.theme.screenBackdrop
 import com.texfi.w0y.ui.theme.screenBackground
 import com.texfi.w0y.ui.theme.PixelSectionLabel
 import com.texfi.w0y.ui.theme.PixelTitle
@@ -235,6 +240,10 @@ private fun Hero(
     subtitle: String?,
     onBack: () -> Unit,
 ) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        IslandArtistHero(thumbnailUrl, title, subtitle, onBack)
+        return
+    }
     val colors = LocalW0yColors.current
     Box(
         Modifier
@@ -278,6 +287,88 @@ private fun Hero(
         }
     }
 }
+
+/**
+ * Шапка артиста в Hairline New — как постер в плеере: портрет во всю ширину держится резким
+ * сверху, ниже тает в свою же размытую копию, а та уходит в фон экрана. Кнопка «назад» — стекло
+ * над портретом: под ней видно размытое фото, а не плотный кружок.
+ */
+@Composable
+private fun IslandArtistHero(
+    thumbnailUrl: String?,
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val blurs = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val backdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(ISLAND_HERO),
+    ) {
+        Box(Modifier.matchParentSize().screenBackdrop(backdrop)) {
+            if (blurs) {
+                CoverImage(url = thumbnailUrl, px = Thumbnails.HERO, corner = 0, modifier = Modifier.fillMaxSize().blur(28.dp))
+            }
+            CoverImage(
+                url = thumbnailUrl,
+                px = Thumbnails.HERO,
+                corner = 0,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            if (blurs) drawRect(Brush.verticalGradient(*smoothFade(0.42f, 0.84f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+                        },
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.3f),
+                            0.22f to Color.Transparent,
+                            0.62f to Color.Transparent,
+                            1f to colors.background,
+                        ),
+                    ),
+            )
+        }
+        Box(Modifier.padding(start = 18.dp, top = 8.dp)) {
+            HeroCircle(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, backdrop)
+        }
+        Column(
+            Modifier
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+        ) {
+            Text(
+                title,
+                style =
+                    androidx.compose.ui.text.TextStyle(
+                        fontFamily = com.texfi.w0y.ui.theme.GeologicaFamily,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                        fontSize = 34.sp,
+                        lineHeight = 38.sp,
+                        letterSpacing = (-0.8).sp,
+                    ),
+                color = colors.text,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            subtitle?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+private val ISLAND_HERO = 360.dp
 
 @Composable
 private fun BrowseSection(text: String) {

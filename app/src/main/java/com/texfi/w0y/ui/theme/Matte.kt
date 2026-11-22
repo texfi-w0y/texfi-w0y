@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.vibrancy
 import kotlin.random.Random
 
 /**
@@ -40,7 +41,8 @@ fun Modifier.matte(shape: Shape, backdrop: Backdrop? = null, fill: Color? = null
     val blurs = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val base = fill ?: if (light) Color.White else Color(0xFF18181C)
     // [alpha] задают панели внутри экрана: размывать им нечего, а сквозь лёгкую подложку видна точка фона.
-    val surface = base.copy(alpha = alpha ?: if (blurs) (if (light) 0.6f else 0.58f) else (if (light) 0.9f else 0.88f))
+    // Над размытым подложка лёгкая, как у стекла Apple: цвет того, что под островом, просвечивает, а не гаснет в чёрное.
+    val surface = base.copy(alpha = alpha ?: if (blurs) (if (light) 0.52f else 0.44f) else (if (light) 0.9f else 0.88f))
     val grainAlpha = if (light) 0.5f else 1f
     val edgeBrush =
         Brush.verticalGradient(
@@ -55,7 +57,11 @@ fun Modifier.matte(shape: Shape, backdrop: Backdrop? = null, fill: Color? = null
             drawBackdrop(
                 backdrop = backdrop!!,
                 shape = { shape },
-                effects = { blur(MATTE_BLUR.toPx()) },
+                effects = {
+                    // Насыщенность перед размытием: пятна обложек под островом остаются цветными.
+                    vibrancy()
+                    blur(MATTE_BLUR.toPx())
+                },
                 highlight = null,
                 shadow = null,
                 onDrawSurface = {
@@ -115,6 +121,6 @@ fun DrawScope.drawDotGrid(color: Color, step: Float = 22.dp.toPx(), radius: Floa
     drawPoints(points, androidx.compose.ui.graphics.PointMode.Points, color, strokeWidth = radius * 2f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
 }
 
-private val MATTE_BLUR = 22.dp
+private val MATTE_BLUR = 26.dp
 private const val GRAIN_TILE = 96
 private const val GRAIN_MAX_ALPHA = 26
