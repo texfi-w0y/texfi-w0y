@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +50,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import com.texfi.w0y.ui.theme.screenBackdrop
 import androidx.compose.ui.res.stringResource
@@ -265,9 +263,6 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     // Hairline New: матовый остров тоже размывает экран под собой.
     val island = com.texfi.w0y.ui.theme.isIsland
     val barBackdrop = com.texfi.w0y.ui.theme.rememberScreenBackdrop()
-    // Насколько экран прокручен вверх: по этому проявляется верхнее размытие Hairline New. Новая страница — с начала.
-    val topScroll = remember { com.texfi.w0y.ui.theme.TopScrollTracker() }
-    LaunchedEffect(tab, browseStack.size, settingsOpen) { topScroll.offset = 0f }
     // Остров парит над экраном: на Главной, в поиске и в корне «Моё» экран идёт под ним до самого низа
     // (последняя строка достаётся отступом). А в «Скачанном», «Моих файлах», «Истории», «Лайках» и в
     // настройках экран обрезается по острову: он занимает место, и список физически кончается над ним.
@@ -400,7 +395,6 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         Box(
             Modifier
                 .fillMaxSize()
-                .nestedScroll(topScroll)
                 .statusBarsPadding()
                 .padding(bottom = if (cutBars) barsHeight else 0.dp),
         ) {
@@ -438,31 +432,7 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             }
         }
         }
-        if (island) {
-            // Hairline New: края как у стекла Apple — список, уезжая под строку состояния, тает в размытие
-            // (только когда экран прокручен, иначе оно легло бы на заголовок), а у низа размыто всё,
-            // что идёт под островом и чуть выше него.
-            val top = androidx.compose.foundation.layout.WindowInsets.Companion.statusBars.asPaddingValues().calculateTopPadding()
-            val reach = with(density) { TOP_BLUR_FADE.toPx() }
-            com.texfi.w0y.ui.theme.EdgeBlur(
-                barBackdrop,
-                top = true,
-                solid = top,
-                fade = TOP_BLUR_FADE,
-                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().height(top + TOP_BLUR_FADE),
-                alpha = { topScroll.shown(reach) },
-            )
-            if (!cutBars && barsHeight > 0.dp) {
-                val inset = androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()
-                com.texfi.w0y.ui.theme.EdgeBlur(
-                    barBackdrop,
-                    top = false,
-                    solid = inset,
-                    fade = barsHeight - inset + BOTTOM_BLUR_OVER,
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(barsHeight + BOTTOM_BLUR_OVER),
-                )
-            }
-        } else if (hair && !cutBars) {
+        if (hair && !cutBars) {
             // Экран идёт под островом; полоса под ним и у жестовой планки гаснет в фон, чтобы строки не торчали из-под острова.
             val fade = com.texfi.w0y.ui.theme.LocalW0yColors.current.background
             val inset = androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -742,12 +712,6 @@ private fun BrowseOverlay(visible: Boolean, route: BrowseRoute?, onBack: () -> U
 }
 
 private val BAR_MAX_WIDTH = 560.dp
-
-/** Hairline New: на сколько ниже строки состояния тает верхнее размытие. */
-private val TOP_BLUR_FADE = 28.dp
-
-/** Hairline New: насколько нижнее размытие поднимается над островом. */
-private val BOTTOM_BLUR_OVER = 22.dp
 
 /** Настройки с выездом снизу — одна обёртка для обоих мест, где они живут. */
 @Composable

@@ -42,7 +42,7 @@ fun Modifier.matte(shape: Shape, backdrop: Backdrop? = null, fill: Color? = null
     val base = fill ?: if (light) Color.White else Color(0xFF18181C)
     // [alpha] задают панели внутри экрана: размывать им нечего, а сквозь лёгкую подложку видна точка фона.
     // Над размытым подложка лёгкая, как у стекла Apple: цвет того, что под островом, просвечивает, а не гаснет в чёрное.
-    val surface = base.copy(alpha = alpha ?: if (blurs) (if (light) 0.52f else 0.44f) else (if (light) 0.9f else 0.88f))
+    val surface = base.copy(alpha = alpha ?: if (blurs) (if (light) 0.5f else 0.38f) else (if (light) 0.9f else 0.88f))
     val grainAlpha = if (light) 0.5f else 1f
     val edgeBrush =
         Brush.verticalGradient(

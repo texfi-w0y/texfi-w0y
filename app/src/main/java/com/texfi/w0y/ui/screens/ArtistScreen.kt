@@ -39,15 +39,19 @@ import com.texfi.w0y.data.db.PinEntity
 import com.texfi.w0y.ui.components.DownloadButton
 import com.texfi.w0y.ui.components.ArtistTile
 import com.texfi.w0y.ui.components.CoverImage
+import com.texfi.w0y.ui.components.HairIconButton
+import com.texfi.w0y.ui.components.HairPlayButton
 import com.texfi.w0y.ui.components.PixelButton
 import com.texfi.w0y.ui.components.ReleaseTile
 import com.texfi.w0y.ui.components.SkeletonRow
 import com.texfi.w0y.ui.components.SongRow
 import com.texfi.w0y.ui.components.SpriteButton
 import com.texfi.w0y.ui.components.Sprites
+import com.texfi.w0y.ui.icons.HairGlyph
 import com.texfi.w0y.ui.nav.BrowseRoute
 import com.texfi.w0y.ui.nav.LocalBrowseNavigator
 import com.texfi.w0y.ui.theme.LocalW0yColors
+import com.texfi.w0y.ui.theme.matte
 import com.texfi.w0y.ui.theme.screenBackdrop
 import com.texfi.w0y.ui.theme.screenBackground
 import com.texfi.w0y.ui.theme.PixelSectionLabel
@@ -78,6 +82,7 @@ fun ArtistScreen(
     val name = page?.name?.takeIf { it.isNotBlank() } ?: route.name
     val isPinned = PinEntity.key(PinEntity.KIND_ARTIST, route.browseId) in pinned
 
+    val island = com.texfi.w0y.ui.theme.isIsland
     LazyColumn(
         Modifier
             .fillMaxSize()
@@ -93,7 +98,38 @@ fun ArtistScreen(
             )
         }
 
-        item {
+        if (island) {
+            item {
+                // Hairline New: тот же остров действий, что у плейлиста, — перемешать, играть, закрепить.
+                Box(Modifier.fillMaxWidth().padding(bottom = 18.dp), contentAlignment = Alignment.Center) {
+                    Row(
+                        Modifier
+                            .matte(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val enabled = songs.isNotEmpty()
+                        HairIconButton(HairGlyph.SHUFFLE, stringResource(R.string.player_cd_shuffle), { if (enabled) viewModel.shuffle(songs) }, tint = if (enabled) colors.text else colors.textMuted)
+                        HairPlayButton(playing = false, onClick = { if (enabled) viewModel.play(songs, 0) }, size = 60.dp)
+                        HairIconButton(
+                            HairGlyph.PIN,
+                            stringResource(R.string.player_cd_pin),
+                            {
+                                viewModel.togglePin(
+                                    kind = PinEntity.KIND_ARTIST,
+                                    id = route.browseId,
+                                    title = name,
+                                    subtitle = null,
+                                    thumbnailUrl = page?.thumbnailUrl ?: route.thumbnailUrl,
+                                )
+                            },
+                            tint = if (isPinned) colors.accent else colors.text,
+                        )
+                    }
+                }
+            }
+        } else item {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -308,7 +344,8 @@ private fun IslandArtistHero(
             .fillMaxWidth()
             .height(ISLAND_HERO),
     ) {
-        Box(Modifier.matchParentSize().screenBackdrop(backdrop)) {
+        // Края тают в прозрачное, а не в цвет фона: под шапкой может быть фото или точки.
+        Box(Modifier.matchParentSize().softEdges(top = 0.05f, bottom = 0.3f).screenBackdrop(backdrop)) {
             if (blurs) {
                 CoverImage(url = thumbnailUrl, px = Thumbnails.HERO, corner = 0, modifier = Modifier.fillMaxSize().blur(28.dp))
             }
@@ -322,24 +359,14 @@ private fun IslandArtistHero(
                         .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
                         .drawWithContent {
                             drawContent()
-                            if (blurs) drawRect(Brush.verticalGradient(*smoothFade(0.42f, 0.84f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+                            if (blurs) drawRect(Brush.verticalGradient(*smoothFade(0.4f, 0.8f)), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
                         },
             )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.3f),
-                            0.22f to Color.Transparent,
-                            0.62f to Color.Transparent,
-                            1f to colors.background,
-                        ),
-                    ),
-            )
+            // Лёгкая тень под строкой состояния: часы и значки читаются на светлом портрете.
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.28f), 0.2f to Color.Transparent)))
         }
         Box(Modifier.padding(start = 18.dp, top = 8.dp)) {
-            HeroCircle(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, backdrop)
+            HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, backdrop)
         }
         Column(
             Modifier
@@ -372,6 +399,10 @@ private val ISLAND_HERO = 360.dp
 
 @Composable
 private fun BrowseSection(text: String) {
+    if (com.texfi.w0y.ui.theme.isIsland) {
+        com.texfi.w0y.ui.components.SectionHeader(text, Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
+        return
+    }
     val colors = LocalW0yColors.current
     Column {
         Spacer(Modifier.height(10.dp))

@@ -264,6 +264,10 @@ fun SettingsScreen(
 
     // Назад: сначала закрывает поиск, потом настройки целиком.
     val island = com.texfi.w0y.ui.theme.isIsland
+    // Hairline New: настройки — список разделов, как в iOS; раздел открывается отдельной страницей,
+    // «назад» возвращает к списку. Поиск лежит поверх и закрывается раньше раздела.
+    var islandSection by rememberSaveable { mutableStateOf<String?>(null) }
+    BackHandler(enabled = island && islandSection != null) { islandSection = null }
     BackHandler(enabled = searchOpen || query.isNotBlank()) {
         // Hairline New: поиск — отдельный слой поверх, «назад» закрывает его целиком.
         if (island) {
@@ -274,6 +278,7 @@ fun SettingsScreen(
 
     val openRow: (SettingRow) -> Unit = { row ->
         tabName = row.category.name
+        if (island) islandSection = row.category.name
         SettingsTabMemory.last = tabName
         query = ""
         searchOpen = false
@@ -292,9 +297,10 @@ fun SettingsScreen(
             .fillMaxSize()
             .statusBarsPadding(),
     ) {
+        val section = if (island) islandSection?.let { name -> SettingsCategory.entries.firstOrNull { it.name == name } } else null
         ScreenTitle(
-            title = stringResource(R.string.settings_title),
-            onBack = onClose,
+            title = section?.let { sentenceCase(stringResource(it.titleRes())) } ?: stringResource(R.string.settings_title),
+            onBack = if (section != null) ({ islandSection = null }) else onClose,
             actions = {
                 if (island) {
                     // Hairline New: поиск — кружок в углу; нажатие раскрывает поиск на весь экран.
@@ -337,18 +343,26 @@ fun SettingsScreen(
             SettingsSearchField(value = query, onValueChange = { query = it })
             Spacer(Modifier.height(8.dp))
         }
-        SettingsTabStrip(
-            tabs = SettingsCategory.entries.map { it.name to stringResource(it.titleRes()) },
-            selected = category.name,
-            onSelect = {
-                tabName = it
-                SettingsTabMemory.last = it
-            },
-        )
+        if (!island) {
+            SettingsTabStrip(
+                tabs = SettingsCategory.entries.map { it.name to stringResource(it.titleRes()) },
+                selected = category.name,
+                onSelect = {
+                    tabName = it
+                    SettingsTabMemory.last = it
+                },
+            )
+        }
 
         when {
             query.isNotBlank() && !island -> SearchResults(rows, query, onOpen = openRow)
-            else -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
+            island && section == null ->
+                IslandSettingsRoot(onOpen = {
+                    tabName = it.name
+                    SettingsTabMemory.last = it.name
+                    islandSection = it.name
+                })
+            else -> CategoryList(section ?: category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
         }
     }
 
@@ -386,6 +400,69 @@ fun SettingsScreen(
         }
     }
 }
+
+/**
+ * Hairline New: корень настроек — разделы карточками-группами, как в настройках iOS: значок,
+ * название обычным регистром, стрелка. Без вкладок и без капса: раздел открывается целиком.
+ */
+@Composable
+private fun IslandSettingsRoot(onOpen: (SettingsCategory) -> Unit) {
+    val colors = LocalW0yColors.current
+    val groups =
+        listOf(
+            listOf(SettingsCategory.ACCOUNT),
+            listOf(SettingsCategory.PLAYBACK, SettingsCategory.SOUND, SettingsCategory.STAND),
+            listOf(SettingsCategory.LOOK, SettingsCategory.SEARCH_FEEDS),
+            listOf(SettingsCategory.STORAGE, SettingsCategory.DATA),
+        )
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(top = 4.dp)) {
+        itemsIndexed(groups) { _, group ->
+            Column(
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 14.dp)
+                    .fillMaxWidth()
+                    .matte(RoundedCornerShape(18.dp), alpha = 0.6f),
+            ) {
+                group.forEachIndexed { i, category ->
+                    if (i > 0) Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(1.dp).background(colors.text.copy(alpha = 0.07f)))
+                    val title = sentenceCase(stringResource(category.titleRes()))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-section-${category.name}")
+                            .semantics { role = Role.Button }
+                            .clickable { onOpen(category) }
+                            .heightIn(min = 56.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        com.texfi.w0y.ui.icons.HairIcon(category.glyph(), colors.text, Modifier.size(22.dp))
+                        Spacer(Modifier.width(18.dp))
+                        Text(title, style = MaterialTheme.typography.bodyLarge, color = colors.text, modifier = Modifier.weight(1f))
+                        com.texfi.w0y.ui.icons.HairIcon(com.texfi.w0y.ui.icons.HairGlyph.CHEVRON_RIGHT, colors.textMuted, Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Значок раздела в корне настроек Hairline New. */
+private fun SettingsCategory.glyph(): com.texfi.w0y.ui.icons.HairGlyph =
+    when (this) {
+        SettingsCategory.PLAYBACK -> com.texfi.w0y.ui.icons.HairGlyph.PLAY
+        SettingsCategory.SOUND -> com.texfi.w0y.ui.icons.HairGlyph.SOUND
+        SettingsCategory.STAND -> com.texfi.w0y.ui.icons.HairGlyph.STAND
+        SettingsCategory.STORAGE -> com.texfi.w0y.ui.icons.HairGlyph.DOWNLOAD
+        SettingsCategory.SEARCH_FEEDS -> com.texfi.w0y.ui.icons.HairGlyph.SEARCH
+        SettingsCategory.LOOK -> com.texfi.w0y.ui.icons.HairGlyph.PALETTE
+        SettingsCategory.ACCOUNT -> com.texfi.w0y.ui.icons.HairGlyph.ARTIST
+        SettingsCategory.DATA -> com.texfi.w0y.ui.icons.HairGlyph.BOX
+    }
+
+/** «ПОИСК И ЛЕНТЫ» → «Поиск и ленты»: подписи вкладок набраны капсом, в списке — обычный регистр. */
+private fun sentenceCase(text: String): String = text.lowercase().replaceFirstChar { it.titlecase() }
 
 /** Заголовок категории: список в [SettingsCategory] общий, подписи — ресурсами. */
 @StringRes

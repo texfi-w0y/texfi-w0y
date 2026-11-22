@@ -22,8 +22,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -51,8 +55,6 @@ import com.texfi.w0y.ui.theme.HairLabelStyle
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.matte
-import com.texfi.w0y.ui.theme.rememberScreenBackdrop
-import com.texfi.w0y.ui.theme.screenBackdrop
 
 /**
  * Шапка плейлиста в Hairline New. Сверху — тот же переливающийся фон из цветов обложки,
@@ -85,17 +87,11 @@ internal fun IslandCollectionHero(
             stringResource(R.string.collection_meta_tracks, songs.size),
             seconds.takeIf { it > 0 }?.let(::formatLength),
         ).joinToString("  ·  ")
-    // Круглые кнопки над цветом обложки — стекло: размывают то, что под ними, как в плеере.
-    val heroBackdrop = rememberScreenBackdrop()
     Box(Modifier.fillMaxWidth()) {
-        // Цвет обложки только за верхней частью: к низу он уходит в фон экрана.
-        Box(Modifier.fillMaxWidth().height(HERO_FLOW).screenBackdrop(heroBackdrop)) {
+        // Цвет обложки только за верхней частью. Края тают в прозрачное, а не в цвет фона: под
+        // шапкой может лежать фото или точки, и полоса цвета фона легла бы на них прямоугольником.
+        Box(Modifier.fillMaxWidth().height(HERO_FLOW).softEdges(top = 0.06f, bottom = 0.4f)) {
             IslandFlowBackdrop(flowUrl, playing = true, modifier = Modifier.fillMaxSize())
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(0.35f to Color.Transparent, 1f to colors.background)),
-            )
         }
         Column(
             Modifier
@@ -105,9 +101,9 @@ internal fun IslandCollectionHero(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack, heroBackdrop)
+                HeroCircle(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onBack)
                 Spacer(Modifier.weight(1f))
-                if (onCustomize != null) HeroCircle(HairGlyph.SLIDERS, stringResource(R.string.pl_customize), onCustomize, heroBackdrop)
+                if (onCustomize != null) HeroCircle(HairGlyph.SLIDERS, stringResource(R.string.pl_customize), onCustomize)
             }
             Spacer(Modifier.height(10.dp))
             HeroCover(coverUrl, tiles, Modifier.hairEnter(0))
@@ -212,6 +208,30 @@ private fun HeroCover(url: String?, tiles: List<String>, modifier: Modifier) {
         }
     }
 }
+
+/**
+ * Края блока тают в прозрачное по плавной кривой: сверху на долю [top] высоты, снизу на [bottom].
+ * Так шапка ложится на любой фон экрана — точки, фото, цвет обложки — без видимой границы.
+ */
+internal fun Modifier.softEdges(top: Float, bottom: Float): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val stops = ArrayList<Pair<Float, Color>>()
+            for (i in 0..EDGE_STEPS) {
+                val k = i.toFloat() / EDGE_STEPS
+                val eased = k * k * (3f - 2f * k)
+                if (top > 0f) stops += top * k to Color.Black.copy(alpha = eased)
+            }
+            for (i in 0..EDGE_STEPS) {
+                val k = i.toFloat() / EDGE_STEPS
+                val eased = k * k * (3f - 2f * k)
+                stops += (1f - bottom) + bottom * k to Color.Black.copy(alpha = 1f - eased)
+            }
+            drawRect(Brush.verticalGradient(*stops.toTypedArray()), blendMode = BlendMode.DstIn)
+        }
+
+private const val EDGE_STEPS = 8
 
 private val HERO_COVER = 216.dp
 private val HERO_FLOW = 300.dp
