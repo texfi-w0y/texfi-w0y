@@ -344,6 +344,19 @@ interface W0yDao {
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeFromPlaylist(playlistId: Long, songId: String)
 
+    /** Плейлисты, в которых лежит трек, — и из аккаунта, и свои файлы. */
+    @Query(
+        """
+        SELECT * FROM playlists WHERE id IN (
+            SELECT playlistId FROM playlist_songs WHERE songId = :songId
+            UNION
+            SELECT playlistId FROM local_playlist_items WHERE songId = :songId
+        )
+        ORDER BY name
+        """,
+    )
+    fun playlistsWith(songId: String): Flow<List<PlaylistEntity>>
+
     /** Свой файл ложится в отдельную таблицу: синхронизация её не трогает. */
     @Transaction
     suspend fun addLocalSongToPlaylist(playlistId: Long, song: SongEntity, now: Long) {

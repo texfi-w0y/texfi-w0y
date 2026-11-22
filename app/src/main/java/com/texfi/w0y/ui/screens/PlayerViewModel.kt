@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -242,6 +243,18 @@ class PlayerViewModel @Inject constructor(
             .map { it.song?.id }
             .flatMapLatest { id -> if (id == null) MutableStateFlow(false) else library.isLiked(id) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Плейлисты, где лежит текущий трек: метка под названием в плеере. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val songPlaylists: StateFlow<List<PlaylistEntity>> =
+        player.state
+            .map { it.song?.id }
+            .distinctUntilChanged()
+            .flatMapLatest { id -> if (id == null) MutableStateFlow(emptyList()) else library.playlistsWith(id) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun removeFromPlaylist(playlistId: Long, songId: String) =
+        viewModelScope.launch { library.removeFromPlaylist(playlistId, songId) }
 
     /** Закреплён ли текущий трек в быстром наборе. */
     @OptIn(ExperimentalCoroutinesApi::class)

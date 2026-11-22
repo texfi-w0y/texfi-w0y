@@ -30,7 +30,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Трек в плейлисте переносится за ручку сразу, без удержания. */
+/** Трек в плейлисте переносится только после удержания на ручке (шесть точек). */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xxhdpi")
 class ReorderTest {
@@ -40,8 +40,7 @@ class ReorderTest {
     private var order by mutableStateOf(listOf("a", "b", "c", "d", "e"))
     private var drops = 0
 
-    @Test
-    fun dragHandleMovesTheRowWithoutHolding() {
+    private fun show() {
         rule.setContent {
             W0yTheme {
                 val list = rememberLazyListState()
@@ -64,7 +63,26 @@ class ReorderTest {
             }
         }
         rule.waitForIdle()
+    }
+
+    @Test
+    fun quickSwipeOnHandleDoesNotMove() {
+        show()
         rule.onNodeWithTag("handle-a").performTouchInput { swipeDown(startY = center.y, endY = center.y + 150f, durationMillis = 200) }
+        rule.waitForIdle()
+        assertEquals(listOf("a", "b", "c", "d", "e"), order)
+        assertEquals(0, drops)
+    }
+
+    @Test
+    fun holdThenDragMovesTheRow() {
+        show()
+        rule.onNodeWithTag("handle-a").performTouchInput {
+            down(center)
+            advanceEventTime(com.texfi.w0y.ui.components.HOLD_MS + 60)
+            repeat(10) { moveBy(androidx.compose.ui.geometry.Offset(0f, 15f), delayMillis = 16) }
+            up()
+        }
         rule.waitForIdle()
         assertEquals(listOf("b", "a", "c", "d", "e"), order)
         assertEquals(1, drops)

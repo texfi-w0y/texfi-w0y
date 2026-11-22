@@ -34,4 +34,9 @@ class SongMenuViewModel @Inject constructor(
         }
 
     fun download(song: SongItem) = downloads.download(song)
+
+    fun playlistsWith(songId: String) = library.playlistsWith(songId)
+
+    fun removeFromPlaylist(playlistId: Long, songId: String) =
+        viewModelScope.launch { library.removeFromPlaylist(playlistId, songId) }
 }

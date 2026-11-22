@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -81,7 +82,12 @@ class PlayerShotsTest {
                     number = "№ 11 / 40",
                     soundLine = null,
                     header = { IslandPlayerHeader(onCollapse = {}, onMenu = {}, videoAvailable = true, videoOn = false, onToggleVideo = {}) },
-                    titleBlock = { m -> IslandTitleRow(false, {}, m) { tm -> HairTitleBlock(song, PlayerLayout.RING, null, tm) } },
+                    titleBlock = { m ->
+                        androidx.compose.foundation.layout.Column(m) {
+                            IslandTitleRow(true, {}, Modifier) { tm -> HairTitleBlock(song, PlayerLayout.RING, null, tm) }
+                            com.texfi.w0y.ui.screens.IslandPlaylistMark(listOf("Ночь", "В дорогу")) {}
+                        }
+                    },
                     actions = {},
                     transport = {
                         HairTransport(playing = true, shuffle = false, repeatActive = false, repeatOne = false, onShuffle = {}, onPrevious = {}, onToggle = {}, onNext = {}, onRepeat = {}, playSize = 76.dp)
@@ -114,5 +120,38 @@ class PlayerShotsTest {
         // Удержание — панель «Трек».
         compose.onRoot().performTouchInput { longClick(Offset(centerX, height * 0.3f)) }
         shot("track-panel")
+    }
+
+    @Test
+    fun trackMenuMarksPlaylists() {
+        compose.mainClock.autoAdvance = false
+        val removed = mutableListOf<Long>()
+        compose.setContent {
+            W0yTheme(style = UiStyle.ISLAND) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.texfi.w0y.ui.components.LocalPlaylistMembership provides
+                        com.texfi.w0y.ui.components.PlaylistMembership(of = { kotlinx.coroutines.flow.flowOf(setOf(2L, 4L)) }, remove = { id, _ -> removed += id }),
+                ) {
+                    Box(Modifier.fillMaxSize().background(Color(0xFF0E0E12))) {
+                        com.texfi.w0y.ui.components.AddToPlaylistPanel(
+                            song = song,
+                            playlists = listOf(1L to "Для зала", 2L to "Ночь", 3L to "Старое", 4L to "В дорогу"),
+                            newName = null,
+                            onNewNameChange = {},
+                            onPick = {},
+                            onCreate = {},
+                            onDismiss = {},
+                            onPlayNext = {},
+                            onEnqueue = {},
+                            onDownload = {},
+                        )
+                    }
+                }
+            }
+        }
+        shot("track-menu")
+        compose.onNode(androidx.compose.ui.test.hasText("Ночь")).performClick()
+        compose.mainClock.advanceTimeBy(400)
+        org.junit.Assert.assertEquals("нажатие по плейлисту с галочкой убирает трек", listOf(2L), removed)
     }
 }

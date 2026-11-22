@@ -741,6 +741,15 @@ class SettingsRepository @Inject constructor(
     suspend fun setPlayerStateBadge(value: Boolean) = put(Keys.PLAYER_BADGE, value)
 
     /** Неделя, за которую плейлист «Открытия» уже собран ("2026-W42"). Служебное, в снимок настроек не входит. */
+    /**
+     * Стереть все настройки. Хранилище одно на процесс, а тесты Robolectric идут в одном процессе:
+     * без этого тест первого запуска видел стиль, оставленный предыдущим тестом.
+     */
+    @androidx.annotation.VisibleForTesting
+    suspend fun clearAll() {
+        context.dataStore.edit { it.clear() }
+    }
+
     suspend fun lastDiscoveryWeek(): String = context.dataStore.data.first()[Keys.DISCOVERY_WEEK].orEmpty()
 
     suspend fun setLastDiscoveryWeek(value: String) = put(Keys.DISCOVERY_WEEK, value)

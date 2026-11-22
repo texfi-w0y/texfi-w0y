@@ -97,6 +97,7 @@ import com.texfi.w0y.ui.screens.SearchScreen
 import com.texfi.w0y.ui.screens.SettingsScreen
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.screenBackground
+import kotlinx.coroutines.flow.map
 
 private enum class Tab(val labelRes: Int, val sprite: List<String>) {
     HOME(R.string.tab_home, Sprites.home),
@@ -229,6 +230,12 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     val flowNow by viewModel.flow.collectAsStateWithLifecycle()
     CompositionLocalProvider(
         com.texfi.w0y.ui.components.LocalFlowNow provides flowNow,
+        com.texfi.w0y.ui.components.LocalPlaylistMembership provides remember(menuViewModel) {
+            com.texfi.w0y.ui.components.PlaylistMembership(
+                of = { id -> menuViewModel.playlistsWith(id).map { list -> list.map { it.id }.toSet() } },
+                remove = menuViewModel::removeFromPlaylist,
+            )
+        },
         com.texfi.w0y.ui.theme.LocalLiteGraphics provides lite,
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,

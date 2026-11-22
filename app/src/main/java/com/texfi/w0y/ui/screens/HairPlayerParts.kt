@@ -889,6 +889,8 @@ internal fun IslandTrackPanel(
     sharing: Boolean,
     sleepLeftMs: Long?,
     onPin: () -> Unit,
+    /** Трек уже лежит хотя бы в одном плейлисте: плитка отмечена. */
+    inPlaylist: Boolean = false,
     onAdd: () -> Unit,
     onDownload: () -> Unit,
     onShare: () -> Unit,
@@ -911,7 +913,7 @@ internal fun IslandTrackPanel(
     val tiles =
         listOfNotNull(
             TrackTile(stringResource(if (pinned) R.string.track_pinned else R.string.track_pin), HairGlyph.PIN, pinned, onPin),
-            TrackTile(stringResource(R.string.player_cd_playlist), HairGlyph.PLUS, false, onAdd),
+            TrackTile(stringResource(if (inPlaylist) R.string.track_in_playlist else R.string.player_cd_playlist), if (inPlaylist) HairGlyph.CHECK else HairGlyph.PLUS, inPlaylist, onAdd),
             TrackTile(downloadLabel, null, progress?.state == com.texfi.w0y.playback.DownloadState.DONE, onDownload) { DownloadButton(song.id, onDownload = onDownload) },
             TrackTile(stringResource(R.string.player_cd_share), HairGlyph.SHARE, sharing, onShare),
             onCopyLink?.let { TrackTile(stringResource(R.string.track_link), HairGlyph.LINK, false, it) },
@@ -961,3 +963,36 @@ internal fun IslandTrackPanel(
 }
 
 private const val TRACK_COLUMNS = 4
+
+/**
+ * Hairline New, под исполнителем: в каком плейлисте лежит трек — галочка и имя («Ночь и ещё 2»).
+ * Нажатие открывает меню плейлистов, где трек можно убрать. Нет ни в одном — строки нет.
+ */
+@Composable
+internal fun IslandPlaylistMark(names: List<String>, onClick: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    // Последнее непустое значение держится, пока строка уезжает, — текст не пропадает раньше неё.
+    var shown by remember { mutableStateOf(names) }
+    if (names.isNotEmpty()) shown = names
+    androidx.compose.animation.AnimatedVisibility(
+        visible = names.isNotEmpty(),
+        enter = androidx.compose.animation.expandVertically(hairSpec(HairTokens.MID_MS)) + androidx.compose.animation.fadeIn(hairSpec(HairTokens.MID_MS)),
+        exit = androidx.compose.animation.shrinkVertically(hairSpec(HairTokens.SHORT_MS)) + androidx.compose.animation.fadeOut(hairSpec(HairTokens.SHORT_MS)),
+    ) {
+        val text = if (shown.size <= 1) shown.firstOrNull().orEmpty() else stringResource(R.string.player_in_playlists, shown[0], shown.size - 1)
+        Row(
+            Modifier
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp)
+                .testTag("playlist-mark"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HairIcon(HairGlyph.CHECK, tone, Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(text, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}

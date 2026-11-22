@@ -50,6 +50,8 @@ class OnboardingTest {
     @Before
     fun inject() {
         hilt.inject()
+        // Чистый первый запуск: другие тесты в этом процессе писали в те же настройки.
+        runBlocking { settings.clearAll() }
     }
 
     private fun frames(ms: Long) {

@@ -43,6 +43,9 @@ class LibraryRepository @Inject constructor(
 
     suspend fun movePlaylist(playlistId: Long, folderId: Long?) = dao.setPlaylistFolder(playlistId, folderId)
 
+    /** В каких плейлистах лежит трек: метка в плеере и галочки в меню трека. */
+    fun playlistsWith(songId: String): Flow<List<PlaylistEntity>> = dao.playlistsWith(songId)
+
     /** Куда можно добавлять треки: чужие плейлисты из библиотеки аккаунта YouTube править не даёт. */
     val editablePlaylists: Flow<List<PlaylistEntity>> =
         playlists.map { list -> list.filter { it.remoteId == null || it.remoteEditable } }

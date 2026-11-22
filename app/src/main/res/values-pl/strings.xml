@@ -1181,4 +1181,7 @@
     <string name="track_link">Link</string>
     <string name="track_sleep">Sen</string>
     <string name="island_sleep_left">sen za %1$s</string>
+    <string name="player_in_playlists">%1$s i %2$d więcej</string>
+    <string name="playlist_remove_short">usuń</string>
+    <string name="track_in_playlist">W playliście</string>
 </resources>

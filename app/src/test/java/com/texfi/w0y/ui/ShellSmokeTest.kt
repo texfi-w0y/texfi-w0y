@@ -30,16 +30,29 @@ class ShellSmokeTest {
     @get:Rule
     val chain: RuleChain = RuleChain.outerRule(hilt).around(compose)
 
+    @javax.inject.Inject lateinit var settings: com.texfi.w0y.data.SettingsRepository
+
     @Test
     fun launches() {
         hilt.inject()
+        // Настройки одни на весь прогон тестов: начинаем с чистого первого запуска, а не с того, что оставил сосед.
+        kotlinx.coroutines.runBlocking { settings.clearAll() }
         compose.setContent {
             val shell: ShellViewModel = hiltViewModel()
             W0yTheme { W0yShell(shell) }
         }
         compose.waitForIdle()
-        compose.onNode(androidx.compose.ui.test.hasText("SKIP")).performClick()
+        val skip = androidx.compose.ui.test.hasText("SKIP")
+        compose.waitUntil(5_000) { compose.onAllNodes(skip).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(skip).performClick()
         compose.waitForIdle()
+        // После первого запуска на главной — знакомство с жестами; пропускаем и его.
+        val tourSkip = androidx.compose.ui.test.hasText("Skip", ignoreCase = true)
+        runCatching { compose.waitUntil(3_000) { compose.onAllNodes(tourSkip).fetchSemanticsNodes().isNotEmpty() } }
+        compose.onAllNodes(tourSkip).fetchSemanticsNodes().firstOrNull()?.let {
+            compose.onAllNodes(tourSkip)[0].performClick()
+            compose.waitForIdle()
+        }
         compose.onNode(androidx.compose.ui.test.hasContentDescription("yours")).performClick()
         compose.waitForIdle()
         dismissIslandOffer()

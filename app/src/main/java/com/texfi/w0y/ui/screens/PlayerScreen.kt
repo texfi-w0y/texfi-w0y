@@ -176,6 +176,7 @@ fun PlayerScreen(
     val translating by viewModel.translating.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val sleepLeft by viewModel.player.sleepRemainingMs.collectAsStateWithLifecycle()
+    val songPlaylists by viewModel.songPlaylists.collectAsStateWithLifecycle()
     val output by viewModel.activeOutput.collectAsStateWithLifecycle()
     val trackSound by viewModel.trackSound.collectAsStateWithLifecycle()
     val effectiveSound by viewModel.effectiveSound.collectAsStateWithLifecycle()
@@ -1005,8 +1006,11 @@ fun PlayerScreen(
                     },
                     titleBlock = { m ->
                         if (island) {
-                            IslandTitleRow(liked, { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) }, m) { tm ->
-                                HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, tm, openArtist, openAlbum)
+                            Column(m) {
+                                IslandTitleRow(liked, { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) }, Modifier.fillMaxWidth()) { tm ->
+                                    HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, tm, openArtist, openAlbum)
+                                }
+                                IslandPlaylistMark(songPlaylists.map { it.name }) { showPlaylists = true }
                             }
                         } else {
                             HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m, openArtist, openAlbum)
@@ -1656,6 +1660,7 @@ fun PlayerScreen(
                     sharing = sharing,
                     sleepLeftMs = sleepLeft,
                     onPin = { viewModel.togglePin(song) },
+                    inPlaylist = songPlaylists.isNotEmpty(),
                     onAdd = { panel = null; showPlaylists = true },
                     onDownload = { viewModel.download(song) },
                     onShare = { panel = null; viewModel.shareCard() },

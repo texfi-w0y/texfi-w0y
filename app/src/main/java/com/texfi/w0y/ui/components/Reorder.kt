@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import kotlinx.coroutines.CoroutineScope
@@ -117,28 +118,96 @@ fun rememberReorderState(list: LazyListState, horizontal: Boolean = false, onMov
     return androidx.compose.runtime.remember(list) { ReorderState(list, scope, { a, b -> move(a, b) }, tap, horizontal) }
 }
 
-/** Ручка строки: 48 dp касания; перенос — только за неё, прокрутка списка и касание строки его не начинают. */
+/**
+ * Ручка строки: шесть точек, 48 dp касания. Строка берётся только после удержания на точках
+ * ([HOLD_MS]): пока палец держится, точки наливаются цветом, в момент захвата — отклик. Сдвинул
+ * палец раньше — ничего не происходит; прокрутка списка и касание строки перенос не начинают.
+ */
 @Composable
 fun ReorderHandle(state: ReorderState, key: Any, onDrop: () -> Unit) {
     val colors = LocalW0yColors.current
     val haptic = rememberHaptics()
+    val tone = com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.background)
+    var holding by androidx.compose.runtime.remember { mutableStateOf(false) }
+    val grabbed = state.dragging == key
+    // Наливается ровно за время удержания, отпускает быстро.
+    val fill by androidx.compose.animation.core.animateFloatAsState(
+        if (holding || grabbed) 1f else 0f,
+        androidx.compose.animation.core.tween(if (holding) HOLD_MS.toInt() else 120, easing = androidx.compose.animation.core.LinearEasing),
+        label = "gripFill",
+    )
     Box(
         Modifier
             .size(48.dp)
-            .holdToDrag(
+            .holdThenDrag(
                 key = key,
+                onHolding = { holding = it },
                 onStart = {
                     haptic(Buzz.ON)
                     state.start(key)
                 },
                 onDrag = { dy -> state.drag(dy) },
                 onEnd = { if (state.end()) onDrop() },
-            ),
+            )
+            .testTag("grip"),
         contentAlignment = Alignment.Center,
     ) {
-        PixelSprite(Sprites.grip, if (state.dragging == key) colors.accent else colors.textMuted, Modifier.size(18.dp))
+        GripDots({ androidx.compose.ui.graphics.lerp(colors.textMuted, tone, fill) }, Modifier.size(18.dp).graphicsLayer {
+            val s = 1f + 0.15f * fill
+            scaleX = s
+            scaleY = s
+        })
     }
 }
+
+/** Шесть точек ручки: два столбика по три. */
+@Composable
+private fun GripDots(color: () -> androidx.compose.ui.graphics.Color, modifier: Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val r = size.minDimension * 0.09f
+        val dx = size.width * 0.18f
+        val dy = size.height * 0.3f
+        val c = color()
+        for (col in -1..1 step 2) for (row in -1..1) {
+            drawCircle(c, r, androidx.compose.ui.geometry.Offset(center.x + col * dx, center.y + row * dy))
+        }
+    }
+}
+
+/**
+ * Удержать, потом вести. Пока ждём удержания, движение по ручке гасится — список под пальцем не
+ * листается, а строка не нажимается. Палец ушёл дальше порога касания или поднялся раньше —
+ * перенос не начинается.
+ */
+private fun Modifier.holdThenDrag(key: Any, onHolding: (Boolean) -> Unit, onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> Unit): Modifier =
+    pointerInput(key) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            down.consume()
+            onHolding(true)
+            val broke =
+                withTimeoutOrNull(HOLD_MS) {
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                        change.consume()
+                    }
+                    true
+                }
+            onHolding(false)
+            if (broke == true) return@awaitEachGesture
+            onStart()
+            drag(down.id) { change ->
+                onDrag(change.positionChange().y)
+                change.consume()
+            }
+            onEnd()
+        }
+    }
+
+/** Сколько держать палец на ручке, прежде чем строка возьмётся. */
+const val HOLD_MS = 260L
 
 /**
  * Перенос за ручку: ведёшь пальцем по ручке — строка берётся, как только палец прошёл порог касания.

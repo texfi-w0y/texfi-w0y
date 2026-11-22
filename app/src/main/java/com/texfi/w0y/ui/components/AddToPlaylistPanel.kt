@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,17 @@ import com.texfi.w0y.R
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.ui.theme.LocalW0yColors
 import com.texfi.w0y.ui.theme.asLabel
+
+/**
+ * Где лежит трек и как его оттуда убрать — даёт оболочка. Без неё меню трека просто не
+ * отмечает плейлисты (так в тестах отдельных экранов).
+ */
+class PlaylistMembership(
+    val of: (String) -> kotlinx.coroutines.flow.Flow<Set<Long>>,
+    val remove: (playlistId: Long, songId: String) -> Unit,
+)
+
+val LocalPlaylistMembership = androidx.compose.runtime.staticCompositionLocalOf<PlaylistMembership?> { null }
 
 /**
  * Что можно сделать с треком: одна панель на поиск, плеер и списки —
@@ -63,8 +75,14 @@ fun AddToPlaylistPanel(
     onCopyLink: (() -> Unit)? = null,
 ) {
     val colors = LocalW0yColors.current
+    // Плейлисты, где трек уже есть, — сверху и с галочкой; нажатие убирает его оттуда.
+    val membership = LocalPlaylistMembership.current
+    val inIds by remember(song.id, membership) { membership?.of(song.id) ?: kotlinx.coroutines.flow.flowOf(emptySet()) }
+        .collectAsState(emptySet())
+    val sorted = playlists.sortedByDescending { it.first in inIds }
+    val onRemove: ((Long) -> Unit)? = membership?.let { m -> { id -> m.remove(id, song.id) } }
     if (com.texfi.w0y.ui.theme.isHair) {
-        HairTrackSheet(song, playlists, newName, onNewNameChange, onPick, onCreate, onDismiss, onPlayNext, onEnqueue, onDownload, onArtist, onAlbum, onCopyLink)
+        HairTrackSheet(song, sorted, inIds, onRemove, newName, onNewNameChange, onPick, onCreate, onDismiss, onPlayNext, onEnqueue, onDownload, onArtist, onAlbum, onCopyLink)
         return
     }
     Box(
@@ -138,15 +156,16 @@ fun AddToPlaylistPanel(
             // Обычная колонка, а не LazyColumn: ленивый список занимает всю
             // разрешённую высоту даже пустым, и панель растягивалась бы.
             Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
-                playlists.forEach { (id, name) ->
+                sorted.forEach { (id, name) ->
+                    val inside = id in inIds && onRemove != null
                     Text(
-                        text = name,
+                        text = if (inside) "✓ $name — ${stringResource(R.string.playlist_remove_short)}" else name,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = colors.text,
+                        color = if (inside) colors.accent else colors.text,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .clickable { onPick(id) }
+                                .clickable { if (inside) onRemove?.invoke(id) else onPick(id) }
                                 .padding(vertical = 8.dp),
                     )
                 }
@@ -199,6 +218,8 @@ fun ArtistButtons(
 private fun HairTrackSheet(
     song: SongItem,
     playlists: List<Pair<Long, String>>,
+    inIds: Set<Long>,
+    onRemove: ((Long) -> Unit)?,
     newName: String?,
     onNewNameChange: (String) -> Unit,
     onPick: (Long) -> Unit,
@@ -277,7 +298,11 @@ private fun HairTrackSheet(
                 Text(stringResource(R.string.add_to_playlist_empty), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(vertical = 6.dp))
             }
             playlists.forEach { (id, name) ->
-                MenuLine(com.texfi.w0y.ui.icons.HairGlyph.NOTE, name, act { onPick(id) })
+                if (id in inIds && onRemove != null) {
+                    MenuLine(com.texfi.w0y.ui.icons.HairGlyph.CHECK, name, act { onRemove(id) }, accent = true, trailing = stringResource(R.string.playlist_remove_short))
+                } else {
+                    MenuLine(com.texfi.w0y.ui.icons.HairGlyph.NOTE, name, act { onPick(id) })
+                }
             }
             if (newName != null) {
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -328,7 +353,7 @@ private fun MenuTile(glyph: com.texfi.w0y.ui.icons.HairGlyph, label: String, onC
 
 /** Строка списка меню: значок, подпись. */
 @Composable
-private fun MenuLine(glyph: com.texfi.w0y.ui.icons.HairGlyph, label: String, onClick: () -> Unit, accent: Boolean = false) {
+private fun MenuLine(glyph: com.texfi.w0y.ui.icons.HairGlyph, label: String, onClick: () -> Unit, accent: Boolean = false, trailing: String? = null) {
     val colors = LocalW0yColors.current
     val tint = if (accent) com.texfi.w0y.ui.theme.Contrast.ensure(colors.accent, colors.surface) else colors.text
     Row(
@@ -341,6 +366,10 @@ private fun MenuLine(glyph: com.texfi.w0y.ui.icons.HairGlyph, label: String, onC
     ) {
         com.texfi.w0y.ui.icons.HairIcon(glyph, if (accent) tint else colors.textMuted, Modifier.size(20.dp))
         Spacer(Modifier.width(16.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = tint, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = tint, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = if (trailing != null) Modifier.weight(1f) else Modifier)
+        if (trailing != null) {
+            Spacer(Modifier.width(12.dp))
+            Text(trailing, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1)
+        }
     }
 }

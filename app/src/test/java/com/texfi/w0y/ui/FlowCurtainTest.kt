@@ -57,6 +57,8 @@ class FlowCurtainTest {
     @Before
     fun seed() = runBlocking {
         hilt.inject()
+        // Настройки одни на весь прогон: fl0w начинается как в первый раз.
+        settings.clearAll()
         val dao = db.dao()
         repeat(12) { i ->
             dao.saveSongMeta(SongEntity(id = "song$i", title = "Track $i", artist = "Artist ${i % 4}", thumbnailUrl = "https://example.invalid/$i.jpg"))
@@ -67,6 +69,8 @@ class FlowCurtainTest {
     private fun frames(ms: Long) {
         compose.mainClock.advanceTimeBy(ms)
         Thread.sleep(150)
+        // Запись настроек идёт на своём потоке, а её продолжение ждёт главный поток.
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         compose.mainClock.advanceTimeBy(32)
     }
 
@@ -129,6 +133,7 @@ class FlowCurtainTest {
         compose.onNode(androidx.compose.ui.test.hasContentDescription("Назад")).performClick()
         frames(600)
         assertTrue(has("Что угодно"))
+        repeat(10) { if (has("Зло")) frames(300) }
         assertFalse("скрытое настроение пропало", has("Зло"))
 
         // Вверх за край шторки — обратно в поиск.
