@@ -1182,7 +1182,8 @@
     <string name="track_link">Link</string>
     <string name="track_sleep">Sleep</string>
     <string name="island_sleep_left">sleep in %1$s</string>
-    <string name="player_in_playlists">%1$s and %2$d more</string>
     <string name="playlist_remove_short">remove</string>
     <string name="track_in_playlist">In playlist</string>
+    <string name="playlist_already_in">Already in</string>
+    <string name="playlist_add_to_more">Add to another</string>
 </resources>

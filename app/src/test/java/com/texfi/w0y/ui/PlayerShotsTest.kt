@@ -82,12 +82,7 @@ class PlayerShotsTest {
                     number = "№ 11 / 40",
                     soundLine = null,
                     header = { IslandPlayerHeader(onCollapse = {}, onMenu = {}, videoAvailable = true, videoOn = false, onToggleVideo = {}) },
-                    titleBlock = { m ->
-                        androidx.compose.foundation.layout.Column(m) {
-                            IslandTitleRow(true, {}, Modifier) { tm -> HairTitleBlock(song, PlayerLayout.RING, null, tm) }
-                            com.texfi.w0y.ui.screens.IslandPlaylistMark(listOf("Ночь", "В дорогу")) {}
-                        }
-                    },
+                    titleBlock = { m -> IslandTitleRow(true, {}, m) { tm -> HairTitleBlock(song, PlayerLayout.RING, null, tm) } },
                     actions = {},
                     transport = {
                         HairTransport(playing = true, shuffle = false, repeatActive = false, repeatOne = false, onShuffle = {}, onPrevious = {}, onToggle = {}, onNext = {}, onRepeat = {}, playSize = 76.dp)
@@ -104,6 +99,7 @@ class PlayerShotsTest {
                     visible = panel,
                     song = song,
                     pinned = true,
+                    inPlaylist = true,
                     sharing = false,
                     sleepLeftMs = 754_000,
                     onPin = {}, onAdd = {}, onDownload = {}, onShare = {}, onCopyLink = {}, onSleep = {}, onSound = {}, onLook = {},

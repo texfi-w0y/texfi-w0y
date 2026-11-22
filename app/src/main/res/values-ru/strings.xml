@@ -1181,7 +1181,8 @@
     <string name="track_link">Ссылка</string>
     <string name="track_sleep">Сон</string>
     <string name="island_sleep_left">сон через %1$s</string>
-    <string name="player_in_playlists">%1$s и ещё %2$d</string>
     <string name="playlist_remove_short">убрать</string>
     <string name="track_in_playlist">В плейлисте</string>
+    <string name="playlist_already_in">Уже есть в</string>
+    <string name="playlist_add_to_more">Добавить ещё в</string>
 </resources>

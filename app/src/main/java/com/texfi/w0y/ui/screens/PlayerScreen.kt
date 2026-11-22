@@ -1006,11 +1006,8 @@ fun PlayerScreen(
                     },
                     titleBlock = { m ->
                         if (island) {
-                            Column(m) {
-                                IslandTitleRow(liked, { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) }, Modifier.fillMaxWidth()) { tm ->
-                                    HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, tm, openArtist, openAlbum)
-                                }
-                                IslandPlaylistMark(songPlaylists.map { it.name }) { showPlaylists = true }
+                            IslandTitleRow(liked, { haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song) }, m) { tm ->
+                                HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, tm, openArtist, openAlbum)
                             }
                         } else {
                             HairTitleBlock(song, com.texfi.w0y.data.PlayerLayout.RING, trackSound, m, openArtist, openAlbum)

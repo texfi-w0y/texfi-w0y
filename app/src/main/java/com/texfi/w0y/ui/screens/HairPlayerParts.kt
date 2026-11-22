@@ -964,35 +964,3 @@ internal fun IslandTrackPanel(
 
 private const val TRACK_COLUMNS = 4
 
-/**
- * Hairline New, под исполнителем: в каком плейлисте лежит трек — галочка и имя («Ночь и ещё 2»).
- * Нажатие открывает меню плейлистов, где трек можно убрать. Нет ни в одном — строки нет.
- */
-@Composable
-internal fun IslandPlaylistMark(names: List<String>, onClick: () -> Unit) {
-    val colors = LocalW0yColors.current
-    val tone = Contrast.ensure(colors.accent, colors.background)
-    // Последнее непустое значение держится, пока строка уезжает, — текст не пропадает раньше неё.
-    var shown by remember { mutableStateOf(names) }
-    if (names.isNotEmpty()) shown = names
-    androidx.compose.animation.AnimatedVisibility(
-        visible = names.isNotEmpty(),
-        enter = androidx.compose.animation.expandVertically(hairSpec(HairTokens.MID_MS)) + androidx.compose.animation.fadeIn(hairSpec(HairTokens.MID_MS)),
-        exit = androidx.compose.animation.shrinkVertically(hairSpec(HairTokens.SHORT_MS)) + androidx.compose.animation.fadeOut(hairSpec(HairTokens.SHORT_MS)),
-    ) {
-        val text = if (shown.size <= 1) shown.firstOrNull().orEmpty() else stringResource(R.string.player_in_playlists, shown[0], shown.size - 1)
-        Row(
-            Modifier
-                .padding(top = 4.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .clickable(onClick = onClick)
-                .padding(vertical = 4.dp)
-                .testTag("playlist-mark"),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HairIcon(HairGlyph.CHECK, tone, Modifier.size(14.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(text, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}

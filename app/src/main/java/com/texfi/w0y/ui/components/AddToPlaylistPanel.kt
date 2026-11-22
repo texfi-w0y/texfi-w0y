@@ -288,21 +288,21 @@ private fun HairTrackSheet(
                 }
             }
             onAlbum?.let { MenuLine(com.texfi.w0y.ui.icons.HairGlyph.DISC, song.album?.takeIf(String::isNotBlank) ?: stringResource(R.string.player_to_album), act(it)) }
-            Text(
-                stringResource(R.string.add_to_playlist_title).uppercase(),
-                style = com.texfi.w0y.ui.theme.HairLabelStyle,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-            )
+            // Два блока, чтобы с первого взгляда было ясно: здесь трек уже есть, а сюда можно добавить.
+            val inside = if (onRemove != null) playlists.filter { it.first in inIds } else emptyList()
+            val outside = playlists - inside.toSet()
+            if (inside.isNotEmpty()) {
+                MenuLabel(stringResource(R.string.playlist_already_in))
+                inside.forEach { (id, name) ->
+                    MenuLine(com.texfi.w0y.ui.icons.HairGlyph.CHECK, name, act { onRemove?.invoke(id) }, accent = true, trailing = stringResource(R.string.playlist_remove_short))
+                }
+            }
+            MenuLabel(stringResource(if (inside.isNotEmpty()) R.string.playlist_add_to_more else R.string.add_to_playlist_title))
             if (playlists.isEmpty() && newName == null) {
                 Text(stringResource(R.string.add_to_playlist_empty), style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, modifier = Modifier.padding(vertical = 6.dp))
             }
-            playlists.forEach { (id, name) ->
-                if (id in inIds && onRemove != null) {
-                    MenuLine(com.texfi.w0y.ui.icons.HairGlyph.CHECK, name, act { onRemove(id) }, accent = true, trailing = stringResource(R.string.playlist_remove_short))
-                } else {
-                    MenuLine(com.texfi.w0y.ui.icons.HairGlyph.NOTE, name, act { onPick(id) })
-                }
+            outside.forEach { (id, name) ->
+                MenuLine(com.texfi.w0y.ui.icons.HairGlyph.NOTE, name, act { onPick(id) })
             }
             if (newName != null) {
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -349,6 +349,17 @@ private fun MenuTile(glyph: com.texfi.w0y.ui.icons.HairGlyph, label: String, onC
         Spacer(Modifier.height(8.dp))
         Text(label.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle, color = colors.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
+}
+
+/** Подпись блока меню моно-шрифтом. */
+@Composable
+private fun MenuLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = com.texfi.w0y.ui.theme.HairLabelStyle,
+        color = LocalW0yColors.current.textMuted,
+        modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+    )
 }
 
 /** Строка списка меню: значок, подпись. */
