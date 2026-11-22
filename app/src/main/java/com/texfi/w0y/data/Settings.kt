@@ -497,6 +497,13 @@ data class W0ySettings(
     val flowMood: String = "",
     val flowGenres: String = "",
     val flowNovelty: Int = 35,
+    /** fl0w: жанры и настроения, которых в выборе нет совсем, — через запятую. */
+    val flowHiddenGenres: String = "",
+    val flowHiddenMoods: String = "",
+    /** fl0w: волна звука на фоне, пока играет его очередь. */
+    val flowVisualizer: Boolean = true,
+    /** fl0w: сколько треков собирать за раз. */
+    val flowLength: Int = 40,
     val standChargingOnly: Boolean = false,
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
     val standMaxMinutes: Int = 60,
@@ -651,6 +658,10 @@ class SettingsRepository @Inject constructor(
                     flowMood = prefs[Keys.FLOW_MOOD] ?: d.flowMood,
                     flowGenres = prefs[Keys.FLOW_GENRES] ?: d.flowGenres,
                     flowNovelty = (prefs[Keys.FLOW_NOVELTY] ?: d.flowNovelty).coerceIn(0, 100),
+                    flowHiddenGenres = prefs[Keys.FLOW_HIDDEN_GENRES] ?: d.flowHiddenGenres,
+                    flowHiddenMoods = prefs[Keys.FLOW_HIDDEN_MOODS] ?: d.flowHiddenMoods,
+                    flowVisualizer = prefs[Keys.FLOW_VISUALIZER] ?: d.flowVisualizer,
+                    flowLength = (prefs[Keys.FLOW_LENGTH] ?: d.flowLength).coerceIn(10, 100),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: d.standChargingOnly,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: d.standMaxMinutes,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: d.standLowBatteryExit,
@@ -1008,6 +1019,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setFlowIntroSeen(value: Boolean) = put(Keys.FLOW_INTRO, value)
 
+    suspend fun setFlowHidden(genres: String, moods: String) {
+        put(Keys.FLOW_HIDDEN_GENRES, genres)
+        put(Keys.FLOW_HIDDEN_MOODS, moods)
+    }
+
+    suspend fun setFlowVisualizer(value: Boolean) = put(Keys.FLOW_VISUALIZER, value)
+
+    suspend fun setFlowLength(value: Int) = put(Keys.FLOW_LENGTH, value.coerceIn(10, 100))
+
     suspend fun setFlowChoice(mood: String, genres: String, novelty: Int) {
         put(Keys.FLOW_MOOD, mood)
         put(Keys.FLOW_GENRES, genres)
@@ -1270,6 +1290,10 @@ class SettingsRepository @Inject constructor(
         val FLOW_MOOD = stringPreferencesKey("flow_mood")
         val FLOW_GENRES = stringPreferencesKey("flow_genres")
         val FLOW_NOVELTY = intPreferencesKey("flow_novelty")
+        val FLOW_HIDDEN_GENRES = stringPreferencesKey("flow_hidden_genres")
+        val FLOW_HIDDEN_MOODS = stringPreferencesKey("flow_hidden_moods")
+        val FLOW_VISUALIZER = booleanPreferencesKey("flow_visualizer")
+        val FLOW_LENGTH = intPreferencesKey("flow_length")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")

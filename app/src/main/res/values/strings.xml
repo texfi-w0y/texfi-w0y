@@ -1104,6 +1104,16 @@
     <string name="flow_queued">%1$d tracks in the queue</string>
     <string name="flow_mix_mine">mine</string>
     <string name="flow_mix_new">new</string>
+    <string name="flow_cd_settings">fl0w settings</string>
+    <string name="flow_settings">Settings</string>
+    <string name="flow_hide_moods">Never show moods</string>
+    <string name="flow_hide_hint">Tap to cross out: it disappears from fl0w.</string>
+    <string name="flow_hide_genres">Never show genres</string>
+    <string name="flow_length">Tracks at a time</string>
+    <string name="flow_visualizer">Sound wave in the background</string>
+    <string name="flow_visualizer_hint">Thin bars behind fl0w and the player while its queue plays.</string>
+    <string name="flow_player_note">fl0w put this queue together. When it ends, fl0w adds more in the same mood.</string>
+    <string name="flow_player_any">any mood</string>
     <string name="flow_pull_me">pull me</string>
     <string name="flow_back">to search</string>
     <string name="flow_welcome_text">Can\'t decide what to play? Tell me how you feel right now, and I\'ll build a queue from your artists and new ones in that mood.</string>

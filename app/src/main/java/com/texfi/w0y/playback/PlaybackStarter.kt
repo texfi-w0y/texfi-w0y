@@ -7,6 +7,10 @@ import com.texfi.w0y.data.SettingsRepository
 import com.texfi.w0y.data.SongItem
 import com.texfi.w0y.data.W0ySettings
 import com.texfi.w0y.data.YouTubeRepository
+import com.texfi.w0y.recs.FlowChoice
+import com.texfi.w0y.recs.FlowEngine
+import com.texfi.w0y.recs.FlowNow
+import com.texfi.w0y.recs.FlowSession
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +19,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +42,8 @@ class PlaybackStarter @Inject constructor(
     private val recommendations: RecommendationRepository,
     private val youtube: YouTubeRepository,
     private val queueStore: QueueStore,
+    private val flowSession: FlowSession,
+    private val flowEngine: javax.inject.Provider<FlowEngine>,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var radioJob: Job? = null
@@ -51,6 +60,11 @@ class PlaybackStarter @Inject constructor(
     val findingClean: StateFlow<Boolean> = _findingClean.asStateFlow()
 
     private var current: W0ySettings = W0ySettings()
+
+    /** Играет очередь fl0w: трек из собранного им. null — обычное воспроизведение. */
+    val flow: StateFlow<FlowNow?> =
+        combine(flowSession.now, player.state) { now, state -> now?.takeIf { state.song?.id in it.ids } }
+            .stateIn(scope, SharingStarted.Eagerly, null)
 
     /** Для какого трека уже подобрано продолжение — чтобы не просить дважды. */
     private var extendedFor: String? = null
@@ -85,6 +99,11 @@ class PlaybackStarter @Inject constructor(
                     return@collect
                 }
                 if (extendedFor == song.id) return@collect
+                // fl0w кончился — дособираем по тому же выбору, а не радио от последнего трека.
+                flowSession.now.value?.takeIf { song.id in it.ids }?.let {
+                    extendWithFlow(song, it)
+                    return@collect
+                }
                 val radio = (_mode.value == QueueMode.RADIO && !collection) || current.recInsteadOfList
                 when {
                     radio -> extendWithRadio(song)
@@ -107,6 +126,7 @@ class PlaybackStarter @Inject constructor(
     }
 
     fun play(songs: List<SongItem>, index: Int) {
+        flowSession.stop()
         setCollection(false)
         launch(songs, index)
     }
@@ -118,6 +138,7 @@ class PlaybackStarter @Inject constructor(
      * остаётся вперемешку.
      */
     fun playCollection(songs: List<SongItem>, index: Int) {
+        flowSession.stop()
         setCollection(true)
         launch(songs, index)
     }
@@ -128,6 +149,7 @@ class PlaybackStarter @Inject constructor(
      */
     fun shuffleCollection(songs: List<SongItem>) {
         if (songs.isEmpty()) return
+        flowSession.stop()
         setCollection(true)
         radioJob?.cancel()
         player.play(prepare(songs).shuffled(), 0)
@@ -234,10 +256,47 @@ class PlaybackStarter @Inject constructor(
 
     /** MORE LIKE THIS: трек играет первым, дальше — радио от него. */
     fun radioFrom(song: SongItem) {
+        flowSession.stop()
         setCollection(false)
         radioJob?.cancel()
         player.play(listOf(song), 0)
         extendWithRadio(song)
+    }
+
+    /**
+     * Запуск fl0w: очередь играет ровно как собрана — режим очереди («рекомендации»,
+     * «перемешать») её не трогает, иначе от сорока треков оставалось радио первого.
+     */
+    fun playFlow(songs: List<SongItem>, choice: FlowChoice, russian: Boolean) {
+        val queue = prepare(songs)
+        if (queue.isEmpty()) return
+        radioJob?.cancel()
+        setCollection(false)
+        flowSession.start(FlowNow(choice, russian, queue.mapTo(HashSet()) { it.id }))
+        player.play(queue, 0)
+    }
+
+    private fun extendWithFlow(seed: SongItem, now: FlowNow) {
+        extendedFor = seed.id
+        radioJob =
+            scope.launch {
+                _loadingRadio.value = true
+                val played = player.state.value.queue.mapTo(HashSet()) { it.id }
+                val next =
+                    runCatching { withContext(Dispatchers.IO) { flowEngine.get().build(now.choice, now.russian, exclude = played) } }
+                        .onFailure { Timber.w(it, "fl0w не дособрался") }
+                        .getOrNull()
+                        ?.items
+                        ?.map { it.song }
+                        ?.filterNot { it.id in played }
+                        ?.let(::prepare)
+                        .orEmpty()
+                if (next.isNotEmpty()) {
+                    flowSession.extend(next.map { it.id })
+                    player.replaceUpcoming(next)
+                }
+                _loadingRadio.value = false
+            }
     }
 
     private fun extendWithRadio(seed: SongItem) {

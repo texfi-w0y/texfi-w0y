@@ -10,6 +10,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
@@ -633,13 +635,29 @@ fun HairMiniPlayer(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = if (state.isBuffering) stringResource(R.string.common_loading) else song.artist,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Играет fl0w — перед исполнителем его имя: метка выезжает слева и уезжает так же.
+                            AnimatedVisibility(
+                                visible = LocalFlowNow.current != null,
+                                enter = expandHorizontally(hairSpec(HairTokens.MID_MS)) + fadeIn(hairSpec(HairTokens.MID_MS)),
+                                exit = shrinkHorizontally(hairSpec(HairTokens.MID_MS)) + fadeOut(hairSpec(HairTokens.SHORT_MS)),
+                            ) {
+                                Text(
+                                    stringResource(R.string.flow_name),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = com.texfi.w0y.ui.theme.GeologicaFamily, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                    color = Contrast.ensure(colors.accent, colors.background),
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                )
+                            }
+                            Text(
+                                text = if (state.isBuffering) stringResource(R.string.common_loading) else song.artist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                     HairPlayButton(playing = state.isPlaying, onClick = onToggle, size = 46.dp)
                     HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text)

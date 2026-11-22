@@ -359,10 +359,12 @@ internal fun CoverPlayerPage(
     /** Hairline New: строка звука под линейкой — «1.00× · тон 1.00»; нажатие открывает скорость. */
     soundLine: String? = null,
     onSoundLine: () -> Unit = {},
+    /** Слой поверх размытого фона, под всем остальным: волна fl0w. */
+    underlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
     if (poster) {
-        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine)
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine, underlay)
         return
     }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -381,6 +383,7 @@ internal fun CoverPlayerPage(
         val breathe by animateFloatAsState(if (isPlaying) 1f else 0.94f, spring(dampingRatio = 0.6f, stiffness = 260f), label = "coverBreathe")
         Box(Modifier.fillMaxSize().dragToCollapse()) {
             PlayerBlurBackdrop(song.thumbnailUrl, isPlaying)
+            underlay()
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
                 Box(Modifier.hairEnter(0)) { header() }
                 BoxWithConstraints(
@@ -481,6 +484,7 @@ private fun PosterPlayerPage(
     number: String?,
     soundLine: String?,
     onSoundLine: () -> Unit,
+    underlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
@@ -510,6 +514,7 @@ private fun PosterPlayerPage(
             val pageHeight = maxHeight
             Box(Modifier.matchParentSize().then(if (island) Modifier.screenBackdrop(posterBackdrop) else Modifier)) {
             PlayerBlurBackdrop(song.thumbnailUrl, isPlaying)
+            underlay()
             // Обложка заходит под управление на величину растворения, но не выше квадрата.
             val fade = 96.dp
             val controls = with(density) { controlsPx.toDp() }

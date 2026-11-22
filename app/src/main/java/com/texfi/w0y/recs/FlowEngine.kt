@@ -79,11 +79,11 @@ class FlowEngine @Inject constructor(
     @Volatile
     internal var networkCalls = 0
 
-    suspend fun build(choice: FlowChoice, russian: Boolean, limit: Int = LIMIT): FlowSet {
+    suspend fun build(choice: FlowChoice, russian: Boolean, limit: Int = LIMIT, exclude: Set<String> = emptySet()): FlowSet {
         val rnd = random()
         val taste = recs.tasteProfile()
         val liked = dao.likedSongs().first().map { it.toItem() }.filterNot { LocalMusic.isLocal(it.id) || taste.isExcluded(it.artist) }
-        val recent = dao.recentPlays(RECENT).map { it.id }.toSet()
+        val recent = dao.recentPlays(RECENT).map { it.id }.toSet() + exclude
         // «Удиви меня» без настроения — настроение выбирается само, иначе искать нечего.
         val mood = choice.mood ?: if (choice.novelty >= SURPRISE_AT || liked.isEmpty()) FlowMood.entries.random(rnd) else null
 

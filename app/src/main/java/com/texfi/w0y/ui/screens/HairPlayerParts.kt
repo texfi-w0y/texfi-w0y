@@ -9,9 +9,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
 import com.texfi.w0y.ui.theme.HairTitleStyle
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.basicMarquee
 import com.texfi.w0y.ui.components.fadeEdges
@@ -139,6 +142,8 @@ internal fun IslandPlayerHeader(
     videoAvailable: Boolean,
     videoOn: Boolean,
     onToggleVideo: () -> Unit,
+    /** Играет fl0w: посередине шапки его имя и настроение. */
+    flowMood: String? = null,
 ) {
     val colors = LocalW0yColors.current
     val backdrop = com.texfi.w0y.ui.theme.LocalIslandBackdrop.current
@@ -148,8 +153,16 @@ internal fun IslandPlayerHeader(
         Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
             HairIconButton(HairGlyph.COLLAPSE, stringResource(R.string.player_collapse), onCollapse, tint = colors.text, size = 20.dp)
         }
-        // Посередине пусто: что заиграет следом, видно в очереди внизу.
-        Spacer(Modifier.weight(1f))
+        // Посередине пусто: что заиграет следом, видно в очереди внизу. У fl0w — его имя и настроение.
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = flowMood != null,
+                enter = androidx.compose.animation.fadeIn(hairSpec(HairTokens.LONG_MS)) + androidx.compose.animation.slideInVertically(hairSpec(HairTokens.LONG_MS)) { -it },
+                exit = androidx.compose.animation.fadeOut(hairSpec(HairTokens.SHORT_MS)),
+            ) {
+                FlowHeaderMark(flowMood.orEmpty())
+            }
+        }
         Spacer(Modifier.width(10.dp))
         if (videoAvailable) {
             Box(Modifier.size(44.dp).matte(circle, backdrop), contentAlignment = Alignment.Center) {
@@ -188,11 +201,12 @@ internal fun IslandTitleRow(
  * открывают панель очереди на своей вкладке.
  */
 @Composable
-internal fun IslandPlayerTabs(lyricsOn: Boolean, onLyrics: () -> Unit, onQueue: () -> Unit, onSimilar: () -> Unit) {
+internal fun IslandPlayerTabs(lyricsOn: Boolean, onLyrics: () -> Unit, onQueue: () -> Unit, onSimilar: () -> Unit, similar: Boolean = true) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
-    val labels = listOf(stringResource(R.string.island_text), stringResource(R.string.sheet_queue), stringResource(R.string.sheet_similar))
-    val actions = listOf(onLyrics, onQueue, onSimilar)
+    // У fl0w «Похожее» нет: дальше играет то, что собрал он.
+    val labels = listOfNotNull(stringResource(R.string.island_text), stringResource(R.string.sheet_queue), if (similar) stringResource(R.string.sheet_similar) else null)
+    val actions = listOfNotNull(onLyrics, onQueue, if (similar) onSimilar else null)
     val dot by animateFloatAsState(if (lyricsOn) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "islandTabDot")
     Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
         labels.forEachIndexed { i, label ->
@@ -610,12 +624,17 @@ internal fun HairTransport(
     onNext: () -> Unit,
     onRepeat: () -> Unit,
     playSize: Dp = 88.dp,
+    /** У fl0w «перемешать» нет: порядок собран под настроение. Место остаётся — ряд не сдвигается. */
+    showShuffle: Boolean = true,
 ) {
     val colors = LocalW0yColors.current
     val tone = Contrast.ensure(colors.accent, colors.background)
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            HairIconButton(HairGlyph.SHUFFLE, stringResource(R.string.player_cd_shuffle), onShuffle, tint = if (shuffle) tone else colors.textMuted)
+            val shuffleAlpha by animateFloatAsState(if (showShuffle) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "shuffleOut")
+            Box(Modifier.size(HairTokens.TOUCH).graphicsLayer { alpha = shuffleAlpha; scaleX = 0.6f + 0.4f * shuffleAlpha; scaleY = 0.6f + 0.4f * shuffleAlpha }) {
+                if (shuffleAlpha > 0.01f) HairIconButton(HairGlyph.SHUFFLE, stringResource(R.string.player_cd_shuffle), if (showShuffle) onShuffle else ({}), tint = if (shuffle) tone else colors.textMuted)
+            }
             HairIconButton(HairGlyph.PREVIOUS, stringResource(R.string.hl_cd_prev), onPrevious, tint = colors.text, size = 28.dp)
             HairPlayButton(playing = playing, onClick = onToggle, size = playSize)
             HairIconButton(HairGlyph.NEXT, stringResource(R.string.hl_cd_next), onNext, tint = colors.text, size = 28.dp)
@@ -817,4 +836,40 @@ internal fun Modifier.copyOnLongPress(text: String, onClick: (() -> Unit)? = nul
             }
         },
     )
+}
+
+/**
+ * Метка fl0w в шапке плеера: имя крупно, под ним настроение моно. Вокруг имени медленно
+ * дышит тонкое кольцо-подчёркивание — видно, что играет не обычная очередь.
+ */
+@Composable
+private fun FlowHeaderMark(mood: String) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    val loop = androidx.compose.animation.core.rememberInfiniteTransition(label = "flowMark")
+    val sweep by loop.animateFloat(
+        0f,
+        1f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(2400, easing = HairTokens.EaseOut), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "flowMarkSweep",
+    )
+    val moves = hairLook.motion.moves
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            stringResource(R.string.flow_name),
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(fontFamily = com.texfi.w0y.ui.theme.GeologicaFamily, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, fontSize = 18.sp),
+            color = colors.text,
+            maxLines = 1,
+            modifier =
+                Modifier.drawBehind {
+                    // Линия под именем: длина плавно ходит туда-сюда, как дыхание.
+                    val k = if (moves) 0.35f + 0.65f * sweep else 1f
+                    val w = size.width * k
+                    val y = size.height + 1.dp.toPx()
+                    drawLine(tone, androidx.compose.ui.geometry.Offset((size.width - w) / 2f, y), androidx.compose.ui.geometry.Offset((size.width + w) / 2f, y), 1.dp.toPx())
+                },
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(mood.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted, maxLines = 1)
+    }
 }

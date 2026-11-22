@@ -1103,6 +1103,16 @@
     <string name="flow_queued">В очереди %1$d</string>
     <string name="flow_mix_mine">своё</string>
     <string name="flow_mix_new">новое</string>
+    <string name="flow_cd_settings">Настройки fl0w</string>
+    <string name="flow_settings">Настройки</string>
+    <string name="flow_hide_moods">Никогда не показывать настроения</string>
+    <string name="flow_hide_hint">Нажми, чтобы зачеркнуть: слово пропадёт из fl0w.</string>
+    <string name="flow_hide_genres">Никогда не показывать жанры</string>
+    <string name="flow_length">Треков за раз</string>
+    <string name="flow_visualizer">Волна звука на фоне</string>
+    <string name="flow_visualizer_hint">Тонкие столбики за fl0w и плеером, пока играет его очередь.</string>
+    <string name="flow_player_note">Эту очередь собрал fl0w. Когда кончится, он доберёт ещё в том же настроении.</string>
+    <string name="flow_player_any">любое настроение</string>
     <string name="flow_pull_me">потяни меня</string>
     <string name="flow_back">к поиску</string>
     <string name="flow_welcome_text">Не знаешь, что включить? Скажи, как ты сейчас, и я соберу очередь из твоих исполнителей и нового под это настроение.</string>

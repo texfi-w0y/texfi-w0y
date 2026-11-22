@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -166,6 +167,7 @@ fun PlayerScreen(
     val pinned by viewModel.isPinned.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val queueMode by viewModel.queueMode.collectAsStateWithLifecycle()
+    val flowNow by viewModel.flow.collectAsStateWithLifecycle()
     val radioLoading by viewModel.loadingRadio.collectAsStateWithLifecycle()
     val findingClean by viewModel.findingClean.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
@@ -473,7 +475,17 @@ fun PlayerScreen(
                             )
                         }
                     }
-                    item {
+                    if (flowNow != null) item {
+                        // Очередь fl0w: режимы «по порядку / перемешать / рекомендации» ей не нужны.
+                        Spacer(Modifier.height(14.dp))
+                        SectionLabel(stringResource(R.string.flow_name))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = if (radioLoading) stringResource(R.string.flow_building) else stringResource(R.string.flow_player_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (radioLoading) colors.accent else colors.textMuted,
+                        )
+                    } else item {
                         Spacer(Modifier.height(14.dp))
                         SectionLabel(stringResource(R.string.player_next_mode))
                         Spacer(Modifier.height(8.dp))
@@ -934,6 +946,7 @@ fun PlayerScreen(
                             onToggle = viewModel.player::togglePlayPause,
                             onNext = { viewModel.player.skipNext() },
                             onRepeat = viewModel.player::cycleRepeat,
+                            showShuffle = flowNow == null,
                         )
                         Spacer(Modifier.height(10.dp))
                     },
@@ -965,6 +978,7 @@ fun PlayerScreen(
                                 videoAvailable = isVideoTrack,
                                 videoOn = videoOn,
                                 onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
+                                flowMood = flowNow?.let { now -> now.choice.mood?.let { stringResource(it.label()) } ?: stringResource(R.string.flow_player_any) },
                             )
                         } else HairPlayerHeader(
                             onCollapse = onCollapse,
@@ -1016,6 +1030,7 @@ fun PlayerScreen(
                             onToggle = viewModel.player::togglePlayPause,
                             onNext = { viewModel.player.skipNext() },
                             onRepeat = viewModel.player::cycleRepeat,
+                            showShuffle = flowNow == null,
                             playSize = 76.dp,
                         )
                     },
@@ -1026,6 +1041,7 @@ fun PlayerScreen(
                                 onLyrics = { lyricsOn = !lyricsOn; videoOn = false },
                                 onQueue = { queueTab = QueueTab.QUEUE; PlayerPanelMemory.queueTab = QueueTab.QUEUE; panel = PlayerPanel.QUEUE },
                                 onSimilar = { queueTab = QueueTab.SIMILAR; PlayerPanelMemory.queueTab = QueueTab.SIMILAR; panel = PlayerPanel.QUEUE },
+                                similar = flowNow == null,
                             )
                             return@CoverPlayerPage
                         }
@@ -1045,6 +1061,17 @@ fun PlayerScreen(
                                 panel = PlayerPanel.MORE
                             },
                         )
+                    },
+                    underlay = {
+                        // fl0w: волна звука на размытом фоне плеера, под управлением.
+                        if (flowNow != null && settings.flowVisualizer) {
+                            com.texfi.w0y.ui.components.FlowCava(
+                                viewModel.spectrum,
+                                playing = state.isPlaying,
+                                color = LocalW0yColors.current.text.copy(alpha = 0.1f),
+                                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.42f),
+                            )
+                        }
                     },
                     onCoverTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
                     onSwipe = { dir -> haptic(Buzz.TRACK); if (dir > 0) viewModel.player.skipNext() else viewModel.player.skipPrevious() },
@@ -1587,7 +1614,8 @@ fun PlayerScreen(
             )
             QueuePanel(
                 visible = panel == PlayerPanel.QUEUE,
-                tab = queueTab,
+                tab = if (flowNow != null) QueueTab.QUEUE else queueTab,
+                tabs = if (flowNow != null) listOf(QueueTab.QUEUE) else QueueTab.entries,
                 onTab = { queueTab = it; PlayerPanelMemory.queueTab = it },
                 onDismiss = { panel = null },
             ) { t ->

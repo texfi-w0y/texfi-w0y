@@ -16,6 +16,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import com.texfi.w0y.ui.components.FlowCava
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -119,7 +129,7 @@ import kotlin.math.sin
 import kotlinx.coroutines.launch
 
 /** Что показывает раскрытая шторка: после первого прорыва — вылет и приветствие, дальше сразу настройки. */
-private enum class FlowStage { BURST, WELCOME, PANEL }
+private enum class FlowStage { BURST, WELCOME, PANEL, SETTINGS }
 
 /**
  * fl0w — шторка сверху в поиске Hairline New. Тянешь поиск вниз — сверху съезжает fl0w; тянешь
@@ -293,7 +303,7 @@ internal fun FlowCurtain(content: @Composable () -> Unit) {
             scope.launch { shown.animateTo(h, settle) }
         }
 
-        BackHandler(enabled = open) { close() }
+        BackHandler(enabled = open) { if (stage == FlowStage.SETTINGS) stage = FlowStage.PANEL else close() }
 
         // Тяга из прокрутки: выдача упёрлась в верх — дальше тянется шторка; у раскрытой шторки
         // так же уходит вверх то, что упёрлось в низ.
@@ -391,19 +401,40 @@ internal fun FlowCurtain(content: @Composable () -> Unit) {
                     .nestedScroll(pullConnection)
                     .draggable(dragState, Orientation.Vertical, enabled = open, onDragStopped = { release(it) }),
             ) {
+                // Волна звука на фоне, пока играет очередь fl0w: под словами и кнопкой, в цвет текста, почти прозрачная.
+                val prefs by vm.prefs.collectAsStateWithLifecycle()
+                val sounding by vm.sounding.collectAsStateWithLifecycle()
+                if (prefs.visualizer && open && stage != FlowStage.BURST) {
+                    FlowCava(
+                        vm.spectrum,
+                        playing = sounding,
+                        color = colors.text.copy(alpha = 0.09f),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.46f).padding(bottom = LocalBottomInset.current),
+                    )
+                }
                 AnimatedContent(
                     targetState = stage,
-                    transitionSpec = { (fadeIn(tween(HairTokens.MID_MS)) + scaleIn(tween(HairTokens.MID_MS, easing = HairTokens.EaseOut), initialScale = 0.96f)) togetherWith fadeOut(tween(HairTokens.SHORT_MS)) },
+                    transitionSpec = {
+                        // Настройки fl0w выезжают сбоку и уходят туда же; остальное проявляется на месте.
+                        val side = if (targetState == FlowStage.SETTINGS) 1 else if (initialState == FlowStage.SETTINGS) -1 else 0
+                        if (side != 0) {
+                            (slideInHorizontally(tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut)) { it * side / 3 } + fadeIn(tween(HairTokens.MID_MS)))
+                                .togetherWith(slideOutHorizontally(tween(HairTokens.MID_MS, easing = HairTokens.EaseOut)) { -it * side / 4 } + fadeOut(tween(HairTokens.SHORT_MS)))
+                        } else {
+                            (fadeIn(tween(HairTokens.LONG_MS)) + scaleIn(tween(HairTokens.LONG_MS, easing = HairTokens.EaseOut), initialScale = 0.94f)) togetherWith fadeOut(tween(HairTokens.SHORT_MS))
+                        }
+                    },
                     label = "flowStage",
                     modifier = Modifier.fillMaxSize(),
                 ) { s ->
                     when (s) {
                         FlowStage.BURST -> Box(Modifier.fillMaxSize())
                         FlowStage.WELCOME -> FlowWelcome(onNext = { stage = FlowStage.PANEL })
-                        FlowStage.PANEL -> FlowPanel(vm, russian, onClose = { close() })
+                        FlowStage.PANEL -> FlowPanel(vm, russian, onClose = { close() }, onSettings = { stage = FlowStage.SETTINGS })
+                        FlowStage.SETTINGS -> FlowSettings(vm, onBack = { stage = FlowStage.PANEL })
                     }
                 }
-                // Край — своя ручка: под ним прокрутка настроек, и без этого она забирала бы жест себе.
+                // Край — своя ручка: тянут за него, даже когда над ним кнопки и слова.
                 CurtainEdge(Modifier.align(Alignment.BottomCenter).draggable(dragState, Orientation.Vertical, enabled = open, onDragStopped = { release(it) }))
             }
         }
@@ -605,106 +636,334 @@ private fun FlowWelcome(onNext: () -> Unit) {
 
 /**
  * fl0w раскрыт: имя, настроение словами, огромная кнопка «играть», жанры и «своё ↔ новое».
- * Ни плиток, ни карточек: выбранное слово светлее и подчёркнуто линией в 1 dp.
+ * Экран стоит, не листается: всё на одном листе. Ни плиток, ни карточек — выбранное слово
+ * светлее и подчёркнуто линией в 1 dp.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowPanel(vm: FlowViewModel, russian: Boolean, onClose: () -> Unit) {
+private fun FlowPanel(vm: FlowViewModel, russian: Boolean, onClose: () -> Unit, onSettings: () -> Unit) {
     val colors = LocalW0yColors.current
     val choice by vm.choice.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val own by vm.own.collectAsStateWithLifecycle()
+    val prefs by vm.prefs.collectAsStateWithLifecycle()
     val tap = rememberTapHaptic()
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        Column(
+    val moods = FlowMood.entries.filterNot { it in prefs.hiddenMoods }
+    val genres = FlowGenre.entries.filterNot { it in prefs.hiddenGenres }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = LocalBottomInset.current + EDGE_HEIGHT),
+    ) {
+        FlowHeader(title = stringResource(R.string.flow_name), modifier = Modifier.padding(top = 18.dp).hairEnter(0)) {
+            RoundGhost(HairGlyph.SLIDERS, stringResource(R.string.flow_cd_settings), onClick = { tap(); onSettings() })
+            Spacer(Modifier.width(10.dp))
+            RoundGhost(HairGlyph.EXPAND, stringResource(R.string.flow_cd_close), onClick = { tap(); onClose() })
+        }
+        Spacer(Modifier.weight(1f))
+        FlowRow(
+            Modifier.fillMaxWidth().hairEnter(1),
+            horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Word(stringResource(R.string.flow_any), choice.mood == null, big = true) { tap(); vm.setMood(null) }
+            moods.forEach { mood ->
+                Word(stringResource(mood.label()), choice.mood == mood, big = true) { tap(); vm.setMood(mood) }
+            }
+        }
+        Spacer(Modifier.weight(0.8f))
+        PlayHub(
+            playing = own.second,
+            building = result == FlowResult.Loading,
+            onClick = { vm.onPlay(russian) },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+        Spacer(Modifier.height(14.dp))
+        FlowStatus(result, Modifier.fillMaxWidth())
+        Spacer(Modifier.weight(0.8f))
+        if (genres.isNotEmpty()) {
+            FlowRow(
+                Modifier.fillMaxWidth().hairEnter(3),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                genres.forEach { genre ->
+                    Word(stringResource(genre.label()), genre in choice.genres, big = false) { tap(); vm.toggleGenre(genre) }
+                }
+            }
+            Spacer(Modifier.height(26.dp))
+        }
+        FlowRuler(
+            value = choice.novelty,
+            onChange = vm::setNovelty,
+            start = stringResource(R.string.flow_mix_mine),
+            end = stringResource(R.string.flow_mix_new),
+            modifier = Modifier.align(Alignment.CenterHorizontally).widthIn(max = 360.dp).fillMaxWidth().hairEnter(4),
+        )
+        Spacer(Modifier.weight(0.6f))
+    }
+}
+
+/** Шапка листа fl0w: крупное имя слева, круглые кнопки-контуры справа. */
+@Composable
+private fun FlowHeader(title: String, modifier: Modifier, actions: @Composable () -> Unit) {
+    val colors = LocalW0yColors.current
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            title,
+            style = MaterialTheme.typography.displaySmall.copy(fontFamily = GeologicaFamily, fontWeight = FontWeight.ExtraBold, fontSize = 30.sp, letterSpacing = (-0.8).sp),
+            color = colors.text,
+            modifier = Modifier.weight(1f),
+        )
+        actions()
+    }
+}
+
+/** Кнопка-контур: кружок 40 dp в линию 1 dp, знак внутри. */
+@Composable
+private fun RoundGhost(glyph: HairGlyph, label: String, onClick: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        Modifier
+            .size(40.dp)
+            .pressScale(interaction, pressed = 0.9f)
+            .border(1.dp, colors.text.copy(alpha = 0.18f), CircleShape)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        HairIcon(glyph, colors.text, Modifier.size(16.dp))
+    }
+}
+
+/**
+ * Огромная кнопка: появляется пружиной из чуть меньшего размера, пока собирается — вокруг бежит
+ * дуга, пока играет — от неё расходятся тонкие кольца в такт времени (одно за другим, гаснут).
+ */
+@Composable
+private fun PlayHub(playing: Boolean, building: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val colors = LocalW0yColors.current
+    val moves = hairLook.motion.moves
+    val pop = remember { Animatable(if (moves) 0.82f else 1f) }
+    LaunchedEffect(Unit) { pop.animateTo(1f, spring(0.55f, 260f)) }
+    val loop = rememberInfiniteTransition(label = "hub")
+    val wave by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(RIPPLE_MS, easing = LinearEasing)), label = "hubWave")
+    val ripples by animateFloatAsState(if (playing && moves) 1f else 0f, tween(HairTokens.LONG_MS), label = "hubRipples")
+    Box(
+        modifier
+            .size(PLAY + 72.dp)
+            .graphicsLayer {
+                scaleX = pop.value
+                scaleY = pop.value
+                alpha = ((pop.value - 0.82f) / 0.18f).coerceIn(0f, 1f)
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            if (ripples > 0f) {
+                val base = PLAY.toPx() / 2f
+                val reach = 36.dp.toPx()
+                for (k in 0 until RIPPLES) {
+                    val t = (wave + k / RIPPLES.toFloat()) % 1f
+                    drawCircle(colors.text.copy(alpha = 0.22f * (1f - t) * ripples), base + reach * t, style = Stroke(width = 1.dp.toPx()))
+                }
+            }
+        }
+        if (building) BuildingRing(Modifier.size(PLAY + 16.dp))
+        com.texfi.w0y.ui.components.HairPlayButton(playing = playing, onClick = onClick, size = PLAY)
+    }
+}
+
+/** Строка под кнопкой: сменяется плавно, снизу вверх. */
+@Composable
+private fun FlowStatus(result: FlowResult, modifier: Modifier) {
+    val colors = LocalW0yColors.current
+    val text =
+        when (result) {
+            FlowResult.Idle -> ""
+            FlowResult.Loading -> stringResource(R.string.flow_building)
+            FlowResult.Empty -> stringResource(R.string.flow_empty)
+            is FlowResult.Ready -> if (result.set.offline) stringResource(R.string.flow_offline) else stringResource(R.string.flow_queued, result.set.items.size)
+        }
+    AnimatedContent(
+        targetState = text,
+        transitionSpec = {
+            (slideInVertically(tween(HairTokens.MID_MS, easing = HairTokens.EaseOut)) { it / 2 } + fadeIn(tween(HairTokens.MID_MS)))
+                .togetherWith(slideOutVertically(tween(HairTokens.SHORT_MS)) { -it / 2 } + fadeOut(tween(HairTokens.SHORT_MS)))
+        },
+        label = "flowStatus",
+        modifier = modifier.heightIn(min = 20.dp),
+    ) { t ->
+        Text(
+            t,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textMuted,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * «Своё ↔ новое» — линейка, а не ползунок: тонкая линия с рисками через каждые 10 %, бегунок —
+ * короткая вертикальная черта, над ней число. Пройденная часть светлее. Риски, мимо которых
+ * проходит палец, щёлкают.
+ */
+@Composable
+private fun FlowRuler(value: Int, onChange: (Int) -> Unit, start: String, end: String, modifier: Modifier) {
+    val colors = LocalW0yColors.current
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    val tap = rememberTapHaptic()
+    val shown by animateFloatAsState(value / 100f, hairSpec(HairTokens.SHORT_MS), label = "ruler")
+    var width by remember { mutableFloatStateOf(1f) }
+    val pad = with(LocalDensity.current) { 10.dp.toPx() }
+    fun at(x: Float): Int = (((x - pad) / (width - 2 * pad)).coerceIn(0f, 1f) * 20).toInt() * 5
+    val last = remember { intArrayOf(value) }
+    fun set(v: Int) {
+        if (v == last[0]) return
+        if (v / 10 != last[0] / 10) tap()
+        last[0] = v
+        onChange(v)
+    }
+    Column(modifier) {
+        Box(
             Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = maxHeight)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+                .height(44.dp)
+                .onSizeChanged { width = it.width.toFloat() }
+                .pointerInput(Unit) { detectTapGestures { set(at(it.x)) } }
+                .pointerInput(Unit) { detectHorizontalDragGestures { change, _ -> set(at(change.position.x)) } }
+                .drawBehind {
+                    val y = size.height * 0.62f
+                    val x0 = pad
+                    val x1 = size.width - pad
+                    val x = x0 + (x1 - x0) * shown
+                    val line = 1.dp.toPx()
+                    drawLine(colors.text.copy(alpha = 0.18f), Offset(x0, y), Offset(x1, y), line)
+                    drawLine(colors.text.copy(alpha = 0.7f), Offset(x0, y), Offset(x, y), line)
+                    for (k in 0..10) {
+                        val tx = x0 + (x1 - x0) * k / 10f
+                        val tall = if (k % 5 == 0) 7.dp.toPx() else 4.dp.toPx()
+                        drawLine(colors.text.copy(alpha = if (tx <= x) 0.6f else 0.22f), Offset(tx, y - tall), Offset(tx, y), line)
+                    }
+                    drawLine(tone, Offset(x, y - 14.dp.toPx()), Offset(x, y + 8.dp.toPx()), 2.dp.toPx())
+                },
         ) {
-            Row(Modifier.padding(top = 18.dp).hairEnter(0), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.flow_name),
-                    style = MaterialTheme.typography.displaySmall.copy(fontFamily = GeologicaFamily, fontWeight = FontWeight.ExtraBold, fontSize = 30.sp, letterSpacing = (-0.8).sp),
-                    color = colors.text,
-                    modifier = Modifier.weight(1f),
-                )
-                val closeLabel = stringResource(R.string.flow_cd_close)
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .border(1.dp, colors.text.copy(alpha = 0.18f), CircleShape)
-                        .clickable { tap(); onClose() }
-                        .semantics { contentDescription = closeLabel },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    HairIcon(HairGlyph.EXPAND, colors.text, Modifier.size(16.dp))
-                }
-            }
-
-            Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                FlowRow(
-                    Modifier.fillMaxWidth().hairEnter(1),
-                    horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Word(stringResource(R.string.flow_any), choice.mood == null, big = true) { tap(); vm.setMood(null) }
-                    FlowMood.entries.forEach { mood ->
-                        Word(stringResource(mood.label()), choice.mood == mood, big = true) { tap(); vm.setMood(mood) }
-                    }
-                }
-                Spacer(Modifier.height(36.dp))
-                Box(Modifier.hairEnter(2), contentAlignment = Alignment.Center) {
-                    if (result == FlowResult.Loading) BuildingRing(Modifier.size(PLAY + 16.dp))
-                    com.texfi.w0y.ui.components.HairPlayButton(playing = own.second, onClick = { vm.onPlay(russian) }, size = PLAY)
-                }
-                Spacer(Modifier.height(36.dp))
-                FlowRow(
-                    Modifier.fillMaxWidth().hairEnter(3),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    FlowGenre.entries.forEach { genre ->
-                        Word(stringResource(genre.label()), genre in choice.genres, big = false) { tap(); vm.toggleGenre(genre) }
-                    }
-                }
-                Spacer(Modifier.height(22.dp))
-                Row(Modifier.widthIn(max = 340.dp).fillMaxWidth().hairEnter(4), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.flow_mix_mine).asLabel(), style = HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted)
-                    Spacer(Modifier.width(12.dp))
-                    PixelSlider(value = choice.novelty.toFloat(), range = 0f..100f, step = 5f, onValueChange = { vm.setNovelty(it.toInt()) }, modifier = Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.flow_mix_new).asLabel(), style = HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted)
-                }
-            }
-
-            val status =
-                when (val r = result) {
-                    FlowResult.Idle -> ""
-                    FlowResult.Loading -> stringResource(R.string.flow_building)
-                    FlowResult.Empty -> stringResource(R.string.flow_empty)
-                    is FlowResult.Ready -> if (r.set.offline) stringResource(R.string.flow_offline) else stringResource(R.string.flow_queued, r.set.items.size)
-                }
             Text(
-                status,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textMuted,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(bottom = LocalBottomInset.current + EDGE_HEIGHT + 8.dp),
+                "${value}%",
+                style = HairLabelStyle.copy(fontSize = 10.sp),
+                color = colors.text,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .graphicsLayer { translationX = (pad + (width - 2 * pad) * shown) - size.width / 2f },
             )
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            Text(start.asLabel(), style = HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted, modifier = Modifier.weight(1f))
+            Text(end.asLabel(), style = HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted)
         }
     }
 }
 
-/** Слово выбора: выбранное — основной цвет и линия под ним, остальные приглушены. */
+/**
+ * Настройки fl0w — тот же лист словами. Жанры и настроения, нажатые здесь, зачёркиваются и
+ * пропадают из выбора совсем. Ниже — волна на фоне и сколько треков собирать за раз.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowSettings(vm: FlowViewModel, onBack: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val prefs by vm.prefs.collectAsStateWithLifecycle()
+    val tap = rememberTapHaptic()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = LocalBottomInset.current + EDGE_HEIGHT),
+    ) {
+        FlowHeader(title = stringResource(R.string.flow_settings), modifier = Modifier.padding(top = 18.dp).hairEnter(0)) {
+            RoundGhost(HairGlyph.CHEVRON_LEFT, stringResource(R.string.common_back), onClick = { tap(); onBack() })
+        }
+        Spacer(Modifier.height(28.dp))
+        SettingsLabel(stringResource(R.string.flow_hide_moods), stringResource(R.string.flow_hide_hint), Modifier.hairEnter(1))
+        FlowRow(Modifier.fillMaxWidth().padding(top = 10.dp).hairEnter(1), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowMood.entries.forEach { mood ->
+                HideWord(stringResource(mood.label()), hidden = mood in prefs.hiddenMoods, big = true) { tap(); vm.toggleHiddenMood(mood) }
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SettingsLabel(stringResource(R.string.flow_hide_genres), null, Modifier.hairEnter(2))
+        FlowRow(Modifier.fillMaxWidth().padding(top = 10.dp).hairEnter(2), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FlowGenre.entries.forEach { genre ->
+                HideWord(stringResource(genre.label()), hidden = genre in prefs.hiddenGenres, big = false) { tap(); vm.toggleHiddenGenre(genre) }
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SettingsLabel(stringResource(R.string.flow_length), null, Modifier.hairEnter(3))
+        Row(Modifier.padding(top = 10.dp).hairEnter(3), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            LENGTHS.forEach { n -> Word(n.toString(), prefs.length == n, big = true) { tap(); vm.setLength(n) } }
+        }
+        Spacer(Modifier.height(28.dp))
+        Row(Modifier.fillMaxWidth().hairEnter(4), verticalAlignment = Alignment.CenterVertically) {
+            SettingsLabel(stringResource(R.string.flow_visualizer), stringResource(R.string.flow_visualizer_hint), Modifier.weight(1f))
+            Spacer(Modifier.width(12.dp))
+            com.texfi.w0y.ui.components.PixelSwitch(checked = prefs.visualizer, onCheckedChange = { vm.setVisualizer(it) })
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun SettingsLabel(title: String, hint: String?, modifier: Modifier) {
+    val colors = LocalW0yColors.current
+    Column(modifier) {
+        Text(title.asLabel(), style = HairLabelStyle, color = colors.textMuted)
+        if (hint != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = colors.textMuted.copy(alpha = 0.8f))
+        }
+    }
+}
+
+/** Слово в настройках: скрытое — тусклое и перечёркнуто линией, которая прорисовывается слева направо. */
+@Composable
+private fun HideWord(text: String, hidden: Boolean, big: Boolean, onClick: () -> Unit) {
+    val colors = LocalW0yColors.current
+    val interaction = remember { MutableInteractionSource() }
+    val ink by animateColorAsState(if (hidden) colors.text.copy(alpha = 0.3f) else colors.text, hairSpec(HairTokens.SHORT_MS), label = "hideInk")
+    val strike by animateFloatAsState(if (hidden) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "hideStrike")
+    Text(
+        if (big) text else text.asLabel(),
+        style = if (big) MaterialTheme.typography.titleLarge.copy(fontFamily = GeologicaFamily, fontWeight = FontWeight.SemiBold, fontSize = 19.sp) else HairLabelStyle,
+        color = ink,
+        maxLines = 1,
+        modifier =
+            Modifier
+                .pressScale(interaction, pressed = 0.94f)
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .padding(vertical = 4.dp)
+                .drawBehind {
+                    if (strike > 0f) {
+                        val y = size.height / 2f
+                        drawLine(colors.text.copy(alpha = 0.6f), Offset(0f, y), Offset(size.width * strike, y), 1.dp.toPx())
+                    }
+                },
+    )
+}
+
+/**
+ * Слово выбора: выбранное — основной цвет и линия под ним, растущая от середины; остальные
+ * приглушены. Нажатие слегка вдавливает слово.
+ */
 @Composable
 private fun Word(text: String, on: Boolean, big: Boolean, onClick: () -> Unit) {
     val colors = LocalW0yColors.current
     val interaction = remember { MutableInteractionSource() }
     val ink by animateColorAsState(if (on) colors.text else colors.text.copy(alpha = if (big) 0.36f else 0.42f), hairSpec(HairTokens.SHORT_MS), label = "wordInk")
-    val line by animateFloatAsState(if (on) 1f else 0f, hairSpec(HairTokens.SHORT_MS), label = "wordLine")
+    val line by animateFloatAsState(if (on) 1f else 0f, hairSpec(HairTokens.MID_MS), label = "wordLine")
     val style =
         if (big) {
             MaterialTheme.typography.headlineSmall.copy(fontFamily = GeologicaFamily, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, letterSpacing = (-0.3).sp)
@@ -718,12 +977,11 @@ private fun Word(text: String, on: Boolean, big: Boolean, onClick: () -> Unit) {
         maxLines = 1,
         modifier =
             Modifier
-                .pressScale(interaction, pressed = 0.94f)
+                .pressScale(interaction, pressed = 0.92f)
                 .clickable(interactionSource = interaction, indication = null, onClick = onClick)
                 .padding(vertical = 4.dp)
                 .drawBehind {
                     if (line > 0f) {
-                        // Линия растёт от середины слова.
                         val w = size.width * line
                         val y = size.height - 0.5.dp.toPx()
                         drawLine(ink, Offset((size.width - w) / 2f, y), Offset((size.width + w) / 2f, y), 1.dp.toPx())
@@ -743,7 +1001,7 @@ private fun BuildingRing(modifier: Modifier) {
     }
 }
 
-private fun FlowMood.label(): Int =
+internal fun FlowMood.label(): Int =
     when (this) {
         FlowMood.CALM -> R.string.flow_mood_calm
         FlowMood.SAD -> R.string.flow_mood_sad
@@ -789,6 +1047,9 @@ private const val BURST_MS = 2400
 private const val BREAK_OPEN_MS = 700
 private const val RING_MS = 1100
 private val PLAY = 168.dp
+private const val RIPPLE_MS = 2600
+private const val RIPPLES = 3
+private val LENGTHS = listOf(20, 40, 60, 100)
 private const val BURST_TILES = 18
 private const val BURST_STAGGER = 0.36f
 private const val BOB_MS = 900

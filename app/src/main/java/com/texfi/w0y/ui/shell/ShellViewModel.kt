@@ -37,7 +37,11 @@ class ShellViewModel @Inject constructor(
     val downloads: DownloadsRepository,
     private val stats: com.texfi.w0y.data.StatsRepository,
     private val updates: com.texfi.w0y.data.UpdateManager,
+    playback: com.texfi.w0y.playback.PlaybackStarter,
 ) : ViewModel() {
+    /** Играет очередь fl0w — для метки в мини-плеере. */
+    val flow: StateFlow<com.texfi.w0y.recs.FlowNow?> = playback.flow
+
     val updateState: StateFlow<com.texfi.w0y.data.UpdateState> = updates.state
     val updateDeferred: StateFlow<String?> = updates.deferredTag
     val whatsNew: StateFlow<com.texfi.w0y.data.WhatsNew?> = updates.whatsNew

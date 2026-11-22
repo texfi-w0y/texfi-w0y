@@ -587,16 +587,18 @@ fun QueuePanel(
     tab: QueueTab,
     onTab: (QueueTab) -> Unit,
     onDismiss: () -> Unit,
+    /** Какие вкладки есть: у fl0w — только очередь. */
+    tabs: List<QueueTab> = QueueTab.entries,
     content: LazyListScope.(QueueTab) -> Unit,
 ) {
     TabbedPanel(
         visible = visible,
         onDismiss = onDismiss,
-        labels = QueueTab.entries.map { stringResource(it.label) },
-        selected = tab.ordinal,
-        onSelect = { onTab(QueueTab.entries[it]) },
+        labels = tabs.map { stringResource(it.label) },
+        selected = tabs.indexOf(tab).coerceAtLeast(0),
+        onSelect = { onTab(tabs[it]) },
         heightFraction = 0.85f,
-    ) { i -> content(QueueTab.entries[i]) }
+    ) { i -> content(tabs[i]) }
 }
 
 /** Панель «Ещё»: звук, скорость и вид; высота по содержимому. */

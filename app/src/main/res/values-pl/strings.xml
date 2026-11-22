@@ -1103,6 +1103,16 @@
     <string name="flow_queued">W kolejce %1$d</string>
     <string name="flow_mix_mine">swoje</string>
     <string name="flow_mix_new">nowe</string>
+    <string name="flow_cd_settings">Ustawienia fl0w</string>
+    <string name="flow_settings">Ustawienia</string>
+    <string name="flow_hide_moods">Nigdy nie pokazuj nastrojów</string>
+    <string name="flow_hide_hint">Stuknij, aby skreślić: słowo zniknie z fl0w.</string>
+    <string name="flow_hide_genres">Nigdy nie pokazuj gatunków</string>
+    <string name="flow_length">Utworów naraz</string>
+    <string name="flow_visualizer">Fala dźwięku w tle</string>
+    <string name="flow_visualizer_hint">Cienkie słupki za fl0w i odtwarzaczem, gdy gra jego kolejka.</string>
+    <string name="flow_player_note">Tę kolejkę ułożył fl0w. Gdy się skończy, doda kolejne w tym samym nastroju.</string>
+    <string name="flow_player_any">dowolny nastrój</string>
     <string name="flow_pull_me">pociągnij mnie</string>
     <string name="flow_back">do wyszukiwania</string>
     <string name="flow_welcome_text">Nie wiesz, czego posłuchać? Powiedz, jak się teraz czujesz, a ułożę kolejkę z twoich wykonawców i nowych w tym nastroju.</string>

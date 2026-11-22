@@ -119,6 +119,18 @@ class FlowCurtainTest {
         assertTrue("выбор настроения", has("Что угодно"))
         shot("5-panel")
 
+        // Настройки fl0w: зачеркнуть «Зло» — из выбора оно пропадает.
+        compose.onNode(androidx.compose.ui.test.hasContentDescription("Настройки fl0w")).performClick()
+        frames(600)
+        assertTrue("страница настроек", has("Никогда не показывать настроения"))
+        compose.onNode(hasText("Зло")).performClick()
+        frames(400)
+        shot("5b-settings")
+        compose.onNode(androidx.compose.ui.test.hasContentDescription("Назад")).performClick()
+        frames(600)
+        assertTrue(has("Что угодно"))
+        assertFalse("скрытое настроение пропало", has("Зло"))
+
         // Вверх за край шторки — обратно в поиск.
         val bottom = down.bottom
         root.performTouchInput {

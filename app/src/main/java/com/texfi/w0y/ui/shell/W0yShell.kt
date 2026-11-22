@@ -226,7 +226,9 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             com.texfi.w0y.data.LiteMode.OFF -> false
             com.texfi.w0y.data.LiteMode.AUTO -> remember { com.texfi.w0y.ui.theme.DeviceClass.isWeak(shellContext) }
         }
+    val flowNow by viewModel.flow.collectAsStateWithLifecycle()
     CompositionLocalProvider(
+        com.texfi.w0y.ui.components.LocalFlowNow provides flowNow,
         com.texfi.w0y.ui.theme.LocalLiteGraphics provides lite,
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,

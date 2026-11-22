@@ -183,6 +183,9 @@ class PlayerViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     /** Что играет после текущего трека и не подбираются ли сейчас похожие. */
     val queueMode: StateFlow<QueueMode> = playback.mode
+
+    /** Играет очередь fl0w: плеер узнаёт её и прячет то, что fl0w не нужно. */
+    val flow: StateFlow<com.texfi.w0y.recs.FlowNow?> = playback.flow
     val loadingRadio: StateFlow<Boolean> = playback.loadingRadio
     val findingClean: StateFlow<Boolean> = playback.findingClean
 
