@@ -106,17 +106,17 @@ class FlowCurtainTest {
             root.performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(0f, 34f)) }
             frames(16)
         }
-        frames(200)
+        frames(1000)
         shot("3-burst")
         root.performTouchInput { up() }
-        frames(1200)
+        frames(2400)
         assertTrue("приветствие", has("Дальше"))
         shot("4-welcome")
         assertTrue("вступление запомнено", runBlocking { settings.settings.first().flowIntroSeen })
 
         compose.onNode(hasText("Дальше", ignoreCase = true)).performClick()
         frames(600)
-        assertTrue("настройки", has("Настроение"))
+        assertTrue("выбор настроения", has("Что угодно"))
         shot("5-panel")
 
         // Вверх за край шторки — обратно в поиск.
@@ -128,7 +128,12 @@ class FlowCurtainTest {
         }
         frames(900)
         shot("6-back")
-        assertFalse("шторка ушла", has("Настроение"))
+        assertFalse("шторка ушла", has("Что угодно"))
         assertFalse("вступления больше нет", has("ПОТЯНИ МЕНЯ"))
+
+        // Со второго раза «fl0w» в заголовке открывает шторку нажатием.
+        compose.onNode(hasText("fl0w")).performClick()
+        frames(900)
+        assertTrue("открылась нажатием", has("Что угодно"))
     }
 }

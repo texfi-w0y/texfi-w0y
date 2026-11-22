@@ -115,7 +115,7 @@ private fun SearchBody(viewModel: SearchViewModel) {
             .fillMaxSize()
             .padding(horizontal = 18.dp),
     ) {
-        ScreenTitle(title = stringResource(R.string.tab_search), horizontalPadding = 0.dp)
+        ScreenTitle(title = stringResource(R.string.tab_search), horizontalPadding = 0.dp, actions = { FlowEntryPill() })
         SearchField(
             value = query,
             onValueChange = viewModel::onQueryChange,

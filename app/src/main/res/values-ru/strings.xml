@@ -1098,23 +1098,17 @@
     <string name="set_lite_weak">слабый, в «Авто» режим включён</string>
     <string name="set_lite_strong">быстрый, в «Авто» режим выключен</string>
     <!-- fl0w: шторка подбора по настроению в поиске -->
+    <string name="flow_any">Что угодно</string>
+    <string name="flow_building">Собираю</string>
+    <string name="flow_queued">В очереди %1$d</string>
+    <string name="flow_mix_mine">своё</string>
+    <string name="flow_mix_new">новое</string>
     <string name="flow_pull_me">потяни меня</string>
     <string name="flow_back">к поиску</string>
     <string name="flow_welcome_text">Не знаешь, что включить? Скажи, как ты сейчас, и я соберу очередь из твоих исполнителей и нового под это настроение.</string>
     <string name="flow_welcome_go">Дальше</string>
-    <string name="flow_ask">Как ты сейчас?</string>
-    <string name="flow_quick">Быстро</string>
-    <string name="flow_mood">Настроение</string>
-    <string name="flow_genre">Жанр</string>
-    <string name="flow_mix">Своё и новое</string>
-    <string name="flow_mix_value">%1$d%% нового</string>
-    <string name="flow_mix_mine">только своё</string>
-    <string name="flow_mix_new">только новое</string>
-    <string name="flow_start">Включить</string>
-    <string name="flow_again">Ещё раз</string>
     <string name="flow_empty">Ничего не собралось: сети нет, а своего в этом настроении не нашлось. Попробуй другое настроение или «Только своё».</string>
     <string name="flow_offline">Сеть не ответила, играет только своё.</string>
-    <string name="flow_now">В очереди</string>
     <string name="flow_cd_close">Свернуть fl0w</string>
     <string name="flow_mood_calm">Спокойно</string>
     <string name="flow_mood_sad">Грустно</string>
@@ -1134,9 +1128,4 @@
     <string name="flow_genre_lofi">Lo-fi</string>
     <string name="flow_genre_metal">Метал</string>
     <string name="flow_genre_jazz">Джаз</string>
-    <string name="flow_preset_background">Фоном</string>
-    <string name="flow_preset_speed_up">Разогнаться</string>
-    <string name="flow_preset_night_drive">Ночная дорога</string>
-    <string name="flow_preset_only_mine">Только своё</string>
-    <string name="flow_preset_surprise">Удиви меня</string>
 </resources>

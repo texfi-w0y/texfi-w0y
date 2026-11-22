@@ -56,15 +56,6 @@ data class FlowChoice(
     }
 }
 
-/** Быстрые наборы: один тап — настроение, жанры и доля нового разом. */
-enum class FlowPreset(val choice: FlowChoice) {
-    BACKGROUND(FlowChoice(FlowMood.CALM, setOf(FlowGenre.LOFI), 25)),
-    SPEED_UP(FlowChoice(FlowMood.DRIVE, setOf(FlowGenre.PHONK, FlowGenre.ELECTRONIC), 40)),
-    NIGHT_DRIVE(FlowChoice(FlowMood.NIGHT, setOf(FlowGenre.RAP), 45)),
-    ONLY_MINE(FlowChoice(null, emptySet(), 0)),
-    SURPRISE(FlowChoice(null, emptySet(), 90)),
-}
-
 /** Готовая подборка fl0w. [offline] — сеть не ответила, подборка только из своего. */
 data class FlowSet(val items: List<Rec>, val offline: Boolean = false)
 
