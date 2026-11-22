@@ -964,7 +964,17 @@ fun PlayerScreen(
                     durationMs = knownDuration,
                     stage = stageContent,
                     number = if (state.queue.size > 1) "№ ${state.currentIndex + 1} / ${state.queue.size}" else null,
-                    soundLine = if (island) "${com.texfi.w0y.data.NumberText.speed(effectiveSound.speed)} · ${stringResource(R.string.island_tone, com.texfi.w0y.data.NumberText.pitch(effectiveSound.pitch))}" else null,
+                    // Скорость и тон видны, только когда они не обычные; иначе строки нет — меньше шума.
+                    soundLine =
+                        if (island) {
+                            listOfNotNull(
+                                com.texfi.w0y.data.NumberText.speed(effectiveSound.speed).takeIf { kotlin.math.abs(effectiveSound.speed - 1f) > 0.001f },
+                                stringResource(R.string.island_tone, com.texfi.w0y.data.NumberText.pitch(effectiveSound.pitch)).takeIf { kotlin.math.abs(effectiveSound.pitch - 1f) > 0.001f },
+                                sleepLeft?.let { stringResource(R.string.island_sleep_left, "${it / 60_000}:${"%02d".format(it / 1000 % 60)}") },
+                            ).joinToString("   ").ifEmpty { null }
+                        } else {
+                            null
+                        },
                     onSoundLine = {
                         PlayerPanelMemory.moreTab = MoreTab.SPEED
                         moreTab = MoreTab.SPEED
@@ -974,7 +984,7 @@ fun PlayerScreen(
                         if (island) {
                             IslandPlayerHeader(
                                 onCollapse = onCollapse,
-                                onMenu = { moreTab = PlayerPanelMemory.moreTab; panel = PlayerPanel.MORE },
+                                onMenu = { panel = PlayerPanel.TRACK },
                                 videoAvailable = isVideoTrack,
                                 videoOn = videoOn,
                                 onToggleVideo = { videoOn = !videoOn; lyricsOn = false },
@@ -1003,7 +1013,8 @@ fun PlayerScreen(
                         }
                     },
                     actions = {
-                        HairActionsRow(
+                        // Hairline New: ряд действий живёт в панели «Трек» (⋯ и удержание на обложке).
+                        if (!island) HairActionsRow(
                             song = song,
                             liked = liked,
                             pinned = pinned,
@@ -1074,6 +1085,8 @@ fun PlayerScreen(
                         }
                     },
                     onCoverTap = { if (lyricsOn) { if (lyrics?.synced?.isNotEmpty() == true) lyricsFull = true } else toggleArt() },
+                    onCoverDoubleTap = if (island) ({ haptic(if (liked) Buzz.OFF else Buzz.LIKE); viewModel.toggleLike(song); !liked }) else null,
+                    onCoverLongPress = if (island) ({ haptic(Buzz.TRACK); panel = PlayerPanel.TRACK }) else null,
                     onSwipe = { dir -> haptic(Buzz.TRACK); if (dir > 0) viewModel.player.skipNext() else viewModel.player.skipPrevious() },
                     onDrag = { dragPosition = it },
                     onDragEnd = {
@@ -1634,6 +1647,24 @@ fun PlayerScreen(
                             onLess = viewModel::lessLikeThis,
                         )
                 }
+            }
+            if (island) {
+                IslandTrackPanel(
+                    visible = panel == PlayerPanel.TRACK,
+                    song = song,
+                    pinned = pinned,
+                    sharing = sharing,
+                    sleepLeftMs = sleepLeft,
+                    onPin = { viewModel.togglePin(song) },
+                    onAdd = { panel = null; showPlaylists = true },
+                    onDownload = { viewModel.download(song) },
+                    onShare = { panel = null; viewModel.shareCard() },
+                    onCopyLink = copyLinkAction(song, after = { panel = null }),
+                    onSleep = { panel = PlayerPanel.SLEEP },
+                    onSound = { moreTab = MoreTab.SOUND; PlayerPanelMemory.moreTab = MoreTab.SOUND; panel = PlayerPanel.MORE },
+                    onLook = { moreTab = MoreTab.LOOK; PlayerPanelMemory.moreTab = MoreTab.LOOK; panel = PlayerPanel.MORE },
+                    onDismiss = { panel = null },
+                )
             }
             MorePanel(
                 visible = panel == PlayerPanel.MORE,

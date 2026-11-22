@@ -425,7 +425,7 @@
     <string name="accent_preview">PREVIEW</string>
     <string name="accent_custom_hue">Hue, or type a HEX code below</string>
     <string name="start_tab_last">LAST</string>
-    <string name="track_download">DOWNLOAD</string>
+    <string name="track_download">Download</string>
     <string name="swipe_remove">REMOVE</string>
     <string name="dial_pin">PIN</string>
     <string name="dial_unpin">UNPIN</string>
@@ -1174,5 +1174,12 @@
     <string name="tour_flow_title">Pull search down</string>
     <string name="tour_flow_text">fl0w comes down from the top: pick a mood and press play.</string>
     <string name="tour_player_title">Pull the player down</string>
-    <string name="tour_player_text">It folds back into the mini player.</string>
+    <string name="tour_player_text">It folds back into the mini player. On the cover: double tap to like, hold for track actions.</string>
+    <string name="track_pin">Pin</string>
+    <string name="track_pinned">Pinned</string>
+    <string name="track_downloaded">Downloaded</string>
+    <string name="track_downloading">Downloading</string>
+    <string name="track_link">Link</string>
+    <string name="track_sleep">Sleep</string>
+    <string name="island_sleep_left">sleep in %1$s</string>
 </resources>

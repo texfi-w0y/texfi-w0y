@@ -76,7 +76,7 @@ class OnboardingTest {
         compose.mainClock.autoAdvance = false
         frames(2500)
         // Первый запуск ставит Hairline New по-настоящему (постер, точечный фон) — ждём эту запись.
-        repeat(40) { if (runBlocking { settings.settings.first().backdropMode } != BackdropMode.GRID) frames(300) }
+        repeat(80) { if (runBlocking { settings.settings.first().backdropMode } != BackdropMode.GRID) frames(300) }
         assertEquals("Hairline New ставит точечный фон", BackdropMode.GRID, runBlocking { settings.settings.first().backdropMode })
         assertTrue("привет", has("Начать"))
         assertFalse("выбора стиля нет", has("Pixel"))

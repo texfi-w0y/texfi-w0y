@@ -873,3 +873,91 @@ private fun FlowHeaderMark(mood: String) {
         Text(mood.asLabel(), style = com.texfi.w0y.ui.theme.HairLabelStyle.copy(fontSize = 10.sp), color = colors.textMuted, maxLines = 1)
     }
 }
+
+/** Плитка панели «Трек»: линейная иконка и подпись под ней. */
+private class TrackTile(val label: String, val glyph: HairGlyph?, val active: Boolean, val onClick: () -> Unit, val icon: (@Composable () -> Unit)? = null)
+
+/**
+ * Hairline New: всё, что раньше стояло рядом иконок под линейкой, — в одной панели. Открывается
+ * кнопкой «⋯» в шапке и удержанием на обложке; в плеере остаются только название, линейка и кнопки.
+ */
+@Composable
+internal fun IslandTrackPanel(
+    visible: Boolean,
+    song: SongItem,
+    pinned: Boolean,
+    sharing: Boolean,
+    sleepLeftMs: Long?,
+    onPin: () -> Unit,
+    onAdd: () -> Unit,
+    onDownload: () -> Unit,
+    onShare: () -> Unit,
+    onCopyLink: (() -> Unit)?,
+    onSleep: () -> Unit,
+    onSound: () -> Unit,
+    onLook: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalW0yColors.current
+    val look = hairLook
+    val tone = Contrast.ensure(colors.accent, colors.background)
+    val progress = com.texfi.w0y.ui.components.LocalDownloadProgress.current[song.id]
+    val downloadLabel =
+        when (progress?.state) {
+            com.texfi.w0y.playback.DownloadState.DONE -> stringResource(R.string.track_downloaded)
+            com.texfi.w0y.playback.DownloadState.RUNNING, com.texfi.w0y.playback.DownloadState.WAITING, com.texfi.w0y.playback.DownloadState.PAUSED -> stringResource(R.string.track_downloading)
+            else -> stringResource(R.string.track_download)
+        }
+    val tiles =
+        listOfNotNull(
+            TrackTile(stringResource(if (pinned) R.string.track_pinned else R.string.track_pin), HairGlyph.PIN, pinned, onPin),
+            TrackTile(stringResource(R.string.player_cd_playlist), HairGlyph.PLUS, false, onAdd),
+            TrackTile(downloadLabel, null, progress?.state == com.texfi.w0y.playback.DownloadState.DONE, onDownload) { DownloadButton(song.id, onDownload = onDownload) },
+            TrackTile(stringResource(R.string.player_cd_share), HairGlyph.SHARE, sharing, onShare),
+            onCopyLink?.let { TrackTile(stringResource(R.string.track_link), HairGlyph.LINK, false, it) },
+            TrackTile(
+                sleepLeftMs?.let { "${it / 60_000}:${"%02d".format(it / 1000 % 60)}" } ?: stringResource(R.string.track_sleep),
+                HairGlyph.MOON,
+                sleepLeftMs != null,
+                onSleep,
+            ),
+            TrackTile(stringResource(R.string.sheet_sound), HairGlyph.SLIDERS, false, onSound),
+            TrackTile(stringResource(R.string.sheet_look), HairGlyph.WAVE, false, onLook),
+        )
+    HairSheetFrame(visible = visible, onDismiss = onDismiss, heightFraction = null) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp).testTag("track-panel")) {
+            Text(song.title, style = MaterialTheme.typography.titleMedium, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.artist, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(16.dp))
+            val shape = RoundedCornerShape(look.cardRadius.coerceIn(8.dp, 14.dp))
+            tiles.chunked(TRACK_COLUMNS).forEachIndexed { r, row ->
+                if (r > 0) Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { tile ->
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clip(shape)
+                                .border(look.line, if (tile.active) tone.copy(alpha = 0.6f) else colors.border, shape)
+                                .clickable(onClick = tile.onClick)
+                                .padding(top = 6.dp, bottom = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(Modifier.size(HairTokens.TOUCH), contentAlignment = Alignment.Center) {
+                                if (tile.icon != null) {
+                                    tile.icon.invoke()
+                                } else if (tile.glyph != null) {
+                                    HairIcon(tile.glyph, if (tile.active) tone else colors.text, Modifier.size(22.dp))
+                                }
+                            }
+                            Text(tile.label, style = MaterialTheme.typography.bodySmall, color = if (tile.active) tone else colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    repeat(TRACK_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+private const val TRACK_COLUMNS = 4

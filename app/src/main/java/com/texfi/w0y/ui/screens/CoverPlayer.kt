@@ -361,10 +361,15 @@ internal fun CoverPlayerPage(
     onSoundLine: () -> Unit = {},
     /** Слой поверх размытого фона, под всем остальным: волна fl0w. */
     underlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
+    /** Два касания по обложке — лайк; возвращает, стоит ли он теперь. null — жеста нет, одиночное касание без задержки. */
+    onCoverDoubleTap: (() -> Boolean)? = null,
+    /** Удержание на обложке — действия с треком. */
+    onCoverLongPress: (() -> Unit)? = null,
 ) {
     val tapNow = androidx.compose.runtime.rememberUpdatedState(onCoverTap)
+    val taps = rememberCoverTaps(onCoverDoubleTap, onCoverLongPress)
     if (poster) {
-        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine, underlay)
+        PosterPlayerPage(song, isPlaying, positionMs, durationMs, stage, header, titleBlock, actions, transport, plate, { tapNow.value() }, onSwipe, onDrag, onDragEnd, visualizerOn, coverShown, number, soundLine, onSoundLine, underlay, taps)
         return
     }
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
@@ -425,7 +430,7 @@ internal fun CoverPlayerPage(
                                     },
                                 ) { _, dx -> total += dx }
                             }
-                            .pointerInput(Unit) { detectTapGestures { tapNow.value() } },
+                            .coverTaps(taps) { tapNow.value() },
                     ) {
                         AnimatedContent(
                             targetState = song.id,
@@ -436,6 +441,7 @@ internal fun CoverPlayerPage(
                             },
                             label = "coverTrack",
                         ) { trackId -> androidx.compose.runtime.key(trackId) { Box(Modifier.fillMaxSize()) { stage(song.thumbnailUrl) } } }
+                        LikePop(taps, Modifier.align(Alignment.Center))
                     }
                 }
                 Box(Modifier.hairEnter(2)) { titleBlock(Modifier.fillMaxWidth()) }
@@ -485,6 +491,7 @@ private fun PosterPlayerPage(
     soundLine: String?,
     onSoundLine: () -> Unit,
     underlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+    taps: CoverTaps,
 ) {
     CompositionLocalProvider(LocalW0yColors provides overBlurColors()) {
         val colors = LocalW0yColors.current
@@ -557,7 +564,7 @@ private fun PosterPlayerPage(
                             },
                         ) { _, dx -> total += dx }
                     }
-                    .pointerInput(Unit) { detectTapGestures { onCoverTap() } },
+                    .coverTaps(taps, onCoverTap),
             ) {
                 AnimatedContent(
                     targetState = song.id,
@@ -605,6 +612,8 @@ private fun PosterPlayerPage(
                 
                     }
                 }
+                // Сердце от двух касаний — в видимой части постера, над зоной растворения.
+                LikePop(taps, Modifier.align(Alignment.Center).padding(bottom = fade))
                 // Вуаль под шапкой: иконки читаются на любой обложке, даже на белой.
                 Box(
                     Modifier
@@ -746,6 +755,66 @@ private fun IslandPosterControls(
             Box(Modifier.hairEnter(6)) { plate() }
         }
     }
+}
+
+/** Жесты обложки помимо касания: два касания (лайк) и удержание (действия). [pop] растёт с каждым лайком. */
+internal class CoverTaps(
+    val double: androidx.compose.runtime.State<(() -> Boolean)?>,
+    val long: androidx.compose.runtime.State<(() -> Unit)?>,
+) {
+    var pop by androidx.compose.runtime.mutableIntStateOf(0)
+    var liked by androidx.compose.runtime.mutableStateOf(true)
+    val hasDouble get() = double.value != null
+}
+
+@Composable
+internal fun rememberCoverTaps(double: (() -> Boolean)?, long: (() -> Unit)?): CoverTaps {
+    val d = androidx.compose.runtime.rememberUpdatedState(double)
+    val l = androidx.compose.runtime.rememberUpdatedState(long)
+    return remember { CoverTaps(d, l) }
+}
+
+/**
+ * Касания обложки. Пока двойного касания нет, одиночное срабатывает сразу; с ним — после
+ * короткого ожидания второго, как у любого «два касания — лайк».
+ */
+private fun Modifier.coverTaps(taps: CoverTaps, onTap: () -> Unit): Modifier =
+    pointerInput(taps.hasDouble) {
+        detectTapGestures(
+            onDoubleTap = if (taps.hasDouble) ({ taps.double.value?.invoke()?.let { now -> taps.liked = now; taps.pop++ } }) else null,
+            onLongPress = { taps.long.value?.invoke() },
+            onTap = { onTap() },
+        )
+    }
+
+/**
+ * Сердце после двух касаний: контур проявляется, чуть растёт и тает — 420 мс, без свечения.
+ * Поставил лайк — сердце заполнено, снял — только контур.
+ */
+@Composable
+private fun LikePop(taps: CoverTaps, modifier: Modifier = Modifier) {
+    val t = remember { Animatable(1f) }
+    LaunchedEffect(taps.pop) {
+        if (taps.pop == 0) return@LaunchedEffect
+        t.snapTo(0f)
+        t.animateTo(1f, tween(420, easing = LinearEasing))
+    }
+    if (t.value >= 1f) return
+    val colors = LocalW0yColors.current
+    val v = t.value
+    // Быстрый вход (первая треть), потом плавный уход.
+    val alpha = if (v < 0.3f) v / 0.3f else 1f - (v - 0.3f) / 0.7f
+    val scale = 0.7f + 0.3f * kotlin.math.min(1f, v / 0.3f) + 0.08f * kotlin.math.max(0f, v - 0.3f)
+    com.texfi.w0y.ui.icons.HairIcon(
+        com.texfi.w0y.ui.icons.HairGlyph.HEART,
+        colors.text,
+        modifier.size(84.dp).graphicsLayer {
+            this.alpha = alpha
+            scaleX = scale
+            scaleY = scale
+        },
+        fill = { if (taps.liked) 1f else 0f },
+    )
 }
 
 private const val SWIPE_PX = 120f

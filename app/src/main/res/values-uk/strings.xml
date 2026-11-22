@@ -425,7 +425,7 @@
     <string name="accent_preview">ВИГЛЯД</string>
     <string name="accent_custom_hue">Відтінок або HEX-код нижче</string>
     <string name="start_tab_last">ОСТАННІЙ</string>
-    <string name="track_download">ЗАВАНТАЖИТИ</string>
+    <string name="track_download">Завантажити</string>
     <string name="swipe_remove">ПРИБРАТИ</string>
     <string name="dial_pin">ЗАКРІПИТИ</string>
     <string name="dial_unpin">ВІДКРІПИТИ</string>
@@ -1173,5 +1173,12 @@
     <string name="tour_flow_title">Пошук — вниз</string>
     <string name="tour_flow_text">Згори з\'їде fl0w: обери настрій і натисни «грати».</string>
     <string name="tour_player_title">Плеєр — вниз</string>
-    <string name="tour_player_text">Він згорнеться назад у міні-плеєр.</string>
+    <string name="tour_player_text">Він згорнеться назад у міні-плеєр. На обкладинці: два дотики — лайк, утримання — дії з треком.</string>
+    <string name="track_pin">Закріпити</string>
+    <string name="track_pinned">Закріплено</string>
+    <string name="track_downloaded">Завантажено</string>
+    <string name="track_downloading">Завантажується</string>
+    <string name="track_link">Посилання</string>
+    <string name="track_sleep">Сон</string>
+    <string name="island_sleep_left">сон за %1$s</string>
 </resources>

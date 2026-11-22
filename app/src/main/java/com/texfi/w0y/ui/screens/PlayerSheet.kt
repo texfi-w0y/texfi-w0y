@@ -90,7 +90,7 @@ import com.texfi.w0y.ui.theme.asLabel
 import com.texfi.w0y.ui.theme.hairLook
 
 /** Три отдельные панели плеера: у каждой своя тема, свои вкладки и свой жест закрытия. */
-enum class PlayerPanel { SLEEP, QUEUE, MORE }
+enum class PlayerPanel { SLEEP, QUEUE, MORE, TRACK }
 
 /** Вкладки панели очереди. */
 enum class QueueTab(@StringRes val label: Int) {

@@ -425,7 +425,7 @@
     <string name="accent_preview">PODGLĄD</string>
     <string name="accent_custom_hue">Odcień lub kod HEX poniżej</string>
     <string name="start_tab_last">OSTATNI</string>
-    <string name="track_download">POBIERZ</string>
+    <string name="track_download">Pobierz</string>
     <string name="swipe_remove">USUŃ</string>
     <string name="dial_pin">PRZYPNIJ</string>
     <string name="dial_unpin">ODEPNIJ</string>
@@ -1173,5 +1173,12 @@
     <string name="tour_flow_title">Wyszukiwanie w dół</string>
     <string name="tour_flow_text">Z góry zjedzie fl0w: wybierz nastrój i naciśnij „graj”.</string>
     <string name="tour_player_title">Odtwarzacz w dół</string>
-    <string name="tour_player_text">Złoży się z powrotem w mini-odtwarzacz.</string>
+    <string name="tour_player_text">Zwinie się z powrotem do mini odtwarzacza. Na okładce: dwa stuknięcia to polubienie, przytrzymanie to akcje utworu.</string>
+    <string name="track_pin">Przypnij</string>
+    <string name="track_pinned">Przypięty</string>
+    <string name="track_downloaded">Pobrany</string>
+    <string name="track_downloading">Pobieranie</string>
+    <string name="track_link">Link</string>
+    <string name="track_sleep">Sen</string>
+    <string name="island_sleep_left">sen za %1$s</string>
 </resources>

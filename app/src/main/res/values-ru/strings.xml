@@ -425,7 +425,7 @@
     <string name="accent_preview">ВИД</string>
     <string name="accent_custom_hue">Оттенок или HEX-код ниже</string>
     <string name="start_tab_last">ПОСЛЕДНИЙ</string>
-    <string name="track_download">СКАЧАТЬ</string>
+    <string name="track_download">Скачать</string>
     <string name="swipe_remove">УБРАТЬ</string>
     <string name="dial_pin">ЗАКРЕПИТЬ</string>
     <string name="dial_unpin">ОТКРЕПИТЬ</string>
@@ -1173,5 +1173,12 @@
     <string name="tour_flow_title">Поиск — вниз</string>
     <string name="tour_flow_text">Сверху съедет fl0w: выбери настроение и нажми «играть».</string>
     <string name="tour_player_title">Плеер — вниз</string>
-    <string name="tour_player_text">Он свернётся обратно в мини-плеер.</string>
+    <string name="tour_player_text">Он свернётся обратно в мини-плеер. На обложке: два касания — лайк, удержание — действия с треком.</string>
+    <string name="track_pin">Закрепить</string>
+    <string name="track_pinned">Закреплён</string>
+    <string name="track_downloaded">Скачан</string>
+    <string name="track_downloading">Качается</string>
+    <string name="track_link">Ссылка</string>
+    <string name="track_sleep">Сон</string>
+    <string name="island_sleep_left">сон через %1$s</string>
 </resources>
