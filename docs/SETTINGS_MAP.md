@@ -70,7 +70,7 @@
 | 5. ВИД | Visualizer sensitivity (`viz_sensitivity_title`) | `visualizer_sensitivity` | 1.0 |  |
 | 5. ВИД | Visualizer FPS (`viz_fps_title`) | `visualizer_fps` | 60 |  |
 | 5. ВИД | Cover behind visualizer (`viz_backdrop_title`) | `visualizer_backdrop` | true |  |
-| 5. ВИД | Look (`settings_style_title`) | `ui_style` | HAIRLINE |  |
+| 5. ВИД | Look (`settings_style_title`) | `ui_style` | ISLAND |  |
 | 5. ВИД | Theme (`settings_theme_title`) | `theme` | DARK |  |
 | 5. ВИД | Accent (`settings_accent_title`) | `accent` | SAND |  |
 | 5. ВИД | Line weight (`hl_set_weight`) | `hl_line_weight` | THIN |  |

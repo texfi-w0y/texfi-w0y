@@ -60,6 +60,7 @@ class ShellWalkTest {
     fun seed() = runBlocking {
         hilt.inject()
         settings.setWelcomeSeen(true)
+        settings.setTourSeen(true)
         settings.setStylePicked(true)
         val dao = db.dao()
         val now = System.currentTimeMillis()

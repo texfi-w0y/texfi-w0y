@@ -562,15 +562,14 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         // Приветствие поверх всего: на первом запуске за ним ещё нечего
         // смотреть, а сразу после него — уже настроенное приложение.
         if (welcomeSeen == false) {
-            WelcomeScreen(
-                theme = theme,
-                startTab = startTab ?: StartTab.HOME,
-                onTheme = viewModel::setTheme,
-                onStartTab = viewModel::setStartTab,
+            androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.beginOnboarding() }
+            val signedIn by libraryViewModel.isSignedIn.collectAsStateWithLifecycle()
+            val accountName by libraryViewModel.accountName.collectAsStateWithLifecycle()
+            Onboarding(
+                signedIn = signedIn,
+                accountName = accountName,
                 onSignIn = { loginOpen = true },
-                onDone = {
-                    viewModel.completeWelcome()
-                },
+                onDone = viewModel::completeWelcome,
             )
         }
 
@@ -601,23 +600,12 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
             )
         }
 
-        // Выбор стиля — после приветствия, один раз; обновившимся тоже один раз.
-        if (welcomeSeen == true && stylePicked == false) {
-            StylePickerScreen(
-                current = uiStyle,
-                accent = accent,
-                customAccent = customAccent,
-                theme = theme,
-                glass = smoothGlass,
-                onGlass = viewModel::setSmoothGlass,
-                onAccent = viewModel::setAccent,
-                onDone = viewModel::completeStylePick,
-                onSkip = {
-                    // Пропуск оставляет стиль по умолчанию, даже если по пути успели переключить.
-                    viewModel.setUiStyle(UiStyle.HAIRLINE)
-                    viewModel.completeStylePick()
-                },
-            )
+        // Знакомство с жестами — на главной после первого запуска; обновившимся тоже один раз.
+        // Не поверх «что нового» и предложения Hairline New: по очереди.
+        val tourSeen by viewModel.tourSeen.collectAsStateWithLifecycle()
+        var tourClosed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+        if (welcomeSeen == true && tourSeen == false && !tourClosed && whatsNew == null && !(showIslandOffer && !islandAnswered) && introDone) {
+            GestureTour(onDone = { tourClosed = true; viewModel.completeTour() })
         }
 
         // Подставка — поверх всего, включая плеер и навигацию.

@@ -94,7 +94,33 @@ class ShellViewModel @Inject constructor(
             .map { it.welcomeSeen }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    fun completeWelcome() = viewModelScope.launch { settings.setWelcomeSeen(true) }
+    /**
+     * Первый запуск кончился. Выбора стиля больше нет — флаги старого выбора и предложения
+     * Hairline New закрываются тут же, чтобы ни то ни другое не всплыло после.
+     */
+    fun completeWelcome() =
+        viewModelScope.launch {
+            settings.setIslandOffered(true)
+            settings.setStylePicked(true)
+            settings.setWelcomeSeen(true)
+        }
+
+    /**
+     * Первый запуск начался: Hairline New ставится по-настоящему — с плеером-постером, точечным
+     * фоном и подписями, а не только значением по умолчанию.
+     */
+    fun beginOnboarding() =
+        viewModelScope.launch {
+            if (settings.settings.first().uiStyle == com.texfi.w0y.data.UiStyle.ISLAND) settings.setUiStyle(com.texfi.w0y.data.UiStyle.ISLAND)
+        }
+
+    /** null, пока не прочитано: знакомство с жестами вслепую не показываем. */
+    val tourSeen: StateFlow<Boolean?> =
+        settings.settings
+            .map { it.tourSeen }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun completeTour() = viewModelScope.launch { settings.setTourSeen(true) }
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settings.setTheme(mode) }
 

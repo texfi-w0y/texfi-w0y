@@ -433,7 +433,8 @@ data class W0ySettings(
     /** Со скольких прослушиваний трек попадает в быстрый набор. */
     val dialMinPlays: Int = 1,
     // ── Стиль ────────────────────────────────────────────────────────────
-    val uiStyle: UiStyle = UiStyle.HAIRLINE,
+    /** По умолчанию — Hairline New. Кто ставил приложение раньше и стиль не трогал, остаётся на Hairline. */
+    val uiStyle: UiStyle = UiStyle.ISLAND,
     /** Smooth: жидкое стекло с бликами (true) или матовые плотные поверхности. */
     val smoothGlass: Boolean = true,
     /** Показан ли выбор стиля — на первом запуске и один раз после обновления. */
@@ -493,6 +494,8 @@ data class W0ySettings(
     val liteMode: LiteMode = LiteMode.AUTO,
     /** fl0w: вступление «потяни меня» уже показано — дальше шторка открывается без него. */
     val flowIntroSeen: Boolean = false,
+    /** Знакомство с жестами на главной уже показано (или пропущено). */
+    val tourSeen: Boolean = false,
     /** fl0w: последний выбор — настроение, жанры через запятую, доля нового 0–100. */
     val flowMood: String = "",
     val flowGenres: String = "",
@@ -619,7 +622,12 @@ class SettingsRepository @Inject constructor(
                         prefs[Keys.AUTO_DL_PLAYLISTS].orEmpty().split(',').mapNotNull { it.toLongOrNull() }.toSet(),
                     showPlaylistRecommendations = prefs[Keys.PLAYLIST_RECS] ?: d.showPlaylistRecommendations,
                     dialMinPlays = (prefs[Keys.DIAL_MIN_PLAYS] ?: 1).coerceIn(1, 20),
-                    uiStyle = prefs.enum(Keys.UI_STYLE, d.uiStyle),
+                    uiStyle =
+                        if (prefs[Keys.UI_STYLE] == null && prefs[Keys.WELCOME_SEEN] == true) {
+                            UiStyle.HAIRLINE
+                        } else {
+                            prefs.enum(Keys.UI_STYLE, d.uiStyle)
+                        },
                     smoothGlass = prefs[Keys.SMOOTH_GLASS] ?: d.smoothGlass,
                     stylePicked = prefs[Keys.STYLE_PICKED] ?: d.stylePicked,
                     islandOffered = prefs[Keys.ISLAND_OFFERED] ?: d.islandOffered,
@@ -655,6 +663,7 @@ class SettingsRepository @Inject constructor(
                     seasonFx = prefs.enum(Keys.SEASON_FX, d.seasonFx),
                     liteMode = prefs.enum(Keys.LITE_MODE, d.liteMode),
                     flowIntroSeen = prefs[Keys.FLOW_INTRO] ?: d.flowIntroSeen,
+                    tourSeen = prefs[Keys.TOUR_SEEN] ?: d.tourSeen,
                     flowMood = prefs[Keys.FLOW_MOOD] ?: d.flowMood,
                     flowGenres = prefs[Keys.FLOW_GENRES] ?: d.flowGenres,
                     flowNovelty = (prefs[Keys.FLOW_NOVELTY] ?: d.flowNovelty).coerceIn(0, 100),
@@ -1019,6 +1028,8 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setFlowIntroSeen(value: Boolean) = put(Keys.FLOW_INTRO, value)
 
+    suspend fun setTourSeen(value: Boolean) = put(Keys.TOUR_SEEN, value)
+
     suspend fun setFlowHidden(genres: String, moods: String) {
         put(Keys.FLOW_HIDDEN_GENRES, genres)
         put(Keys.FLOW_HIDDEN_MOODS, moods)
@@ -1287,6 +1298,7 @@ class SettingsRepository @Inject constructor(
         val SEASON_FX = stringPreferencesKey("season_fx")
         val LITE_MODE = stringPreferencesKey("lite_mode")
         val FLOW_INTRO = booleanPreferencesKey("flow_intro_seen")
+        val TOUR_SEEN = booleanPreferencesKey("tour_seen")
         val FLOW_MOOD = stringPreferencesKey("flow_mood")
         val FLOW_GENRES = stringPreferencesKey("flow_genres")
         val FLOW_NOVELTY = intPreferencesKey("flow_novelty")
