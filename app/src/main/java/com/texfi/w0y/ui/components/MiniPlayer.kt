@@ -119,6 +119,7 @@ fun MiniPlayer(
                 onSwipeLeft = onNext,
                 leftLabel = ">>",
                 backdrop = androidx.compose.ui.graphics.Color.Transparent,
+                magnet = false,
             ) {
             Row(
                 Modifier

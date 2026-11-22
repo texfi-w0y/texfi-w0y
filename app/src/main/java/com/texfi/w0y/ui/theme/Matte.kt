@@ -38,7 +38,8 @@ import kotlin.random.Random
 fun Modifier.matte(shape: Shape, backdrop: Backdrop? = null, fill: Color? = null, alpha: Float? = null, edge: Boolean = true): Modifier {
     val colors = LocalW0yColors.current
     val light = colors.background.luminance() > 0.5f
-    val blurs = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // Лёгкий режим: без живого размытия — плотная подложка, как на старом Android.
+    val blurs = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !LocalLiteGraphics.current
     val base = fill ?: if (light) Color.White else Color(0xFF18181C)
     // [alpha] задают панели внутри экрана: размывать им нечего, а сквозь лёгкую подложку видна точка фона.
     // Над размытым подложка лёгкая, как у стекла Apple: цвет того, что под островом, просвечивает, а не гаснет в чёрное.

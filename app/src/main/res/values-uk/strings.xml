@@ -1090,4 +1090,11 @@
     <string name="whatsnew_choices_title">Залиш, що подобається</string>
     <string name="whatsnew_choices_hint">Усе нове ввімкнено. Вимкни, що не треба, — це можна змінити потім у Налаштуваннях.</string>
     <string name="whatsnew_done">ГОТОВО</string>
+    <string name="set_lite_mode">Легкий режим</string>
+    <string name="set_lite_mode_desc">Вимикає живе розмиття під островом і панелями, плинне тло плеєра та сезонні ефекти: на слабкому телефоні застосунок не лагає. «Авто» вмикає його саме на таких телефонах. Цей телефон: %1$s.</string>
+    <string name="set_lite_auto">Авто</string>
+    <string name="set_lite_on">Увімк.</string>
+    <string name="set_lite_off">Вимк.</string>
+    <string name="set_lite_weak">слабкий, в «Авто» режим увімкнено</string>
+    <string name="set_lite_strong">швидкий, в «Авто» режим вимкнено</string>
 </resources>

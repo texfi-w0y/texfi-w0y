@@ -1090,4 +1090,11 @@
     <string name="whatsnew_choices_title">Zostaw, co ci się podoba</string>
     <string name="whatsnew_choices_hint">Wszystko nowe jest włączone. Wyłącz, czego nie potrzebujesz — można to zmienić później w Ustawieniach.</string>
     <string name="whatsnew_done">GOTOWE</string>
+    <string name="set_lite_mode">Tryb lekki</string>
+    <string name="set_lite_mode_desc">Wyłącza żywe rozmycie pod wyspą i panelami, płynące tło odtwarzacza i efekty sezonowe, żeby aplikacja nie zacinała się na słabym telefonie. „Auto” włącza go samo na takich telefonach. Ten telefon: %1$s.</string>
+    <string name="set_lite_auto">Auto</string>
+    <string name="set_lite_on">Wł.</string>
+    <string name="set_lite_off">Wył.</string>
+    <string name="set_lite_weak">słaby, w „Auto” tryb jest włączony</string>
+    <string name="set_lite_strong">szybki, w „Auto” tryb jest wyłączony</string>
 </resources>

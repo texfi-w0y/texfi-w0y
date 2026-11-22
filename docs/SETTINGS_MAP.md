@@ -100,6 +100,7 @@
 | 5. ВИД | Playlist page with a large cover (`set_playlist_hero`) | `playlist_hero` | true |  |
 | 5. ВИД | Intro on launch (`set_intro`) | `intro_animation` | true |  |
 | 5. ВИД | Magnet on panels (`set_sheet_magnet`) | `sheet_magnet` | true |  |
+| 5. ВИД | Light mode (`set_lite_mode`) | `lite_mode` | AUTO |  |
 | 5. ВИД | Reset look (`hl_set_reset`) | — | — |  |
 | 6. ПОДСТАВКА | Stand view (`stand_view_title`) | `stand_view` | TEXT |  |
 | 6. ПОДСТАВКА | Clock (`stand_clock_title`) | `stand_clock` | true |  |

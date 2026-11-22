@@ -38,6 +38,9 @@ fun Modifier.liquidGlass(shape: Shape, tint: Color? = null, backdrop: Backdrop? 
     val base = tint ?: colors.surface
     // Матовый вариант Smooth: та же форма, плотная заливка без бликов.
     if (!LocalStyleTokens.current.glass) return clip(shape).background(base)
+    // Лёгкий режим: стекло без размытия — только полупрозрачная поверхность и блик.
+    @Suppress("NAME_SHADOWING")
+    val backdrop = if (LocalLiteGraphics.current) null else backdrop
     val blurs = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val fill = base.copy(alpha = if (blurs) 0.5f else if (light) 0.72f else 0.62f)
     val sheen = Color.White.copy(alpha = if (light) 0.3f else 0.06f)
@@ -98,6 +101,11 @@ val LocalBarBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 fun Modifier.glassBar(shape: Shape, backdrop: Backdrop): Modifier {
     val colors = LocalW0yColors.current
     val light = colors.background.luminance() > 0.5f
+    // Лёгкий режим: размытия нет — дымка плотная, как на старом Android, без отрисовки экрана под панелью.
+    if (LocalLiteGraphics.current) {
+        val dense = if (light) Color.White.copy(alpha = 0.9f) else Color(0xFF0E0E11).copy(alpha = 0.9f)
+        return clip(shape).background(dense)
+    }
     val blurs = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val haze =
         if (light) {

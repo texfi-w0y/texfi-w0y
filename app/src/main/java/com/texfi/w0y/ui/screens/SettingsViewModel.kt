@@ -374,6 +374,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setSeasonFx(value: com.texfi.w0y.data.SeasonFx) = update { repository.setSeasonFx(value) }
 
+    fun setLiteMode(value: com.texfi.w0y.data.LiteMode) = update { repository.setLiteMode(value) }
+
     fun setBackdropMode(value: com.texfi.w0y.data.BackdropMode) = update { repository.setBackdropMode(value) }
 
     /** Своя картинка фона: копия в приложении, ужатая до экрана, — оригинал можно удалять. */

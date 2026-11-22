@@ -270,6 +270,9 @@ enum class DockLabels { ALL, ACTIVE, NONE }
 /** Сезонные эффекты на фоне (снег, туман): выключены, спокойно или в полную силу. */
 enum class SeasonFx { OFF, LIGHT, FULL }
 
+/** Лёгкий режим: без живого размытия и движения фона. AUTO — включается сам на слабом телефоне. */
+enum class LiteMode { AUTO, ON, OFF }
+
 // ── Hairline: настройки вида ─────────────────────────────────────────────
 
 /** Толщина линий Hairline, dp. Тоньше одного dp не бывает: на плотных экранах линия пропадает. */
@@ -487,6 +490,7 @@ data class W0ySettings(
     val backdropImage: String? = null,
     val seasonMode: SeasonMode = SeasonMode.AUTO,
     val seasonFx: SeasonFx = SeasonFx.FULL,
+    val liteMode: LiteMode = LiteMode.AUTO,
     val standChargingOnly: Boolean = false,
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
     val standMaxMinutes: Int = 60,
@@ -636,6 +640,7 @@ class SettingsRepository @Inject constructor(
                     backdropImage = prefs[Keys.BACKDROP_IMAGE],
                     seasonMode = prefs.enum(Keys.SEASON_MODE, d.seasonMode),
                     seasonFx = prefs.enum(Keys.SEASON_FX, d.seasonFx),
+                    liteMode = prefs.enum(Keys.LITE_MODE, d.liteMode),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: d.standChargingOnly,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: d.standMaxMinutes,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: d.standLowBatteryExit,
@@ -989,6 +994,8 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSeasonFx(value: SeasonFx) = put(Keys.SEASON_FX, value.name)
 
+    suspend fun setLiteMode(value: LiteMode) = put(Keys.LITE_MODE, value.name)
+
     suspend fun setBackdropImage(value: String?) {
         context.dataStore.edit { if (value == null) it.remove(Keys.BACKDROP_IMAGE) else it[Keys.BACKDROP_IMAGE] = value }
     }
@@ -1240,6 +1247,7 @@ class SettingsRepository @Inject constructor(
         val DOCK_TINT = stringPreferencesKey("dock_tint")
         val DOCK_LABELS = stringPreferencesKey("dock_labels")
         val SEASON_FX = stringPreferencesKey("season_fx")
+        val LITE_MODE = stringPreferencesKey("lite_mode")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")

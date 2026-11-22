@@ -535,7 +535,20 @@ fun HairMiniPlayer(
         val scope = rememberCoroutineScope()
         val dismissLabel = stringResource(R.string.hl_cd_dismiss)
         val miniDescription = stringResource(R.string.hl_cd_mini, song.title, song.artist)
-        val dragState = rememberDraggableState { delta -> offset = (offset + delta).coerceAtLeast(0f) }
+        // Вверх — плеер открывается за пальцем: шторка едет, обложка растёт в большую (полёт обложки
+        // привязан к раскрытости шторки) — то же сворачивание, только наоборот. Вниз — убрать.
+        val flight = LocalCoverFlight.current
+        val screenPx = with(androidx.compose.ui.platform.LocalDensity.current) { androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp.toPx() }
+        var lift by remember { mutableFloatStateOf(0f) }
+        val dragState =
+            rememberDraggableState { delta ->
+                if (flight != null && (lift > 0f || (offset == 0f && delta < 0f))) {
+                    lift = (lift - delta).coerceAtLeast(0f)
+                    flight.openness = (lift / (screenPx * SHEET_TRAVEL)).coerceIn(0f, 1f)
+                } else if (onDismiss != null) {
+                    offset = (offset + delta).coerceAtLeast(0f)
+                }
+            }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -551,17 +564,27 @@ fun HairMiniPlayer(
                     }
                 }
                 .then(
-                    if (onDismiss == null) {
+                    if (onDismiss == null && flight == null) {
                         Modifier
                     } else {
                         Modifier.draggable(
                             state = dragState,
                             orientation = Orientation.Vertical,
                             onDragStopped = { velocity ->
+                                if (lift > 0f && flight != null) {
+                                    lift = 0f
+                                    if (flight.openness > OPEN_AT || velocity < -OPEN_FLING) {
+                                        // Дальше шторку ведёт сама шторка: пружина подхватит с того места, где отпустил.
+                                        onExpand()
+                                    } else {
+                                        animate(flight.openness, 0f, animationSpec = spring(dampingRatio = 0.9f, stiffness = 420f)) { v, _ -> flight.openness = v }
+                                    }
+                                    return@draggable
+                                }
                                 val h = heightPx.toFloat()
                                 if (MiniDismiss.shouldDismiss(offset, h, velocity)) {
                                     animate(offset, h * 1.1f, animationSpec = tween(HairTokens.SHORT_MS, easing = HairTokens.EaseOut)) { v, _ -> offset = v }
-                                    onDismiss()
+                                    onDismiss?.invoke()
                                     offset = 0f
                                 } else {
                                     animate(
@@ -583,6 +606,7 @@ fun HairMiniPlayer(
                 onSwipeLeft = onNext,
                 leftLabel = ">>",
                 backdrop = colors.surface,
+                magnet = false,
             ) {
                 Row(
                     Modifier
@@ -725,3 +749,12 @@ fun HairNowHero(
         }
     }
 }
+
+/** Ход шторки плеера — как в самой шторке: 92% высоты экрана. */
+private const val SHEET_TRAVEL = 0.92f
+
+/** Мини-плеер, потянутый вверх: открыть, если шторка прошла столько… */
+private const val OPEN_AT = 0.18f
+
+/** …или если смахнули вверх быстрее этого (px/с). */
+private const val OPEN_FLING = 1200f

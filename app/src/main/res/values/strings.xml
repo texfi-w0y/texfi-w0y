@@ -1090,4 +1090,11 @@
     <string name="whatsnew_choices_title">Keep what you like</string>
     <string name="whatsnew_choices_hint">Everything new is on. Turn off what you don\'t need — it can be changed later in Settings.</string>
     <string name="whatsnew_done">DONE</string>
+    <string name="set_lite_mode">Light mode</string>
+    <string name="set_lite_mode_desc">Turns off live blur under the island and panels, the flowing player background and seasonal effects, so the app stays smooth on a weak phone. Auto turns it on by itself on such phones. This phone: %1$s.</string>
+    <string name="set_lite_auto">Auto</string>
+    <string name="set_lite_on">On</string>
+    <string name="set_lite_off">Off</string>
+    <string name="set_lite_weak">counts as weak, auto mode is on</string>
+    <string name="set_lite_strong">counts as fast, auto mode is off</string>
 </resources>

@@ -218,7 +218,16 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
     }
     val modalDim = remember { com.texfi.w0y.ui.screens.ModalDim() }
     val coverFlight = remember { com.texfi.w0y.ui.components.CoverFlight() }
+    // Лёгкий режим: по настройке, а в «Авто» — сам на слабом телефоне.
+    val shellContext = androidx.compose.ui.platform.LocalContext.current
+    val lite =
+        when (shellPrefs?.liteMode ?: com.texfi.w0y.data.LiteMode.AUTO) {
+            com.texfi.w0y.data.LiteMode.ON -> true
+            com.texfi.w0y.data.LiteMode.OFF -> false
+            com.texfi.w0y.data.LiteMode.AUTO -> remember { com.texfi.w0y.ui.theme.DeviceClass.isWeak(shellContext) }
+        }
     CompositionLocalProvider(
+        com.texfi.w0y.ui.theme.LocalLiteGraphics provides lite,
         com.texfi.w0y.ui.components.LocalCoverFlight provides coverFlight,
         com.texfi.w0y.ui.screens.LocalModalDim provides modalDim,
         com.texfi.w0y.ui.components.LocalSheetMagnet provides (shellPrefs?.sheetMagnet ?: true),
@@ -387,11 +396,11 @@ fun W0yShell(viewModel: ShellViewModel = hiltViewModel()) {
         } else if (com.texfi.w0y.ui.theme.isSmooth) {
             com.texfi.w0y.ui.components.SmoothBackdrop(playerState.song?.thumbnailUrl, Modifier.fillMaxSize())
         } else {
-            Starfield(Modifier.fillMaxSize(), animated = animatedBackground)
+            Starfield(Modifier.fillMaxSize(), animated = animatedBackground && !lite)
         }
         // Праздник на фоне: снег зимой, туман и летучие мыши на Хэллоуин. Пока плеер раскрыт — замирает.
         val season by viewModel.seasonFx.collectAsStateWithLifecycle()
-        com.texfi.w0y.ui.components.SeasonLayer(season.first, season.second, active = !playerExpanded && !standOpen, modifier = Modifier.fillMaxSize())
+        if (!lite) com.texfi.w0y.ui.components.SeasonLayer(season.first, season.second, active = !playerExpanded && !standOpen, modifier = Modifier.fillMaxSize())
         Box(
             Modifier
                 .fillMaxSize()

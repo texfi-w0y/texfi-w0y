@@ -194,6 +194,7 @@ object SettingsCatalog {
             e("set_playlist_hero", L, "playlist_hero", "Playlist page with a large cover", group = SettingsGroup.STYLE) { it.playlistHero },
             e("set_intro", L, "intro_animation", "Intro on launch", group = SettingsGroup.FEEL) { it.introAnimation },
             e("set_sheet_magnet", L, "sheet_magnet", "Magnet on panels", group = SettingsGroup.FEEL) { it.sheetMagnet },
+            e("set_lite_mode", L, "lite_mode", "Light mode", group = SettingsGroup.FEEL) { it.liteMode },
             e("hl_set_reset", L, null, "Reset look", group = SettingsGroup.STYLE),
             // 09 АККАУНТ
             e("settings_account_title", A, null, "Account"),

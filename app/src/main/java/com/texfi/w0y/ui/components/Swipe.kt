@@ -44,6 +44,8 @@ fun SwipeRow(
     onSwipeLeft: (() -> Unit)? = null,
     leftLabel: String = "",
     backdrop: Color? = null,
+    /** Магнит у этой строки; у мини-плеера выключен — там смахивание должно идти за пальцем. */
+    magnet: Boolean = LocalSheetMagnet.current,
     content: @Composable () -> Unit,
 ) {
     if (onSwipeRight == null && onSwipeLeft == null) {
@@ -56,8 +58,6 @@ fun SwipeRow(
     val thresholdPx = with(LocalDensity.current) { THRESHOLD.toPx() }
     var shift by remember { mutableFloatStateOf(0f) }
     var armed by remember { mutableFloatStateOf(0f) }
-    // Магнит: строка держится до порога и отрывается со щелчком; без него — едет за пальцем.
-    val magnet = LocalSheetMagnet.current
     var pulled by remember { mutableFloatStateOf(0f) }
     // Hairline: строка возвращается пружиной с лёгким перелётом, как отпущенная на магните.
     val springBack = com.texfi.w0y.ui.theme.isHair && com.texfi.w0y.ui.theme.hairLook.motion.moves

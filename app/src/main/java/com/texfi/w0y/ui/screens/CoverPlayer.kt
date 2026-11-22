@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.offset
 
 import androidx.compose.foundation.layout.widthIn
 
+import com.texfi.w0y.ui.theme.lowRes
 import com.texfi.w0y.ui.theme.asLabel
 
 import androidx.compose.ui.draw.drawBehind
@@ -138,10 +139,12 @@ fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modi
         return
     }
     val context = LocalContext.current
-    val moves = hairLook.motion.moves && playing
+    val moves = hairLook.motion.moves && playing && !com.texfi.w0y.ui.theme.LocalLiteGraphics.current
     val drift = rememberInfiniteTransition(label = "blurDrift")
     val phase by drift.animateFloat(0f, 1f, infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Reverse), label = "blurPhase")
     Box(modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
+        // Размытое рисуется в четверть размера и растягивается: на глаз то же, видеокарте в 16 раз легче.
+        Box(Modifier.fillMaxSize().lowRes(BLUR_SCALE)) {
         Crossfade(targetState = url, animationSpec = tween(700), label = "blurBackdrop") { current ->
             AsyncImage(
                 model = ImageRequest.Builder(context).data(Thumbnails.sized(current, 96)).crossfade(false).build(),
@@ -158,8 +161,9 @@ fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modi
                             translationX = (p - 0.5f) * size.width * 0.08f
                             translationY = (0.5f - p) * size.height * 0.05f
                         }
-                        .then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(64.dp) else Modifier),
+                        .then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(64.dp / BLUR_SCALE) else Modifier),
             )
+        }
         }
         // Затемнение сильнее к низу: управление стоит на спокойном тёмном поле.
         Box(
@@ -179,7 +183,8 @@ fun PlayerBlurBackdrop(url: String?, playing: Boolean, modifier: Modifier = Modi
 @Composable
 internal fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifier) {
     val context = LocalContext.current
-    val moves = hairLook.motion.moves
+    // Лёгкий режим: течение стоит — неподвижный слой размывается один раз, а не каждый кадр.
+    val moves = hairLook.motion.moves && !com.texfi.w0y.ui.theme.LocalLiteGraphics.current
     // Свои часы течения: идут, пока трек играет, и стоят на паузе — продолжение без рывка.
     val clock = remember { androidx.compose.runtime.mutableFloatStateOf(7f) }
     androidx.compose.runtime.LaunchedEffect(playing, moves) {
@@ -194,8 +199,11 @@ internal fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifi
     }
     val periods = floatArrayOf(24f, 31f, 38f)
     Box(modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
+        // Три вращающиеся обложки размываются заново каждый кадр — это самое тяжёлое в приложении.
+        // В четверть размера и с радиусом вчетверо меньше: на глаз то же, работы в 16 раз меньше.
+        Box(Modifier.fillMaxSize().lowRes(BLUR_SCALE)) {
         Crossfade(targetState = url, animationSpec = tween(900), label = "flowBackdrop") { current ->
-            Box(Modifier.fillMaxSize().then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(72.dp) else Modifier)) {
+            Box(Modifier.fillMaxSize().then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(72.dp / BLUR_SCALE) else Modifier)) {
                 val layers = listOf(Triple(0.0f, 0.0f, 1f), Triple(-0.28f, 0.22f, 0.75f), Triple(0.3f, -0.18f, 0.6f))
                 layers.forEachIndexed { i, (dx, dy, a) ->
                     AsyncImage(
@@ -218,6 +226,7 @@ internal fun IslandFlowBackdrop(url: String?, playing: Boolean, modifier: Modifi
                     )
                 }
             }
+        }
         }
         // Поле темнее к низу: кнопки и название стоят на спокойном цвете; сверху цвет виден в полную силу.
         Box(
@@ -735,6 +744,9 @@ private fun IslandPosterControls(
 }
 
 private const val SWIPE_PX = 120f
+
+/** Во сколько раз меньше рисуются сильно размытые фоны (см. [com.texfi.w0y.ui.theme.lowRes]). */
+private const val BLUR_SCALE = 4
 
 /**
  * Остановки градиента «чёрный → прозрачный» по плавной кривой (smoothstep) между [start] и

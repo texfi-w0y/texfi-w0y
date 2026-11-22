@@ -356,13 +356,40 @@ fun SettingsScreen(
 
         when {
             query.isNotBlank() && !island -> SearchResults(rows, query, onOpen = openRow)
-            island && section == null ->
-                IslandSettingsRoot(onOpen = {
-                    tabName = it.name
-                    SettingsTabMemory.last = it.name
-                    islandSection = it.name
-                })
-            else -> CategoryList(section ?: category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
+            island -> {
+                // Раздел въезжает справа, список разделов — обратно слева; коротко, без ожидания.
+                val moves = com.texfi.w0y.ui.theme.hairLook.motion.moves
+                androidx.compose.animation.AnimatedContent(
+                    targetState = section,
+                    transitionSpec = {
+                        if (!moves) {
+                            androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                        } else {
+                            val dir = if (targetState != null) 1 else -1
+                            val ease = com.texfi.w0y.ui.theme.HairTokens.EaseOut
+                            (
+                                androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(SECTION_IN_MS, easing = ease)) { it / 5 * dir } +
+                                    androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(SECTION_IN_MS, easing = ease))
+                            ) togetherWith (
+                                androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(SECTION_OUT_MS, easing = ease)) { -it / 8 * dir } +
+                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(SECTION_OUT_MS))
+                            )
+                        }
+                    },
+                    label = "settingsSection",
+                ) { shown ->
+                    if (shown == null) {
+                        IslandSettingsRoot(onOpen = {
+                            tabName = it.name
+                            SettingsTabMemory.last = it.name
+                            islandSection = it.name
+                        })
+                    } else {
+                        CategoryList(shown, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
+                    }
+                }
+            }
+            else -> CategoryList(category, rows, viewModel, currentSettings, ctx, target, onTargetShown = { target = null })
         }
     }
 
@@ -416,9 +443,11 @@ private fun IslandSettingsRoot(onOpen: (SettingsCategory) -> Unit) {
             listOf(SettingsCategory.STORAGE, SettingsCategory.DATA),
         )
     LazyColumn(Modifier.fillMaxSize(), contentPadding = com.texfi.w0y.ui.components.bottomContentPadding(top = 4.dp)) {
-        itemsIndexed(groups) { _, group ->
+        itemsIndexed(groups) { index, group ->
             Column(
                 Modifier
+                    // Группы проявляются ступенью сверху вниз, как блоки плеера.
+                    .hairEnter(index)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 14.dp)
                     .fillMaxWidth()
@@ -447,6 +476,9 @@ private fun IslandSettingsRoot(onOpen: (SettingsCategory) -> Unit) {
         }
     }
 }
+
+private const val SECTION_IN_MS = 180
+private const val SECTION_OUT_MS = 120
 
 /** Значок раздела в корне настроек Hairline New. */
 private fun SettingsCategory.glyph(): com.texfi.w0y.ui.icons.HairGlyph =
@@ -2017,6 +2049,33 @@ private fun settingsRows(
                 description = stringResource(R.string.set_sheet_magnet_desc),
                 keywords = "panel sheet magnet drag",
                 control = SettingControl.Toggle(settings.sheetMagnet, viewModel::setSheetMagnet),
+            ),
+        )
+        add(
+            SettingRow(
+                id = "set_lite_mode",
+                title = stringResource(R.string.set_lite_mode),
+                description =
+                    stringResource(
+                        R.string.set_lite_mode_desc,
+                        stringResource(if (com.texfi.w0y.ui.theme.DeviceClass.isWeak(androidx.compose.ui.platform.LocalContext.current)) R.string.set_lite_weak else R.string.set_lite_strong),
+                    ),
+                keywords = "lite light fast lag slow performance лёгкий лаги тормозит быстро",
+                control =
+                    SettingControl.Choice(
+                        com.texfi.w0y.data.LiteMode.entries,
+                        settings.liteMode,
+                        {
+                            stringResource(
+                                when (it) {
+                                    com.texfi.w0y.data.LiteMode.AUTO -> R.string.set_lite_auto
+                                    com.texfi.w0y.data.LiteMode.ON -> R.string.set_lite_on
+                                    com.texfi.w0y.data.LiteMode.OFF -> R.string.set_lite_off
+                                },
+                            )
+                        },
+                        viewModel::setLiteMode,
+                    ),
             ),
         )
         add(
