@@ -26,6 +26,9 @@ interface RecSource {
 
     /** Релизы исполнителя со страницы артиста. */
     suspend fun releases(artistBrowseId: String): List<PlaylistCard>
+
+    /** Поиск треков — для fl0w: настроение и жанр клиент отдельно не отдаёт, их ищут словами. */
+    suspend fun search(query: String): List<SongItem> = emptyList()
 }
 
 @Singleton
@@ -37,6 +40,8 @@ class YoutubeRecSource @Inject constructor(
     override suspend fun anchorFor(local: SongItem): SongItem? = youtube.findEquivalent(local) ?: youtube.similarSeed(local)
 
     override suspend fun releases(artistBrowseId: String): List<PlaylistCard> = youtube.artist(artistBrowseId).releases
+
+    override suspend fun search(query: String): List<SongItem> = youtube.searchSongs(query)
 }
 
 @Module

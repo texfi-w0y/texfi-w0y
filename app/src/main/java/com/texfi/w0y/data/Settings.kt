@@ -491,6 +491,12 @@ data class W0ySettings(
     val seasonMode: SeasonMode = SeasonMode.AUTO,
     val seasonFx: SeasonFx = SeasonFx.FULL,
     val liteMode: LiteMode = LiteMode.AUTO,
+    /** fl0w: вступление «потяни меня» уже показано — дальше шторка открывается без него. */
+    val flowIntroSeen: Boolean = false,
+    /** fl0w: последний выбор — настроение, жанры через запятую, доля нового 0–100. */
+    val flowMood: String = "",
+    val flowGenres: String = "",
+    val flowNovelty: Int = 35,
     val standChargingOnly: Boolean = false,
     /** Сколько режим держится сам, минут; 0 — пока не выйдешь. */
     val standMaxMinutes: Int = 60,
@@ -641,6 +647,10 @@ class SettingsRepository @Inject constructor(
                     seasonMode = prefs.enum(Keys.SEASON_MODE, d.seasonMode),
                     seasonFx = prefs.enum(Keys.SEASON_FX, d.seasonFx),
                     liteMode = prefs.enum(Keys.LITE_MODE, d.liteMode),
+                    flowIntroSeen = prefs[Keys.FLOW_INTRO] ?: d.flowIntroSeen,
+                    flowMood = prefs[Keys.FLOW_MOOD] ?: d.flowMood,
+                    flowGenres = prefs[Keys.FLOW_GENRES] ?: d.flowGenres,
+                    flowNovelty = (prefs[Keys.FLOW_NOVELTY] ?: d.flowNovelty).coerceIn(0, 100),
                     standChargingOnly = prefs[Keys.STAND_CHARGING] ?: d.standChargingOnly,
                     standMaxMinutes = prefs[Keys.STAND_MAX_MIN] ?: d.standMaxMinutes,
                     standLowBatteryExit = prefs[Keys.STAND_LOW_BATTERY] ?: d.standLowBatteryExit,
@@ -996,6 +1006,14 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setLiteMode(value: LiteMode) = put(Keys.LITE_MODE, value.name)
 
+    suspend fun setFlowIntroSeen(value: Boolean) = put(Keys.FLOW_INTRO, value)
+
+    suspend fun setFlowChoice(mood: String, genres: String, novelty: Int) {
+        put(Keys.FLOW_MOOD, mood)
+        put(Keys.FLOW_GENRES, genres)
+        put(Keys.FLOW_NOVELTY, novelty.coerceIn(0, 100))
+    }
+
     suspend fun setBackdropImage(value: String?) {
         context.dataStore.edit { if (value == null) it.remove(Keys.BACKDROP_IMAGE) else it[Keys.BACKDROP_IMAGE] = value }
     }
@@ -1248,6 +1266,10 @@ class SettingsRepository @Inject constructor(
         val DOCK_LABELS = stringPreferencesKey("dock_labels")
         val SEASON_FX = stringPreferencesKey("season_fx")
         val LITE_MODE = stringPreferencesKey("lite_mode")
+        val FLOW_INTRO = booleanPreferencesKey("flow_intro_seen")
+        val FLOW_MOOD = stringPreferencesKey("flow_mood")
+        val FLOW_GENRES = stringPreferencesKey("flow_genres")
+        val FLOW_NOVELTY = intPreferencesKey("flow_novelty")
         val BACKDROP_IMAGE = stringPreferencesKey("backdrop_image")
         val SEASON_MODE = stringPreferencesKey("season_mode")
         val STAND_CHARGING = booleanPreferencesKey("stand_charging_only")

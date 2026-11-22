@@ -17,7 +17,11 @@ sealed interface Why {
 
 data class Rec(val song: SongItem, val why: Why)
 
-enum class Origin { RADIO, LOCAL_FORGOTTEN, LOCAL_TIME }
+enum class Origin { RADIO, LOCAL_FORGOTTEN, LOCAL_TIME,
+
+    /** Своё из библиотеки (лайк), попавшее в настроение через исполнителя. */
+    LIBRARY,
+}
 
 /** Кандидат до отбора. [rank] — место в выдаче источника (0 — самый похожий). */
 data class Candidate(

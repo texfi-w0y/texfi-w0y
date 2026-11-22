@@ -87,6 +87,12 @@ import kotlin.random.Random
  */
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
+    // Hairline New: над поиском шторка fl0w — тянешь поиск вниз, она съезжает сверху.
+    if (com.texfi.w0y.ui.theme.isIsland) FlowCurtain { SearchBody(viewModel) } else SearchBody(viewModel)
+}
+
+@Composable
+private fun SearchBody(viewModel: SearchViewModel) {
     val colors = LocalW0yColors.current
     val navigator = LocalBrowseNavigator.current
     val keyboard = LocalSoftwareKeyboardController.current

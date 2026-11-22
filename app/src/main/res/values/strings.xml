@@ -1097,4 +1097,47 @@
     <string name="set_lite_off">Off</string>
     <string name="set_lite_weak">counts as weak, auto mode is on</string>
     <string name="set_lite_strong">counts as fast, auto mode is off</string>
+    <!-- fl0w: шторка подбора по настроению в поиске -->
+    <string name="flow_name" translatable="false">fl0w</string>
+    <string name="flow_pull_me">pull me</string>
+    <string name="flow_back">to search</string>
+    <string name="flow_welcome_text">Can\'t decide what to play? Tell me how you feel right now, and I\'ll build a queue from your artists and new ones in that mood.</string>
+    <string name="flow_welcome_go">Next</string>
+    <string name="flow_ask">How are you right now?</string>
+    <string name="flow_quick">Quick</string>
+    <string name="flow_mood">Mood</string>
+    <string name="flow_genre">Genre</string>
+    <string name="flow_mix">Yours and new</string>
+    <string name="flow_mix_value">%1$d%% new</string>
+    <string name="flow_mix_mine">only yours</string>
+    <string name="flow_mix_new">only new</string>
+    <string name="flow_start">Play</string>
+    <string name="flow_again">Once more</string>
+    <string name="flow_empty">Nothing came together: no network, and none of yours fits this mood. Try another mood or Only mine.</string>
+    <string name="flow_offline">The network didn\'t answer, playing only your tracks.</string>
+    <string name="flow_now">In the queue</string>
+    <string name="flow_cd_close">Close fl0w</string>
+    <string name="flow_mood_calm">Calm</string>
+    <string name="flow_mood_sad">Sad</string>
+    <string name="flow_mood_drive">Upbeat</string>
+    <string name="flow_mood_angry">Angry</string>
+    <string name="flow_mood_love">In love</string>
+    <string name="flow_mood_focus">Focus</string>
+    <string name="flow_mood_night">Night</string>
+    <string name="flow_mood_party">Party</string>
+    <string name="flow_genre_rap">Rap</string>
+    <string name="flow_genre_pop">Pop</string>
+    <string name="flow_genre_rock">Rock</string>
+    <string name="flow_genre_electronic">Electronic</string>
+    <string name="flow_genre_phonk">Phonk</string>
+    <string name="flow_genre_indie">Indie</string>
+    <string name="flow_genre_rnb">R&amp;B</string>
+    <string name="flow_genre_lofi">Lo-fi</string>
+    <string name="flow_genre_metal">Metal</string>
+    <string name="flow_genre_jazz">Jazz</string>
+    <string name="flow_preset_background">In the background</string>
+    <string name="flow_preset_speed_up">Speed up</string>
+    <string name="flow_preset_night_drive">Night drive</string>
+    <string name="flow_preset_only_mine">Only mine</string>
+    <string name="flow_preset_surprise">Surprise me</string>
 </resources>

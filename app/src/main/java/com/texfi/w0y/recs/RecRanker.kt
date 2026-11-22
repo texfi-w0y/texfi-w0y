@@ -75,6 +75,7 @@ object RecRanker {
         when {
             s.c.origin == Origin.LOCAL_FORGOTTEN -> Why.Forgotten
             s.c.origin == Origin.LOCAL_TIME -> Why.TimeOfDay
+            s.c.origin == Origin.LIBRARY -> Why.YouListen(s.c.song.artist)
             s.isNew -> Why.NewArtist
             taste.familiarity(s.c.song.artist) >= 0.35 -> Why.YouListen(s.c.song.artist)
             else -> Why.SimilarTo(s.c.seedTitle.orEmpty())
