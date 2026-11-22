@@ -32,10 +32,15 @@ class WhatsNewChoicesTest {
             assertFalse("адрес ссылки: ${b.text}", b.text.contains("](") || b.text.contains("https://"))
         }
         assertFalse("раздел установки не показываем", blocks.any { it.text.contains("SHA256SUMS") })
-        // Пункт, разбитый в файле на несколько строк, — одна строка в окне.
-        val sleep = blocks.first { it.text.contains("Sleep timer") }
-        assertEquals(NotesText.Kind.BULLET, sleep.kind)
-        assertTrue(sleep.text.contains("pauses right at the start of the next one"))
+        // Пункт, разбитый в файле на несколько строк, — одна строка в окне. Берём первый такой
+        // пункт из самого файла: описание меняется с каждой версией, слова в тест не зашиваем.
+        val lines = file.readLines()
+        val at = lines.indices.first { i -> lines[i].startsWith("- ") && i + 1 < lines.size && lines[i + 1].startsWith("  ") }
+        val head = lines[at].removePrefix("- ").replace("**", "").take(12)
+        val tail = lines[at + 1].trim()
+        val item = blocks.first { it.text.replace("**", "").startsWith(head) }
+        assertEquals(NotesText.Kind.BULLET, item.kind)
+        assertTrue("продолжение пункта в той же строке: $tail", item.text.contains(tail))
     }
 
     @Test
